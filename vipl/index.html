@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — Overview</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 28px; margin-top: -12px; }
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; margin-bottom: 28px; }
+  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 26px; font-weight: 800; }
+  .summaryBox .lbl { font-size: 12.5px; color: var(--g3); margin-top: 4px; }
+  .quickGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; }
+  .quickCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px; text-decoration: none; color: var(--ink); transition: all .2s; display: block; }
+  .quickCard:hover { border-color: var(--blue); box-shadow: 0 8px 20px rgba(13,35,64,.08); }
+  .quickCard .icon { font-size: 26px; margin-bottom: 10px; }
+  .quickCard .title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
+  .quickCard .desc { font-size: 13px; color: var(--g3); }
+  .quickCard.soonCard { opacity: .5; cursor: default; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Overview</h1>
+    <div class="lead">Welcome to VIPL Internal. Live snapshot of the business below.</div>
+    <div class="summaryGrid" id="topSummary"></div>
+    <div class="quickGrid" id="quickGrid"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const canSeeFinance = ['super_admin','accountant'].includes(role);
+
+    if (canSeeFinance) {
+      const [{ data: ledger }, { data: investors }, { data: loans }] = await Promise.all([
+        VIPL.sb.from('ledger_with_balance').select('cash_balance,bank_balance').order('entry_date',{ascending:false}).limit(1),
+        VIPL.sb.from('investor_capital').select('total_invested'),
+        VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1)
+      ]);
+      const cash = ledger && ledger[0] ? ledger[0].cash_balance : 0;
+      const bank = ledger && ledger[0] ? ledger[0].bank_balance : 0;
+      const totalInvested = (investors||[]).reduce((s,i) => s + Number(i.total_invested), 0);
+      const loanBal = loans && loans[0] ? loans[0].running_balance : 0;
+      document.getElementById('topSummary').innerHTML = `
+        <div class="summaryBox"><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
+        <div class="summaryBox"><div class="val">${fmt(bank)}</div><div class="lbl">Bank Balance</div></div>
+        <div class="summaryBox"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+        <div class="summaryBox"><div class="val">${fmt(loanBal)}</div><div class="lbl">Loan Outstanding</div></div>
+      `;
+    } else {
+      document.getElementById('topSummary').innerHTML = `<div class="summaryBox"><div class="val">👋</div><div class="lbl">Welcome, ${VIPL.profile.full_name || VIPL.user.email}</div></div>`;
+    }
+
+    const cards = [];
+    if (['super_admin','accountant','entry'].includes(role)) cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
+    if (['super_admin','accountant'].includes(role)) cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
+    if (role === 'super_admin') {
+      cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
+      cards.push({ soon:true, icon:'📈', title:'Investors Module', desc:'Cap table, payouts, investor accounts.' });
+    }
+    document.getElementById('quickGrid').innerHTML = cards.map(c => c.soon
+      ? `<div class="quickCard soonCard"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div></div>`
+      : `<a class="quickCard" href="${c.href}"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div></a>`
+    ).join('');
+  };
+</script>
+</body>
+</html>
