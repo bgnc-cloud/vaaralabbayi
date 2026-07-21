@@ -108,7 +108,9 @@
       VIPL.sb.from('investors').select('*').order('total_invested',{ascending:false})
     ]);
 
-    const totalInvested = officialInvestors.reduce((s,i) => s + Number(i.total_invested), 0);
+    const totalInvested = officialInvestors
+      .filter(i => i.investor_type !== 'company_share')
+      .reduce((s,i) => s + Number(i.total_invested), 0);
     const loanOutstanding = loans.length ? Number(loans[loans.length-1].running_balance) : 0;
     const revenue = cats.find(c => c.category === 'Revenue');
     document.getElementById('topSummary').innerHTML = `
