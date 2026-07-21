@@ -363,6 +363,13 @@ body.te .eng { display: none; }
 /* ── BADGE ── */
 .badge { display: inline-block; padding: 4px 12px; border-radius: 100px; font-size: 13px; font-weight: 600; }
 
+/* ── MOBILE MENU ── */
+.nav-hamburger { display: none; background: none; border: none; font-size: 26px; line-height: 1; color: var(--blue); cursor: pointer; padding: 4px 6px; }
+.mobile-menu { display: none; flex-direction: column; position: fixed; top: 68px; left: 0; right: 0; background: #fff; border-bottom: 1px solid var(--border); box-shadow: 0 10px 24px rgba(13,35,64,.1); z-index: 999; padding: 6px 4%; }
+.mobile-menu.open { display: flex; }
+.mobile-menu a { padding: 15px 8px; font-size: 16px; font-weight: 600; color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--border); }
+.mobile-menu a:last-child { border-bottom: none; }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 1024px) {
   .hero-card-wrap { display: none; }
@@ -370,6 +377,7 @@ body.te .eng { display: none; }
   .portals-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 768px) {
+  .nav-hamburger { display: block; }
   .nav-links { display: none; }
   .plans-grid, .levels-grid, .market-grid, .contact-grid, .footer-grid,
   .values-grid, .legal-grid, .portals-grid, .calc-grid { grid-template-columns: 1fr; }
