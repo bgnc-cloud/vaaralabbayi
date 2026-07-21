@@ -71,6 +71,16 @@
       </div>
 
       <div class="card">
+        <h2>Loan Tracker</h2>
+        <div class="sub">Borrowed vs. repaid by month, with running outstanding balance. This debt sits alongside shareholder equity on the company's books.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Month</th><th>Borrowed</th><th>Repaid</th><th>Net Movement</th><th>Running Balance</th></tr></thead>
+          <tbody id="loanBody"></tbody>
+        </table></div>
+        <div class="note">"Running Balance" is the outstanding loan amount owed by the company at the end of each month.</div>
+      </div>
+
+      <div class="card">
         <h2>Profit &amp; Loss Summary</h2>
         <div class="sub">All-time, computed live from the ledger.</div>
         <div id="plSummary"></div>
@@ -87,13 +97,14 @@
   };
 
   async function loadAll() {
-    const [{ data: investors, error: invErr }, { data: cats, error: catErr }] = await Promise.all([
+    const [{ data: investors, error: invErr }, { data: cats, error: catErr }, { data: loans, error: loanErr }] = await Promise.all([
       VIPL.sb.from('investors').select('*').order('total_invested', { ascending: false }),
-      VIPL.sb.from('category_totals').select('*')
+      VIPL.sb.from('category_totals').select('*'),
+      VIPL.sb.from('loan_tracker').select('*').order('month_start')
     ]);
 
-    if (invErr || catErr) {
-      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (invErr?.message || catErr?.message) + '</div>';
+    if (invErr || catErr || loanErr) {
+      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (invErr?.message || catErr?.message || loanErr?.message) + '</div>';
       return;
     }
 
@@ -112,10 +123,12 @@
     const totalExpenses = expenseCats.reduce((s, c) => s + Math.max(Number(c.total_debit) - Number(c.total_credit), 0), 0);
 
     const netPL = totalRevenue - totalExpenses;
+    const loanOutstanding = loans.length ? Number(loans[loans.length - 1].running_balance) : 0;
 
     // Top summary cards
     document.getElementById('topSummary').innerHTML = `
       <div class="summaryBox"><div class="val">${fmt(totalCashInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+      <div class="summaryBox"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding</div></div>
       <div class="summaryBox"><div class="val">${fmt(totalExpenses)}</div><div class="lbl">Total Expenses (all-time)</div></div>
       <div class="summaryBox"><div class="val ${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</div><div class="lbl">Net Profit / Loss</div></div>
       <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
@@ -134,6 +147,16 @@
         <td>${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>
       </tr>`;
     }).join('');
+
+    // Loan tracker table
+    document.getElementById('loanBody').innerHTML = loans.map(l => `
+      <tr>
+        <td>${l.month_label}</td>
+        <td>${fmt(l.borrowed)}</td>
+        <td>${fmt(l.repaid)}</td>
+        <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
+        <td class="balNeg">${fmt(l.running_balance)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
 
     // P&L summary lines
     document.getElementById('plSummary').innerHTML = `
