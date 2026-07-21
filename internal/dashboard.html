@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Financial Dashboard — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  body { background: var(--off); }
+  #authBox { max-width: 400px; margin: 80px auto; background: #fff; border-radius: 16px; padding: 36px; box-shadow: 0 20px 50px rgba(13,35,64,.12); }
+  #authBox h1 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  #authBox p { font-size: 13.5px; color: var(--g3); margin-bottom: 20px; }
+  #authBox input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
+  #authBox button { width: 100%; padding: 12px; border-radius: 8px; background: var(--blue); color: #fff; border: none; font-weight: 700; cursor: pointer; font-size: 14px; }
+  #authMsg { font-size: 13px; margin-top: 10px; text-align: center; }
+  #dashboard { display: none; max-width: 1200px; margin: 40px auto; padding: 0 4%; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  .balPos { color: var(--green); font-weight: 700; }
+  .balNeg { color: #C0392B; font-weight: 700; }
+  #topBar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  #topBar span { font-size: 13px; color: var(--g3); }
+  #signOutBtn, .navBtn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 700; color: var(--ink); text-decoration: none; display: inline-block; }
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
+  .barRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .barLabel { width: 160px; font-size: 13px; flex-shrink: 0; }
+  .barTrack { flex: 1; background: var(--off); border-radius: 6px; height: 20px; position: relative; overflow: hidden; }
+  .barFill { background: var(--blue); height: 100%; border-radius: 6px; }
+  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div id="authBox">
+  <h1>VIPL Dashboard</h1>
+  <p>Financial analytics — internal access only.</p>
+  <input type="email" id="authEmail" placeholder="Email address">
+  <input type="password" id="authPass" placeholder="Password">
+  <button onclick="signIn()">Sign In</button>
+  <div id="authMsg"></div>
+</div>
+
+<div id="dashboard">
+  <div id="topBar">
+    <div>
+      <h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800">Financial Dashboard</h1>
+      <span id="userInfo"></span>
+    </div>
+    <div style="display:flex;gap:10px">
+      <a class="navBtn" href="ledger.html">← Ledger Entry</a>
+      <button id="signOutBtn" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="summaryGrid" id="topSummary"></div>
+
+  <div class="card">
+    <h2>Category Breakdown</h2>
+    <div class="sub">All-time totals, auto-categorized from entry descriptions.</div>
+    <div id="categoryBars"></div>
+    <div class="note">Categories are inferred automatically from free-text descriptions and may not perfectly match a formal chart of accounts.</div>
+  </div>
+
+  <div class="card">
+    <h2>Loan Tracker</h2>
+    <div class="sub">Borrowed vs. repaid by month, with running outstanding balance.</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Month</th><th>Borrowed</th><th>Repaid</th><th>Net Movement</th><th>Running Balance</th></tr></thead>
+        <tbody id="loanBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Investor Capital</h2>
+    <div class="sub">Total invested per investor, extracted from ledger entries tagged as investment.</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Investor</th><th>Total Invested</th><th>Transactions</th><th>First</th><th>Last</th></tr></thead>
+        <tbody id="investorBody"></tbody>
+      </table>
+    </div>
+    <div class="note">Names are extracted automatically and may show duplicate variants for the same person (e.g. "ANUSHA V" vs "VASIKARLA ANUSHA"). Treat totals as directional, not a substitute for the official cap table.</div>
+  </div>
+
+  <div class="card">
+    <h2>Monthly Cash &amp; Bank Position</h2>
+    <div class="sub">Opening/closing balance per month.</div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Month</th><th>Cash Opening</th><th>Cash Closing</th><th>Bank Opening</th><th>Bank Closing</th></tr></thead>
+        <tbody id="monthlyBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://uylkgldmyyvtxxsmkquy.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5bGtnbGRteXl2dHh4c21rcXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MjA2MzgsImV4cCI6MjEwMDE5NjYzOH0.UQTA1S7_foALSPHBdQbwSVRp50pGTcGAyiyyaB4EjsI';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+
+  async function signIn() {
+    const email = document.getElementById('authEmail').value;
+    const password = document.getElementById('authPass').value;
+    const msg = document.getElementById('authMsg');
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Signing in…';
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+    showDashboard();
+  }
+
+  async function signOut() {
+    await sb.auth.signOut();
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('authBox').style.display = 'block';
+  }
+
+  async function showDashboard() {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return;
+    document.getElementById('authBox').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('userInfo').textContent = 'Signed in as ' + user.email;
+    loadAll();
+  }
+
+  async function loadAll() {
+    const [{ data: cats }, { data: loans }, { data: investors }, { data: monthly }] = await Promise.all([
+      sb.from('category_totals').select('*'),
+      sb.from('loan_tracker').select('*').order('month_start'),
+      sb.from('investor_capital').select('*'),
+      sb.from('monthly_ledger_summary').select('*').order('month_start')
+    ]);
+
+    // Top summary
+    const totalInvested = investors.reduce((s,i) => s + Number(i.total_invested), 0);
+    const loanOutstanding = loans.length ? Number(loans[loans.length-1].running_balance) : 0;
+    const revenue = cats.find(c => c.category === 'Revenue');
+    document.getElementById('topSummary').innerHTML = `
+      <div class="summaryBox"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+      <div class="summaryBox"><div class="val">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding</div></div>
+      <div class="summaryBox"><div class="val">${fmt(revenue ? revenue.total_credit : 0)}</div><div class="lbl">Total Revenue</div></div>
+    `;
+
+    // Category bars
+    const maxVal = Math.max(...cats.map(c => Math.max(Number(c.total_credit), Number(c.total_debit))));
+    document.getElementById('categoryBars').innerHTML = cats.map(c => {
+      const val = Math.max(Number(c.total_credit), Number(c.total_debit));
+      const pct = maxVal ? (val / maxVal * 100) : 0;
+      const color = c.net >= 0 ? 'var(--green)' : 'var(--blue)';
+      return `<div class="barRow">
+        <div class="barLabel">${c.category}</div>
+        <div class="barTrack"><div class="barFill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="barVal">${fmt(val)}</div>
+      </div>`;
+    }).join('');
+
+    // Loan tracker
+    document.getElementById('loanBody').innerHTML = loans.map(l => `
+      <tr>
+        <td>${l.month_label}</td>
+        <td>${fmt(l.borrowed)}</td>
+        <td>${fmt(l.repaid)}</td>
+        <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
+        <td class="balNeg">${fmt(l.running_balance)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
+
+    // Investor capital
+    document.getElementById('investorBody').innerHTML = investors.map(i => `
+      <tr>
+        <td>${i.investor_name}</td>
+        <td class="balPos">${fmt(i.total_invested)}</td>
+        <td>${i.num_transactions}</td>
+        <td>${i.first_investment}</td>
+        <td>${i.last_investment}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No investment entries found.</td></tr>';
+
+    // Monthly cash/bank
+    document.getElementById('monthlyBody').innerHTML = monthly.map(m => `
+      <tr>
+        <td><strong>${m.month_label}</strong></td>
+        <td>${fmt(m.cash_opening_balance)}</td>
+        <td class="${m.cash_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(m.cash_closing_balance)}</td>
+        <td>${fmt(m.bank_opening_balance)}</td>
+        <td class="${m.bank_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(m.bank_closing_balance)}</td>
+      </tr>`).join('');
+  }
+
+  sb.auth.getSession().then(({ data: { session } }) => {
+    if (session) showDashboard();
+  });
+</script>
+</body>
+</html>
