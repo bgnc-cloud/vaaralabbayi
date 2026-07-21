@@ -144,3 +144,9 @@
     document.getElementById('expenseBars').innerHTML = sortedExpenses.map(c => {
       const val = Number(c.total_debit);
       const pct = (val / maxVal * 100);
+      return `<div class="barRow"><div class="barLabel">${c.category}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(val)}</div></div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
