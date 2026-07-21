@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Loan Portal — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  .balPos { color: var(--green); font-weight: 700; }
+  .balNeg { color: #C0392B; font-weight: 700; }
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+  .relatedBadge { font-size: 10px; font-weight: 700; background: rgba(249,115,22,.15); color: #F97316; padding: 2px 7px; border-radius: 6px; margin-left: 6px; }
+  .inlineInput { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; }
+  .saveBtn { padding: 6px 12px; border-radius: 6px; background: var(--blue); color: #fff; border: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+  .saveMsg { font-size: 11px; margin-left: 8px; }
+  .sectionLbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--g3); margin: 20px 0 10px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Loan Portal</h1>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','investor'];
+  const CAN_EDIT_LOANS = ['super_admin','accountant'];
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(role)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+
+    document.getElementById('pageContent').innerHTML = `
+      <div class="summaryGrid" id="topSummary"></div>
+
+      <div class="card">
+        <h2>Loan Tracker — by Month</h2>
+        <div class="sub">Borrowed vs. repaid by month, with running outstanding balance across all lenders combined.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Month</th><th>Borrowed</th><th>Repaid</th><th>Net Movement</th><th>Running Balance</th></tr></thead>
+          <tbody id="loanBody"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <h2>Director / Related-Party Loans</h2>
+        <div class="sub">Personal funds loaned to the company by directors — treated separately from third-party debt.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Lender</th><th>Borrowed</th><th>Repaid</th><th>Balance</th><th>Phone Number</th><th>Bank / UPI</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="relatedBody"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <h2>External Lender Loans</h2>
+        <div class="sub">Third-party loans, for repayment tracking and communication. Phone/UPI fields are editable and save directly to Supabase.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Lender</th><th>Borrowed</th><th>Repaid</th><th>Balance</th><th>Phone Number</th><th>Bank / UPI</th><th>Notes</th><th></th></tr></thead>
+          <tbody id="externalBody"></tbody>
+        </table></div>
+        <div class="note">Add phone numbers and UPI/account details here as you collect them — they're saved live and will show up for anyone with access to this page.</div>
+      </div>
+    `;
+    loadAll();
+  };
+
+  async function loadAll() {
+    const [{ data: loans, error: loanErr }, { data: loanAccounts, error: laErr }] = await Promise.all([
+      VIPL.sb.from('loan_tracker').select('*').order('month_start'),
+      VIPL.sb.from('loan_accounts').select('*').order('balance', { ascending: false })
+    ]);
+
+    if (loanErr || laErr) {
+      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (loanErr?.message || laErr?.message) + '</div>';
+      return;
+    }
+
+    const loanOutstanding = loans.length ? Number(loans[loans.length - 1].running_balance) : 0;
+    const totalBorrowedAllTime = loanAccounts.reduce((s, l) => s + Number(l.total_borrowed), 0);
+    const totalRepaidAllTime = loanAccounts.reduce((s, l) => s + Number(l.total_repaid), 0);
+    const relatedAccounts = loanAccounts.filter(l => l.is_related_party);
+    const externalAccounts = loanAccounts.filter(l => !l.is_related_party);
+    const relatedOutstanding = relatedAccounts.reduce((s, l) => s + Number(l.balance), 0);
+    const externalOutstanding = externalAccounts.reduce((s, l) => s + Number(l.balance), 0);
+
+    document.getElementById('topSummary').innerHTML = `
+      <div class="summaryBox"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Total Outstanding</div></div>
+      <div class="summaryBox"><div class="val">${fmt(totalBorrowedAllTime)}</div><div class="lbl">Total Borrowed (all-time)</div></div>
+      <div class="summaryBox"><div class="val">${fmt(totalRepaidAllTime)}</div><div class="lbl">Total Repaid (all-time)</div></div>
+      <div class="summaryBox"><div class="val balNeg">${fmt(relatedOutstanding)}</div><div class="lbl">Director Loans Outstanding</div></div>
+      <div class="summaryBox"><div class="val balNeg">${fmt(externalOutstanding)}</div><div class="lbl">External Loans Outstanding</div></div>
+    `;
+
+    document.getElementById('loanBody').innerHTML = loans.map(l => `
+      <tr>
+        <td>${l.month_label}</td>
+        <td>${fmt(l.borrowed)}</td>
+        <td>${fmt(l.repaid)}</td>
+        <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
+        <td class="balNeg">${fmt(l.running_balance)}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
+
+    const canEdit = CAN_EDIT_LOANS.includes(VIPL.profile.role);
+    function renderAccountRows(accounts) {
+      return accounts.map(l => {
+        const phoneCell = canEdit
+          ? `<input class="inlineInput" id="phone-${l.id}" value="${l.phone_number || ''}" placeholder="Add phone">`
+          : (l.phone_number || '—');
+        const bankCell = canEdit
+          ? `<input class="inlineInput" id="bank-${l.id}" value="${l.bank_account_or_upi || ''}" placeholder="Add UPI/account">`
+          : (l.bank_account_or_upi || '—');
+        const saveCell = canEdit
+          ? `<button class="saveBtn" onclick="saveLoanAccount('${l.id}')">Save</button><span class="saveMsg" id="msg-${l.id}"></span>`
+          : '';
+        return `<tr>
+          <td>${l.lender_name}${l.is_related_party ? '<span class="relatedBadge">DIRECTOR</span>' : ''}</td>
+          <td>${fmt(l.total_borrowed)}</td>
+          <td>${fmt(l.total_repaid)}</td>
+          <td class="${l.balance > 0 ? 'balNeg' : 'balPos'}">${fmt(l.balance)}</td>
+          <td>${phoneCell}</td>
+          <td>${bankCell}</td>
+          <td style="font-size:12px;max-width:220px">${l.notes || '—'}</td>
+          <td>${saveCell}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--g3)">None recorded.</td></tr>';
+    }
+
+    document.getElementById('relatedBody').innerHTML = renderAccountRows(relatedAccounts);
+    document.getElementById('externalBody').innerHTML = renderAccountRows(externalAccounts);
+  }
+
+  async function saveLoanAccount(id) {
+    const phone = document.getElementById(`phone-${id}`).value.trim();
+    const bank = document.getElementById(`bank-${id}`).value.trim();
+    const msg = document.getElementById(`msg-${id}`);
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Saving…';
+    const { error } = await VIPL.sb.from('loan_accounts')
+      .update({ phone_number: phone || null, bank_account_or_upi: bank || null, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+    msg.style.color = 'var(--green)'; msg.textContent = 'Saved ✓';
+    setTimeout(() => { msg.textContent = ''; }, 2000);
+  }
+</script>
+</body>
+</html>
