@@ -22,7 +22,7 @@ const NAV_CONFIG = [
   ]},
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
-    { label: '📈 Investor Portal', href: null, roles: ['super_admin','investor'], soon: true },
+    { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor'] },
     { label: '👥 Subscribers', href: null, roles: ['super_admin','subscriber'], soon: true },
     { label: '🚚 Supply Chain', href: null, roles: ['super_admin','fbc_rm','fbc_bdm','fbc_mm'], soon: true },
   ]},
