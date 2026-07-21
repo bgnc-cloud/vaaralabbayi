@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Investor Portal — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
+  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  .balPos { color: var(--green); font-weight: 700; }
+  .balNeg { color: #C0392B; font-weight: 700; }
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
+  .barRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
+  .barLabel { width: 170px; font-size: 13px; flex-shrink: 0; }
+  .barTrack { flex: 1; background: var(--off); border-radius: 6px; height: 20px; position: relative; overflow: hidden; }
+  .barFill { background: #C0392B; height: 100%; border-radius: 6px; }
+  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+  .plRow { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .plRow:last-child { border-bottom: none; font-weight: 800; font-size: 16px; padding-top: 14px; }
+  .companyRow { background: var(--off); }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Investor Portal</h1>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','investor'];
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(role)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+
+    document.getElementById('pageContent').innerHTML = `
+      <div class="summaryGrid" id="topSummary"></div>
+
+      <div class="card">
+        <h2>Shareholder Cap Table</h2>
+        <div class="sub">Ownership, capital invested, and each shareholder's proportional share of the company's net profit/loss to date.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Shareholder</th><th>Invested</th><th>Ownership %</th><th>Share of P&amp;L</th><th>Notes</th></tr></thead>
+          <tbody id="shareholderBody"></tbody>
+        </table></div>
+        <div class="note">"Share of P&amp;L" = Ownership % × Net Profit/Loss. The Company's 40% is a fixed structural share, not a cash investment — shown for completeness but excluded from the "Total Investor Capital" figure above.</div>
+      </div>
+
+      <div class="card">
+        <h2>Profit &amp; Loss Summary</h2>
+        <div class="sub">All-time, computed live from the ledger.</div>
+        <div id="plSummary"></div>
+      </div>
+
+      <div class="card">
+        <h2>Expense Breakdown</h2>
+        <div class="sub">All-time expenses by category (excludes loan movement and investment inflows, which are balance-sheet items, not P&amp;L).</div>
+        <div id="expenseBars"></div>
+        <div class="note">Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div>
+      </div>
+    `;
+    loadAll();
+  };
+
+  async function loadAll() {
+    const [{ data: investors, error: invErr }, { data: cats, error: catErr }] = await Promise.all([
+      VIPL.sb.from('investors').select('*').order('total_invested', { ascending: false }),
+      VIPL.sb.from('category_totals').select('*')
+    ]);
+
+    if (invErr || catErr) {
+      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (invErr?.message || catErr?.message) + '</div>';
+      return;
+    }
+
+    // Cash investors exclude the company's structural share
+    const cashInvestors = investors.filter(i => i.investor_type !== 'company_share');
+    const companyShare = investors.find(i => i.investor_type === 'company_share');
+    const totalCashInvested = cashInvestors.reduce((s, i) => s + Number(i.total_invested), 0);
+
+    // P&L: Revenue category net, minus every category that's an actual expense
+    // (Loan Movement and Investment are balance-sheet flows, not P&L)
+    const NON_PL_CATEGORIES = ['Loan Movement', 'Investment'];
+    const revenueCat = cats.find(c => c.category === 'Revenue');
+    const totalRevenue = revenueCat ? Number(revenueCat.total_credit) - Number(revenueCat.total_debit) : 0;
+
+    const expenseCats = cats.filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category));
+    const totalExpenses = expenseCats.reduce((s, c) => s + Math.max(Number(c.total_debit) - Number(c.total_credit), 0), 0);
+
+    const netPL = totalRevenue - totalExpenses;
+
+    // Top summary cards
+    document.getElementById('topSummary').innerHTML = `
+      <div class="summaryBox"><div class="val">${fmt(totalCashInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+      <div class="summaryBox"><div class="val">${fmt(totalExpenses)}</div><div class="lbl">Total Expenses (all-time)</div></div>
+      <div class="summaryBox"><div class="val ${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</div><div class="lbl">Net Profit / Loss</div></div>
+      <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
+    `;
+
+    // Shareholder cap table (includes company row, marked distinctly)
+    document.getElementById('shareholderBody').innerHTML = investors.map(i => {
+      const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
+      const shareOfPL = pct / 100 * netPL;
+      const isCompany = i.investor_type === 'company_share';
+      return `<tr class="${isCompany ? 'companyRow' : ''}">
+        <td>${i.investor_name}</td>
+        <td class="balPos">${fmt(i.total_invested)}</td>
+        <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
+        <td class="${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
+        <td>${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>
+      </tr>`;
+    }).join('');
+
+    // P&L summary lines
+    document.getElementById('plSummary').innerHTML = `
+      <div class="plRow"><span>Total Revenue</span><span class="balPos">${fmt(totalRevenue)}</span></div>
+      <div class="plRow"><span>Total Expenses</span><span class="balNeg">${fmt(totalExpenses)}</span></div>
+      <div class="plRow"><span>Net Profit / Loss</span><span class="${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</span></div>
+    `;
+
+    // Expense breakdown bars
+    const sortedExpenses = expenseCats.slice().sort((a, b) => Number(b.total_debit) - Number(a.total_debit));
+    const maxVal = Math.max(...sortedExpenses.map(c => Number(c.total_debit)), 1);
+    document.getElementById('expenseBars').innerHTML = sortedExpenses.map(c => {
+      const val = Number(c.total_debit);
+      const pct = (val / maxVal * 100);
+      return `<div class="barRow"><div class="barLabel">${c.category}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(val)}</div></div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>
