@@ -25,6 +25,22 @@
   .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
   .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .fySelector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .fyPill { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); }
+  .fyPill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .monthAccordion { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .monthHeader { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--off); cursor: pointer; user-select: none; }
+  .monthHeader .monthTitle { font-weight: 800; font-size: 14.5px; display: flex; align-items: center; gap: 8px; }
+  .monthHeader .chevron { transition: transform .15s; font-size: 11px; color: var(--g3); }
+  .monthHeader.open .chevron { transform: rotate(90deg); }
+  .monthHeader .monthStats { font-size: 12.5px; color: var(--g3); display: flex; gap: 16px; }
+  .monthHeader .monthStats b { color: var(--ink); }
+  .monthBody { display: none; overflow-x: auto; }
+  .monthBody.open { display: block; }
+  .fyControls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
+  .expandAllBtn { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 6px 10px; }
 </style>
 </head>
 <body>
@@ -43,6 +59,28 @@
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
   const ALLOWED_ROLES = ['super_admin','accountant','entry'];
+
+  // ── Financial Year helpers (India: Apr 1 – Mar 31) ──
+  function fyKeyOf(dateStr) {
+    const d = new Date(dateStr);
+    const m = d.getMonth() + 1, y = d.getFullYear();
+    return m >= 4 ? y : y - 1; // FY start year
+  }
+  function fyLabelOf(fyStartYear) {
+    return `FY ${fyStartYear}–${String(fyStartYear + 1).slice(2)}`;
+  }
+  function monthKeyOf(dateStr) {
+    const d = new Date(dateStr);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  function monthLabelOf(dateStr) {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+  }
+
+  let allEntries = [];
+  let selectedFY = null;
+  let openMonths = new Set();
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
@@ -78,23 +116,20 @@
         <div id="formMsg" style="margin-top:10px;font-size:13px"></div>
       </div>
       <div class="card">
-        <h2>Monthly Summary</h2>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>Month</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cash Opening</th><th>Cash Closing</th><th>Bank Opening</th><th>Bank Closing</th></tr></thead>
-          <tbody id="monthlyBody"><tr><td colspan="9" style="text-align:center;color:var(--g3);padding:30px">Loading…</td></tr></tbody>
-        </table></div>
+        <h2>Financial Year</h2>
+        <div class="fySelector" id="fySelector"></div>
+        <div class="fyControls">
+          <div class="sub" style="font-size:13px;color:var(--g3)" id="fySummaryLine"></div>
+          <button class="expandAllBtn" id="expandAllBtn" onclick="toggleAllMonths()">Expand all</button>
+        </div>
       </div>
       <div class="card">
-        <h2>Ledger — All Entries</h2>
-        <div style="overflow-x:auto"><table>
-          <thead><tr><th>Date</th><th>Particulars</th><th>Description</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cheque</th><th>Cash Bal</th><th>Bank Bal</th><th>By</th></tr></thead>
-          <tbody id="ledgerBody"><tr><td colspan="11" style="text-align:center;color:var(--g3);padding:30px">Loading…</td></tr></tbody>
-        </table></div>
+        <h2>Ledger — by Month</h2>
+        <div id="monthAccordions"><div style="text-align:center;color:var(--g3);padding:30px">Loading…</div></div>
       </div>
     `;
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
     loadLedger();
-    loadMonthlySummary();
   };
 
   async function addEntry() {
@@ -122,45 +157,128 @@
     document.getElementById('fAmount').value = '';
     document.getElementById('fCheque').value = '';
     loadLedger();
-    loadMonthlySummary();
   }
 
   async function loadLedger() {
     const { data, error } = await VIPL.sb.from('ledger_with_balance').select('*').order('entry_date').order('created_at');
-    const tbody = document.getElementById('ledgerBody');
-    if (error) { tbody.innerHTML = '<tr><td colspan="11" style="color:#C0392B;padding:20px">' + error.message + '</td></tr>'; return; }
-    if (!data.length) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--g3);padding:30px">No entries yet.</td></tr>'; return; }
-    tbody.innerHTML = data.map(r => `
-      <tr>
-        <td>${r.entry_date}</td><td>${r.particulars}</td><td>${r.description || '—'}</td>
-        <td>${r.cash_credit ? fmt(r.cash_credit) : '—'}</td><td>${r.cash_debit ? fmt(r.cash_debit) : '—'}</td>
-        <td>${r.bank_credit ? fmt(r.bank_credit) : '—'}</td><td>${r.bank_debit ? fmt(r.bank_debit) : '—'}</td>
-        <td>${r.cheque_no || '—'}</td>
-        <td class="${r.cash_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_balance)}</td>
-        <td class="${r.bank_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_balance)}</td>
-        <td>${r.created_by_name || '—'}</td>
-      </tr>`).join('');
-    const last = data[data.length - 1];
+    if (error) {
+      document.getElementById('monthAccordions').innerHTML = '<div style="color:#C0392B;padding:20px">' + error.message + '</div>';
+      return;
+    }
+    allEntries = data || [];
+    if (!allEntries.length) {
+      document.getElementById('monthAccordions').innerHTML = '<div style="text-align:center;color:var(--g3);padding:30px">No entries yet.</div>';
+      return;
+    }
+
+    const last = allEntries[allEntries.length - 1];
     document.getElementById('sumCash').textContent = fmt(last.cash_balance);
     document.getElementById('sumBank').textContent = fmt(last.bank_balance);
-    document.getElementById('sumEntries').textContent = data.length;
+    document.getElementById('sumEntries').textContent = allEntries.length;
+
+    // Build FY list, newest first
+    const fySet = new Set(allEntries.map(e => fyKeyOf(e.entry_date)));
+    const fyList = Array.from(fySet).sort((a,b) => b - a);
+    selectedFY = fyList[0]; // default to most recent FY
+
+    document.getElementById('fySelector').innerHTML = fyList.map(fy => `
+      <button class="fyPill${fy === selectedFY ? ' active' : ''}" onclick="selectFY(${fy})">${fyLabelOf(fy)}</button>
+    `).join('');
+
+    renderMonths();
   }
 
-  async function loadMonthlySummary() {
-    const { data, error } = await VIPL.sb.from('monthly_ledger_summary').select('*').order('month_start');
-    const tbody = document.getElementById('monthlyBody');
-    if (error) { tbody.innerHTML = '<tr><td colspan="9" style="color:#C0392B;padding:20px">' + error.message + '</td></tr>'; return; }
-    if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--g3);padding:30px">No entries yet.</td></tr>'; return; }
-    tbody.innerHTML = data.map(r => `
-      <tr>
-        <td><strong>${r.month_label}</strong></td>
-        <td>${fmt(r.total_cash_credit)}</td><td>${fmt(r.total_cash_debit)}</td>
-        <td>${fmt(r.total_bank_credit)}</td><td>${fmt(r.total_bank_debit)}</td>
-        <td>${fmt(r.cash_opening_balance)}</td>
-        <td class="${r.cash_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_closing_balance)}</td>
-        <td>${fmt(r.bank_opening_balance)}</td>
-        <td class="${r.bank_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_closing_balance)}</td>
-      </tr>`).join('');
+  function selectFY(fy) {
+    selectedFY = fy;
+    openMonths = new Set();
+    document.querySelectorAll('.fyPill').forEach(btn => {
+      btn.classList.toggle('active', btn.textContent === fyLabelOf(fy));
+    });
+    renderMonths();
+  }
+
+  function renderMonths() {
+    const fyEntries = allEntries.filter(e => fyKeyOf(e.entry_date) === selectedFY);
+
+    // Group by month, preserving chronological order
+    const monthMap = new Map();
+    fyEntries.forEach(e => {
+      const key = monthKeyOf(e.entry_date);
+      if (!monthMap.has(key)) monthMap.set(key, []);
+      monthMap.get(key).push(e);
+    });
+    const monthKeys = Array.from(monthMap.keys()).sort();
+
+    // FY-level summary line
+    const fyCashIn = fyEntries.reduce((s,e) => s + Number(e.cash_credit||0), 0);
+    const fyCashOut = fyEntries.reduce((s,e) => s + Number(e.cash_debit||0), 0);
+    const fyBankIn = fyEntries.reduce((s,e) => s + Number(e.bank_credit||0), 0);
+    const fyBankOut = fyEntries.reduce((s,e) => s + Number(e.bank_debit||0), 0);
+    document.getElementById('fySummaryLine').innerHTML =
+      `${fyLabelOf(selectedFY)}: ${fyEntries.length} entries · Cash In ${fmt(fyCashIn)} · Cash Out ${fmt(fyCashOut)} · Bank In ${fmt(fyBankIn)} · Bank Out ${fmt(fyBankOut)}`;
+
+    // Open the most recent month by default
+    if (monthKeys.length) openMonths.add(monthKeys[monthKeys.length - 1]);
+
+    document.getElementById('monthAccordions').innerHTML = monthKeys.map(key => {
+      const entries = monthMap.get(key);
+      const label = monthLabelOf(entries[0].entry_date);
+      const cashIn = entries.reduce((s,e) => s + Number(e.cash_credit||0), 0);
+      const cashOut = entries.reduce((s,e) => s + Number(e.cash_debit||0), 0);
+      const bankIn = entries.reduce((s,e) => s + Number(e.bank_credit||0), 0);
+      const bankOut = entries.reduce((s,e) => s + Number(e.bank_debit||0), 0);
+      const closingCash = entries[entries.length-1].cash_balance;
+      const closingBank = entries[entries.length-1].bank_balance;
+      const isOpen = openMonths.has(key);
+
+      const rows = entries.map(r => `
+        <tr>
+          <td>${r.entry_date}</td><td>${r.particulars}</td><td>${r.description || '—'}</td>
+          <td>${r.cash_credit ? fmt(r.cash_credit) : '—'}</td><td>${r.cash_debit ? fmt(r.cash_debit) : '—'}</td>
+          <td>${r.bank_credit ? fmt(r.bank_credit) : '—'}</td><td>${r.bank_debit ? fmt(r.bank_debit) : '—'}</td>
+          <td>${r.cheque_no || '—'}</td>
+          <td class="${r.cash_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_balance)}</td>
+          <td class="${r.bank_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_balance)}</td>
+          <td>${r.created_by_name || '—'}</td>
+        </tr>`).join('');
+
+      return `
+        <div class="monthAccordion">
+          <div class="monthHeader${isOpen ? ' open' : ''}" onclick="toggleMonth('${key}')">
+            <div class="monthTitle"><span class="chevron">▶</span> ${label} <span style="color:var(--g3);font-weight:600">(${entries.length})</span></div>
+            <div class="monthStats">
+              <span>Cash In <b>${fmt(cashIn)}</b></span>
+              <span>Cash Out <b>${fmt(cashOut)}</b></span>
+              <span>Closing Cash <b class="${closingCash >= 0 ? 'balPos' : 'balNeg'}">${fmt(closingCash)}</b></span>
+              <span>Closing Bank <b class="${closingBank >= 0 ? 'balPos' : 'balNeg'}">${fmt(closingBank)}</b></span>
+            </div>
+          </div>
+          <div class="monthBody${isOpen ? ' open' : ''}" id="monthBody-${key}">
+            <table>
+              <thead><tr><th>Date</th><th>Particulars</th><th>Description</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cheque</th><th>Cash Bal</th><th>Bank Bal</th><th>By</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function toggleMonth(key) {
+    const header = document.querySelector(`#monthBody-${key}`).previousElementSibling;
+    const body = document.getElementById(`monthBody-${key}`);
+    const isOpen = body.classList.toggle('open');
+    header.classList.toggle('open', isOpen);
+    if (isOpen) openMonths.add(key); else openMonths.delete(key);
+  }
+
+  function toggleAllMonths() {
+    const bodies = document.querySelectorAll('.monthBody');
+    const anyClosed = Array.from(bodies).some(b => !b.classList.contains('open'));
+    bodies.forEach(b => {
+      b.classList.toggle('open', anyClosed);
+      b.previousElementSibling.classList.toggle('open', anyClosed);
+    });
+    document.getElementById('expandAllBtn').textContent = anyClosed ? 'Collapse all' : 'Expand all';
   }
 </script>
 </body>
