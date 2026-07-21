@@ -71,13 +71,21 @@
         </table></div>
       </div>
       <div class="card">
-        <h2>Investor Capital</h2>
+        <h2>Investor Capital (Official Cap Table)</h2>
+        <div class="sub">Verified figures from the company's official investor share records.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Investor</th><th>Total Invested</th><th>Ownership %</th><th>Notes</th></tr></thead>
+          <tbody id="officialInvestorBody"></tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <h2>Investor Capital (From Ledger — Approximate)</h2>
         <div class="sub">Total invested per investor, extracted from ledger entries tagged as investment.</div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>Investor</th><th>Total Invested</th><th>Transactions</th><th>First</th><th>Last</th></tr></thead>
           <tbody id="investorBody"></tbody>
         </table></div>
-        <div class="note">Names are extracted automatically and may show duplicate variants for the same person. Treat totals as directional, not a substitute for the official cap table.</div>
+        <div class="note">Names are extracted automatically and may show duplicate variants for the same person. This table is approximate — refer to the Official Cap Table above for accurate figures.</div>
       </div>
       <div class="card">
         <h2>Monthly Cash &amp; Bank Position</h2>
@@ -92,14 +100,15 @@
   };
 
   async function loadAll() {
-    const [{ data: cats }, { data: loans }, { data: investors }, { data: monthly }] = await Promise.all([
+    const [{ data: cats }, { data: loans }, { data: investors }, { data: monthly }, { data: officialInvestors }] = await Promise.all([
       VIPL.sb.from('category_totals').select('*'),
       VIPL.sb.from('loan_tracker').select('*').order('month_start'),
       VIPL.sb.from('investor_capital').select('*'),
-      VIPL.sb.from('monthly_ledger_summary').select('*').order('month_start')
+      VIPL.sb.from('monthly_ledger_summary').select('*').order('month_start'),
+      VIPL.sb.from('investors').select('*').order('total_invested',{ascending:false})
     ]);
 
-    const totalInvested = investors.reduce((s,i) => s + Number(i.total_invested), 0);
+    const totalInvested = officialInvestors.reduce((s,i) => s + Number(i.total_invested), 0);
     const loanOutstanding = loans.length ? Number(loans[loans.length-1].running_balance) : 0;
     const revenue = cats.find(c => c.category === 'Revenue');
     document.getElementById('topSummary').innerHTML = `
@@ -120,6 +129,11 @@
       <tr><td>${l.month_label}</td><td>${fmt(l.borrowed)}</td><td>${fmt(l.repaid)}</td>
       <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
       <td class="balNeg">${fmt(l.running_balance)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
+
+    document.getElementById('officialInvestorBody').innerHTML = officialInvestors.map(i => `
+      <tr><td>${i.investor_name}</td><td class="balPos">${fmt(i.total_invested)}</td>
+      <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
+      <td>${i.notes || '—'}</td></tr>`).join('');
 
     document.getElementById('investorBody').innerHTML = investors.map(i => `
       <tr><td>${i.investor_name}</td><td class="balPos">${fmt(i.total_invested)}</td><td>${i.num_transactions}</td>
