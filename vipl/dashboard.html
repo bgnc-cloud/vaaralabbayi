@@ -50,7 +50,7 @@
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
     if (!ALLOWED_ROLES.includes(role)) {
-      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 You don\\'t have access to this page.</div>';
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
       return;
     }
 
