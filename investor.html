@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Investor Zone — Cloud Super Market</title>
+<meta name="description" content="Investor Zone — Vaaralabbayi India Private Limited. Authorised access only.">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="logo.jpg">
+<style>
+  #gate { min-height: calc(100vh - 68px); display: flex; align-items: center; justify-content: center; padding: 40px 4%; background: linear-gradient(135deg,#0D2340 0%,#1565C0 60%,#1976D2 100%); }
+  #gate-card { background: #fff; border-radius: 20px; padding: 44px 40px; max-width: 420px; width: 100%; box-shadow: 0 30px 60px rgba(0,0,0,.3); text-align: center; }
+  #gate-card h1 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 26px; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+  #gate-card p { font-size: 14.5px; color: var(--g3); margin-bottom: 24px; line-height: 1.6; }
+  #gate-pass { width: 100%; padding: 13px 16px; border: 1px solid var(--border); border-radius: 10px; font-size: 15px; margin-bottom: 12px; font-family: 'Inter', sans-serif; }
+  #gate-btn { width: 100%; padding: 13px; border-radius: 10px; background: var(--blue); color: #fff; border: none; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Inter', sans-serif; }
+  #gate-btn:hover { background: #0D47A1; }
+  #gate-error { color: #C0392B; font-size: 13.5px; margin-top: 10px; display: none; }
+  #investor-content { display: none; }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <a class="nav-logo" href="index.html"><img src="logo.jpg" alt="Vaaralabbayi India Private Limited"></a>
+  <div class="nav-links">
+    <a href="index.html"     data-page="home">Home</a>
+    <a href="subscribe.html" data-page="subscribe">Subscribe</a>
+    <a href="store.html"     data-page="store">Open a Store</a>
+    <a href="about.html"     data-page="about">About</a>
+    <a href="contact.html"   data-page="contact">Contact</a>
+  </div>
+  <div class="nav-right">
+    <div class="lang-toggle">
+      <button class="lang-btn active" data-lang="en" onclick="setLang('en',event)">EN</button>
+      <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
+    </div>
+    <a class="nav-investor" href="investor.html">Investor Zone →</a>
+    <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+  </div>
+</nav>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="index.html">Home</a>
+  <a href="subscribe.html">Subscribe</a>
+  <a href="store.html">Open a Store</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+</div>
+
+<!-- PASSWORD GATE -->
+<section id="gate">
+  <div id="gate-card">
+    <div style="font-size:34px;margin-bottom:10px">🔒</div>
+    <h1>Investor Zone</h1>
+    <p>This area is restricted to authorised investors of Vaaralabbayi India Private Limited. Enter your access code to continue.</p>
+    <input type="password" id="gate-pass" placeholder="Access code" onkeydown="if(event.key==='Enter') checkAccess()">
+    <button id="gate-btn" onclick="checkAccess()">Enter Investor Zone →</button>
+    <div id="gate-error">Incorrect access code. Please contact VIPL for access.</div>
+    <p style="margin-top:20px;font-size:13px;color:var(--g3)">Don't have an access code? <a href="contact.html" style="color:var(--blue);font-weight:700;text-decoration:none">Contact us</a> to request investor access.</p>
+  </div>
+</section>
+
+<!-- INVESTOR CONTENT (shown after password check) -->
+<div id="investor-content" class="page-wrap">
+
+  <section class="page-hero" style="min-height:30vh">
+    <div class="page-hero-content">
+      <div class="eyebrow white">Investor Zone</div>
+      <h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(26px,4vw,42px);font-weight:800;color:#fff;line-height:1.2;margin-bottom:10px">Financial reports, ledger &amp; documents.</h1>
+      <p style="font-size:16px;color:rgba(255,255,255,.75);max-width:560px;line-height:1.7">Live data for authorised investors of Vaaralabbayi India Private Limited.</p>
+    </div>
+  </section>
+
+  <section class="section sec-white">
+    <div class="eyebrow">Company Snapshot</div>
+    <h2 class="sec-title">Fully <span class="hl">compliant.</span> Fully registered.</h2>
+    <div class="legal-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="legal-item"><div class="legal-lbl">Company Name</div><div class="legal-val">Vaaralabbayi India Private Limited</div></div>
+      <div class="legal-item"><div class="legal-lbl">Brand</div><div class="legal-val">Cloud Super Market</div></div>
+      <div class="legal-item"><div class="legal-lbl">CIN</div><div class="legal-val">U46909AP2024PTC117000</div></div>
+      <div class="legal-item"><div class="legal-lbl">Startup India</div><div class="legal-val">DIPP210951 · Valid till Dec 2034</div></div>
+    </div>
+  </section>
+
+  <section class="section sec-light">
+    <div class="eyebrow">Financial Summary</div>
+    <h2 class="sec-title">Reports <span class="hl-o">at a glance.</span></h2>
+    <p class="sec-sub">Period-wise revenue, expenses and net position. Updated by the finance team.</p>
+    <div id="finSummaryBox" style="margin-top:32px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;color:var(--g3)">
+      <div style="font-size:32px;margin-bottom:12px">📊</div>
+      <div style="font-weight:700;color:var(--ink);margin-bottom:6px">No reports published yet</div>
+      <div style="font-size:14px">Financial summaries will appear here once added by the VIPL finance team.</div>
+    </div>
+  </section>
+
+  <section class="section sec-white">
+    <div class="eyebrow">Ledger</div>
+    <h2 class="sec-title">Transaction <span class="hl">ledger.</span></h2>
+    <p class="sec-sub">Detailed income and expense entries.</p>
+    <div style="margin-top:32px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;color:var(--g3)">
+      <div style="font-size:32px;margin-bottom:12px">📒</div>
+      <div style="font-weight:700;color:var(--ink);margin-bottom:6px">Ledger not yet populated</div>
+      <div style="font-size:14px">Entries will be added as VIPL's financial operations begin ahead of the April 2027 go-live.</div>
+    </div>
+  </section>
+
+  <section class="section sec-light">
+    <div class="eyebrow">Documents</div>
+    <h2 class="sec-title">Pitch deck, cap table <span class="hl-o">&amp; agreements.</span></h2>
+    <p class="sec-sub">Downloadable documents shared with authorised investors.</p>
+    <div style="margin-top:32px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;color:var(--g3)">
+      <div style="font-size:32px;margin-bottom:12px">📁</div>
+      <div style="font-weight:700;color:var(--ink);margin-bottom:6px">No documents shared yet</div>
+      <div style="font-size:14px">Contact VIPL directly for the current pitch deck and cap table.</div>
+    </div>
+  </section>
+
+  <section class="cta-strip">
+    <h2 class="cta-title">Questions? <span style="color:#F97316">Get in touch.</span></h2>
+    <p class="cta-sub">For anything not covered here, reach out directly to the VIPL team.</p>
+    <div class="cta-btns"><a class="btn-primary" href="contact.html">Contact Us</a></div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="footer-grid">
+    <div>
+      <div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div>
+      <p class="footer-tagline">Rural &amp; semi-urban subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p>
+      <div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div>
+    </div>
+    <div><div class="footer-col-title">Platform</div><ul class="footer-links"><li><a href="index.html">Home</a></li><li><a href="subscribe.html">Subscribe</a></li><li><a href="store.html">Open a Store</a></li><li><a href="about.html">About</a></li></ul></div>
+    <div><div class="footer-col-title">Portals</div><ul class="footer-links"><li><a href="subscribe.html">Subscriber Portal</a></li><li><a href="store.html">Store Operator</a></li><li><a href="contact.html">FBC Team</a></li><li><a href="investor.html">Investor Zone</a></li></ul></div>
+    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
+  </div>
+  <div class="footer-bottom"><p>© 2026 Vaaralabbayi India Private Limited. All rights reserved.</p><div class="footer-badges"><span class="footer-badge" style="color:#42A5F5">Startup India ✓</span><span class="footer-badge" style="color:#F97316">Launching Soon</span></div></div>
+</footer>
+
+<script src="main.js"></script>
+<script>
+  // NOTE: client-side check only — suitable for keeping casual visitors out,
+  // NOT a substitute for real access control. No sensitive data lives in this
+  // page's source; all real figures load from Airtable once wired up.
+  function checkAccess() {
+    const pass = document.getElementById('gate-pass').value;
+    if (pass === 'VIPL2027') {
+      document.getElementById('gate').style.display = 'none';
+      document.getElementById('investor-content').style.display = 'block';
+      sessionStorage.setItem('vipl-investor-access', 'granted');
+    } else {
+      document.getElementById('gate-error').style.display = 'block';
+    }
+  }
+  // Restore access within this browser session
+  if (sessionStorage.getItem('vipl-investor-access') === 'granted') {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('investor-content').style.display = 'block';
+  }
+</script>
+</body>
+</html>
