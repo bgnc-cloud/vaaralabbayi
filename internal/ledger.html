@@ -69,8 +69,8 @@
     <h2>New Entry</h2>
     <div class="entryForm">
       <div><label>Date</label><input type="date" id="fDate"></div>
-      <div><label>Particulars *</label><input type="text" id="fParticulars" placeholder="e.g. Salary, Rent"></div>
-      <div><label>Description</label><input type="text" id="fDescription" placeholder="Optional detail"></div>
+      <div><label>Particulars *</label><input type="text" id="fParticulars" placeholder="e.g. Rent for month of Jul-26"></div>
+      <div><label>Description (category)</label><input type="text" id="fDescription" placeholder="e.g. monthly rent, salary, invest"></div>
       <div><label>Type</label>
         <select id="fType">
           <option value="cash_credit">Cash In</option>
@@ -84,6 +84,16 @@
       <div><button onclick="addEntry()">Add Entry</button></div>
     </div>
     <div id="formMsg" style="margin-top:10px;font-size:13px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Monthly Summary</h2>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Month</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cash Opening</th><th>Cash Closing</th><th>Bank Opening</th><th>Bank Closing</th></tr></thead>
+        <tbody id="monthlyBody"><tr><td colspan="9" style="text-align:center;color:var(--g3);padding:30px">Loading…</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="card">
@@ -128,6 +138,7 @@
     document.getElementById('userInfo').textContent = 'Signed in as ' + user.email;
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
     loadLedger();
+    loadMonthlySummary();
   }
 
   async function addEntry() {
@@ -156,6 +167,7 @@
     document.getElementById('fAmount').value = '';
     document.getElementById('fCheque').value = '';
     loadLedger();
+    loadMonthlySummary();
   }
 
   async function loadLedger() {
@@ -182,6 +194,26 @@
     document.getElementById('sumCash').textContent = fmt(last.cash_balance);
     document.getElementById('sumBank').textContent = fmt(last.bank_balance);
     document.getElementById('sumEntries').textContent = data.length;
+  }
+
+  async function loadMonthlySummary() {
+    const { data, error } = await sb.from('monthly_ledger_summary').select('*').order('month_start');
+    const tbody = document.getElementById('monthlyBody');
+    if (error) { tbody.innerHTML = '<tr><td colspan="9" style="color:#C0392B;padding:20px">' + error.message + '</td></tr>'; return; }
+    if (!data.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--g3);padding:30px">No entries yet.</td></tr>'; return; }
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td><strong>${r.month_label}</strong></td>
+        <td>${fmt(r.total_cash_credit)}</td>
+        <td>${fmt(r.total_cash_debit)}</td>
+        <td>${fmt(r.total_bank_credit)}</td>
+        <td>${fmt(r.total_bank_debit)}</td>
+        <td>${fmt(r.cash_opening_balance)}</td>
+        <td class="${r.cash_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_closing_balance)}</td>
+        <td>${fmt(r.bank_opening_balance)}</td>
+        <td class="${r.bank_closing_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_closing_balance)}</td>
+      </tr>
+    `).join('');
   }
 
   // Restore session on page load
