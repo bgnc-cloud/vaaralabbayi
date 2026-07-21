@@ -25,8 +25,16 @@
       <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
     </div>
     <a class="nav-investor" href="investor.html">Investor Zone →</a>
+    <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
   </div>
 </nav>
+<div class="mobile-menu" id="mobileMenu">
+  <a href="index.html">Home</a>
+  <a href="subscribe.html">Subscribe</a>
+  <a href="store.html">Open a Store</a>
+  <a href="about.html">About</a>
+  <a href="contact.html">Contact</a>
+</div>
 
 <!-- ══ HERO ══ -->
 <section style="background:linear-gradient(135deg,#0D2340 0%,#1565C0 55%,#1976D2 100%);min-height:calc(100vh - 68px);display:flex;align-items:center;padding:68px 4% 60px;position:relative;overflow:hidden">
