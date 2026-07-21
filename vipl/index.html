@@ -71,6 +71,7 @@
     if (['super_admin','accountant','entry'].includes(role)) cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
     if (['super_admin','accountant'].includes(role)) cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
     if (['super_admin','accountant','investor'].includes(role)) cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
+    if (['super_admin','accountant','investor'].includes(role)) cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
     if (role === 'super_admin') {
       cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
     }
