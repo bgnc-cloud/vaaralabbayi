@@ -48,12 +48,14 @@
     if (canSeeFinance) {
       const [{ data: ledger }, { data: investors }, { data: loans }] = await Promise.all([
         VIPL.sb.from('ledger_with_balance').select('cash_balance,bank_balance').order('entry_date',{ascending:false}).limit(1),
-        VIPL.sb.from('investors').select('total_invested'),
+        VIPL.sb.from('investors').select('total_invested,investor_type'),
         VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1)
       ]);
       const cash = ledger && ledger[0] ? ledger[0].cash_balance : 0;
       const bank = ledger && ledger[0] ? ledger[0].bank_balance : 0;
-      const totalInvested = (investors||[]).reduce((s,i) => s + Number(i.total_invested), 0);
+      const totalInvested = (investors||[])
+        .filter(i => i.investor_type !== 'company_share')
+        .reduce((s,i) => s + Number(i.total_invested), 0);
       const loanBal = loans && loans[0] ? loans[0].running_balance : 0;
       document.getElementById('topSummary').innerHTML = `
         <div class="summaryBox"><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
@@ -68,9 +70,9 @@
     const cards = [];
     if (['super_admin','accountant','entry'].includes(role)) cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
     if (['super_admin','accountant'].includes(role)) cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
+    if (['super_admin','accountant','investor'].includes(role)) cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
     if (role === 'super_admin') {
       cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
-      cards.push({ soon:true, icon:'📈', title:'Investors Module', desc:'Cap table, payouts, investor accounts.' });
     }
     document.getElementById('quickGrid').innerHTML = cards.map(c => c.soon
       ? `<div class="quickCard soonCard"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div></div>`
