@@ -10,8 +10,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── NAV CONFIG ──────────────────────────────────────
-// roles: 'all' or an array of role names allowed to see this item.
-// Add new items here as modules get built — every page picks it up automatically.
 const NAV_CONFIG = [
   { group: 'General', items: [
     { label: '🏠 Overview', href: 'index.html', roles: 'all' },
@@ -35,23 +33,36 @@ const NAV_CONFIG = [
 const ROLE_LABELS = {
   super_admin: 'Super Admin', accountant: 'Accountant', entry: 'Entry Staff',
   store_operator: 'Store Operator', fbc_rm: 'FBC — RM', fbc_bdm: 'FBC — BDM',
-  fbc_mm: 'FBC — MM', investor: 'Investor', subscriber: 'Subscriber', viewer: 'Viewer'
+  fbc_mm: 'FBC — MM', investor: 'Investor', subscriber: 'Subscriber', viewer: 'Viewer',
+  pending: 'Pending Approval'
 };
+
+const REQUESTED_ROLE_OPTIONS = [
+  { value: '', label: 'What access do you need?' },
+  { value: 'investor', label: 'Investor — view my stake & loan exposure' },
+  { value: 'accountant', label: 'Accountant / Bookkeeper' },
+  { value: 'entry', label: 'Ledger Entry Staff' },
+  { value: 'other', label: 'Other / Not sure' },
+];
 
 // ── SHELL STATE ─────────────────────────────────────
 window.VIPL = { sb, user: null, profile: null };
 const currentPage = location.pathname.split('/').pop() || 'index.html';
+let authMode = 'signin';
 
 function injectShellStyles() {
   const style = document.createElement('style');
   style.textContent = `
     body { background: var(--off); margin: 0; }
-    #authBox { max-width: 400px; margin: 80px auto; background: #fff; border-radius: 16px; padding: 36px; box-shadow: 0 20px 50px rgba(13,35,64,.12); }
+    #authBox { max-width: 420px; margin: 50px auto; background: #fff; border-radius: 16px; padding: 36px; box-shadow: 0 20px 50px rgba(13,35,64,.12); }
     #authBox h1 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 6px; }
     #authBox p { font-size: 13.5px; color: var(--g3); margin-bottom: 20px; }
-    #authBox input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; font-size: 14px; }
+    #authBox input, #authBox select { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 10px; font-size: 14px; font-family: inherit; background: #fff; }
     #authBox button { width: 100%; padding: 12px; border-radius: 8px; background: var(--blue); color: #fff; border: none; font-weight: 700; cursor: pointer; font-size: 14px; }
     #authMsg { font-size: 13px; margin-top: 10px; text-align: center; }
+    .authSwitch { font-size: 13px; text-align: center; margin-top: 16px; color: var(--g3); }
+    .authSwitch a { color: var(--blue); font-weight: 700; text-decoration: none; cursor: pointer; }
+    .customerIdBox { font-size: 22px; font-weight: 800; text-align: center; background: var(--off); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--blue); letter-spacing: .03em; }
     #appShell { display: none; }
     #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; background: var(--navy); color: #fff; padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; }
     #sidebar .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; padding: 0 8px; }
@@ -66,10 +77,16 @@ function injectShellStyles() {
     .navLink.soon { color: rgba(255,255,255,.3); cursor: default; }
     .navLink .tag { margin-left: auto; font-size: 9px; background: rgba(255,255,255,.1); padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
     #sidebarFooter { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); }
-    #sidebarFooter .userEmail { font-size: 12px; color: rgba(255,255,255,.5); padding: 0 8px; margin-bottom: 10px; word-break: break-all; }
+    #sidebarFooter .userEmail { font-size: 12px; color: rgba(255,255,255,.5); padding: 0 8px; margin-bottom: 4px; word-break: break-all; }
+    #sidebarFooter .userCustomerId { font-size: 11px; color: rgba(255,255,255,.35); padding: 0 8px; margin-bottom: 10px; }
     #signOutBtn { width: 100%; background: rgba(255,255,255,.08); border: none; border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
     #mainArea { margin-left: 230px; padding: 32px 40px; max-width: 1100px; }
     #mainArea h1.pageTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 20px; }
+    .pendingBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+    .pendingBox .emoji { font-size: 40px; margin-bottom: 12px; }
+    .pendingBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+    .pendingBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+    .pendingBox .idTag { display: inline-block; font-weight: 800; color: var(--blue); background: var(--off); padding: 4px 10px; border-radius: 6px; margin: 8px 0 16px; }
     @media (max-width: 768px) {
       #sidebar { width: 100%; height: auto; position: relative; flex-direction: row; overflow-x: auto; }
       #mainArea { margin-left: 0; padding: 24px 16px; }
@@ -83,15 +100,37 @@ function injectShellStyles() {
 function renderAuthBox() {
   const box = document.getElementById('authBox');
   if (!box) return;
-  box.innerHTML = `
-    <h1>VIPL Internal</h1>
-    <p>Sign in with your team account to continue.</p>
-    <input type="email" id="authEmail" placeholder="Email address">
-    <input type="password" id="authPass" placeholder="Password">
-    <button id="signInBtn">Sign In</button>
-    <div id="authMsg"></div>
-  `;
-  document.getElementById('signInBtn').onclick = signIn;
+
+  if (authMode === 'signin') {
+    box.innerHTML = `
+      <h1>VIPL Internal</h1>
+      <p>Sign in with your email, phone number, or Customer ID.</p>
+      <input type="text" id="authIdentifier" placeholder="Email, phone, or Customer ID">
+      <input type="password" id="authPass" placeholder="Password">
+      <button id="signInBtn">Sign In</button>
+      <div id="authMsg"></div>
+      <div class="authSwitch">New team member? <a id="toSignup">Create an account</a></div>
+    `;
+    document.getElementById('signInBtn').onclick = signIn;
+    document.getElementById('toSignup').onclick = () => { authMode = 'signup'; renderAuthBox(); };
+  } else {
+    box.innerHTML = `
+      <h1>Create your account</h1>
+      <p>Sign up to request access to VIPL Internal. You'll get a Customer ID you can use to log in later, alongside your email or phone. An admin will review and assign your role before you can see any financial data.</p>
+      <input type="text" id="signupName" placeholder="Full name">
+      <input type="email" id="signupEmail" placeholder="Email address">
+      <input type="tel" id="signupPhone" placeholder="Phone number">
+      <input type="password" id="signupPass" placeholder="Password (min 6 characters)">
+      <select id="signupRequestedRole">
+        ${REQUESTED_ROLE_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
+      </select>
+      <button id="signUpBtn">Create Account</button>
+      <div id="authMsg"></div>
+      <div class="authSwitch">Already have an account? <a id="toSignin">Sign in</a></div>
+    `;
+    document.getElementById('signUpBtn').onclick = signUp;
+    document.getElementById('toSignin').onclick = () => { authMode = 'signin'; renderAuthBox(); };
+  }
 }
 
 function renderSidebar() {
@@ -117,6 +156,7 @@ function renderSidebar() {
   html += `
     <div id="sidebarFooter">
       <div class="userEmail">${window.VIPL.user ? window.VIPL.user.email : ''}</div>
+      <div class="userCustomerId">${window.VIPL.profile ? window.VIPL.profile.customer_id || '' : ''}</div>
       <button id="signOutBtn">Sign Out</button>
     </div>
   `;
@@ -125,19 +165,86 @@ function renderSidebar() {
 }
 
 async function signIn() {
-  const email = document.getElementById('authEmail').value;
+  const identifier = document.getElementById('authIdentifier').value.trim();
   const password = document.getElementById('authPass').value;
   const msg = document.getElementById('authMsg');
+  if (!identifier || !password) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Please enter your email, phone, or Customer ID and password.'; return;
+  }
   msg.style.color = 'var(--g3)'; msg.textContent = 'Signing in…';
+
+  let email = identifier;
+  if (!identifier.includes('@')) {
+    const { data, error: lookupErr } = await sb
+      .from('profiles')
+      .select('email')
+      .or(`phone.eq.${identifier},customer_id.eq.${identifier}`)
+      .maybeSingle();
+    if (lookupErr || !data) {
+      msg.style.color = '#C0392B'; msg.textContent = 'No account found with that phone number or Customer ID.'; return;
+    }
+    email = data.email;
+  }
+
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
   await bootstrap();
+}
+
+async function signUp() {
+  const full_name = document.getElementById('signupName').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const phone = document.getElementById('signupPhone').value.trim();
+  const password = document.getElementById('signupPass').value;
+  const requestedRole = document.getElementById('signupRequestedRole').value;
+  const msg = document.getElementById('authMsg');
+
+  if (!full_name || !email || !phone || !password) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Please fill in all fields.'; return;
+  }
+  if (password.length < 6) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 6 characters.'; return;
+  }
+
+  msg.style.color = 'var(--g3)'; msg.textContent = 'Creating your account…';
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { full_name, phone } }
+  });
+  if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+
+  if (data.user && requestedRole) {
+    await sb.from('profiles').update({ requested_role: requestedRole }).eq('id', data.user.id);
+  }
+
+  if (data.session) {
+    await showCustomerIdThenContinue(data.user.id);
+  } else {
+    msg.style.color = 'var(--green)';
+    msg.textContent = 'Account created! Check your email to confirm it, then sign in.';
+    setTimeout(() => { authMode = 'signin'; renderAuthBox(); }, 3000);
+  }
+}
+
+async function showCustomerIdThenContinue(userId) {
+  const { data: profile } = await sb.from('profiles').select('customer_id').eq('id', userId).single();
+  const box = document.getElementById('authBox');
+  box.innerHTML = `
+    <h1>Account created 🎉</h1>
+    <p>Your Customer ID is:</p>
+    <div class="customerIdBox">${profile?.customer_id || '—'}</div>
+    <p>You can log in next time with your email, phone number, or this Customer ID — save it somewhere safe.</p>
+    <button id="continueBtn">Continue</button>
+  `;
+  document.getElementById('continueBtn').onclick = bootstrap;
 }
 
 async function signOut() {
   await sb.auth.signOut();
   document.getElementById('appShell').style.display = 'none';
   document.getElementById('authBox').style.display = 'block';
+  authMode = 'signin';
+  renderAuthBox();
 }
 
 async function bootstrap() {
@@ -151,6 +258,18 @@ async function bootstrap() {
   document.getElementById('authBox').style.display = 'none';
   document.getElementById('appShell').style.display = 'flex';
   renderSidebar();
+
+  if (profile && profile.role === 'pending') {
+    document.getElementById('mainArea').innerHTML = `
+      <div class="pendingBox">
+        <div class="emoji">⏳</div>
+        <h2>Your account is pending approval</h2>
+        <div class="idTag">${profile.customer_id || ''}</div>
+        <p>Thanks for signing up, ${profile.full_name || 'there'}! An admin needs to review your account and assign your access level before you can see anything else. You'll be able to log in and see the full dashboard once that's done — no need to sign up again.</p>
+      </div>
+    `;
+    return;
+  }
 
   if (typeof window.onVIPLReady === 'function') window.onVIPLReady();
 }
