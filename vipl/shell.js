@@ -48,7 +48,7 @@ const REQUESTED_ROLE_OPTIONS = [
 // ── SHELL STATE ─────────────────────────────────────
 window.VIPL = { sb, user: null, profile: null };
 const currentPage = location.pathname.split('/').pop() || 'index.html';
-let authMode = 'signin';
+let authMode = 'signin'; // signin | signup | forgot | reset
 
 function injectShellStyles() {
   const style = document.createElement('style');
@@ -62,6 +62,11 @@ function injectShellStyles() {
     #authMsg { font-size: 13px; margin-top: 10px; text-align: center; }
     .authSwitch { font-size: 13px; text-align: center; margin-top: 16px; color: var(--g3); }
     .authSwitch a { color: var(--blue); font-weight: 700; text-decoration: none; cursor: pointer; }
+    .forgotLink { font-size: 12.5px; text-align: right; margin: -4px 0 14px; }
+    .forgotLink a { color: var(--blue); text-decoration: none; cursor: pointer; font-weight: 600; }
+    .pwWrap { position: relative; margin-bottom: 10px; }
+    .pwWrap input { margin-bottom: 0; padding-right: 56px; }
+    .pwToggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; user-select: none; }
     .customerIdBox { font-size: 22px; font-weight: 800; text-align: center; background: var(--off); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--blue); letter-spacing: .03em; }
     #appShell { display: none; }
     #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; background: var(--navy); color: #fff; padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; }
@@ -97,6 +102,12 @@ function injectShellStyles() {
   document.head.appendChild(style);
 }
 
+function togglePw(inputId, el) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') { input.type = 'text'; el.textContent = 'Hide'; }
+  else { input.type = 'password'; el.textContent = 'Show'; }
+}
+
 function renderAuthBox() {
   const box = document.getElementById('authBox');
   if (!box) return;
@@ -106,21 +117,30 @@ function renderAuthBox() {
       <h1>VIPL Internal</h1>
       <p>Sign in with your email, phone number, or Customer ID.</p>
       <input type="text" id="authIdentifier" placeholder="Email, phone, or Customer ID">
-      <input type="password" id="authPass" placeholder="Password">
+      <div class="pwWrap">
+        <input type="password" id="authPass" placeholder="Password">
+        <span class="pwToggle" onclick="togglePw('authPass', this)">Show</span>
+      </div>
+      <div class="forgotLink"><a id="toForgot">Forgot password?</a></div>
       <button id="signInBtn">Sign In</button>
       <div id="authMsg"></div>
       <div class="authSwitch">New team member? <a id="toSignup">Create an account</a></div>
     `;
     document.getElementById('signInBtn').onclick = signIn;
     document.getElementById('toSignup').onclick = () => { authMode = 'signup'; renderAuthBox(); };
-  } else {
+    document.getElementById('toForgot').onclick = () => { authMode = 'forgot'; renderAuthBox(); };
+
+  } else if (authMode === 'signup') {
     box.innerHTML = `
       <h1>Create your account</h1>
       <p>Sign up to request access to VIPL Internal. You'll get a Customer ID you can use to log in later, alongside your email or phone. An admin will review and assign your role before you can see any financial data.</p>
       <input type="text" id="signupName" placeholder="Full name">
       <input type="email" id="signupEmail" placeholder="Email address">
       <input type="tel" id="signupPhone" placeholder="Phone number">
-      <input type="password" id="signupPass" placeholder="Password (min 6 characters)">
+      <div class="pwWrap">
+        <input type="password" id="signupPass" placeholder="Password (min 6 characters)">
+        <span class="pwToggle" onclick="togglePw('signupPass', this)">Show</span>
+      </div>
       <select id="signupRequestedRole">
         ${REQUESTED_ROLE_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
       </select>
@@ -130,6 +150,35 @@ function renderAuthBox() {
     `;
     document.getElementById('signUpBtn').onclick = signUp;
     document.getElementById('toSignin').onclick = () => { authMode = 'signin'; renderAuthBox(); };
+
+  } else if (authMode === 'forgot') {
+    box.innerHTML = `
+      <h1>Reset your password</h1>
+      <p>Enter your email, phone, or Customer ID and we'll send a password reset link to your registered email.</p>
+      <input type="text" id="forgotIdentifier" placeholder="Email, phone, or Customer ID">
+      <button id="sendResetBtn">Send Reset Link</button>
+      <div id="authMsg"></div>
+      <div class="authSwitch">Remembered it? <a id="toSignin">Sign in</a></div>
+    `;
+    document.getElementById('sendResetBtn').onclick = sendResetLink;
+    document.getElementById('toSignin').onclick = () => { authMode = 'signin'; renderAuthBox(); };
+
+  } else if (authMode === 'reset') {
+    box.innerHTML = `
+      <h1>Set a new password</h1>
+      <p>Choose a new password for your account.</p>
+      <div class="pwWrap">
+        <input type="password" id="newPass" placeholder="New password (min 6 characters)">
+        <span class="pwToggle" onclick="togglePw('newPass', this)">Show</span>
+      </div>
+      <div class="pwWrap">
+        <input type="password" id="newPassConfirm" placeholder="Confirm new password">
+        <span class="pwToggle" onclick="togglePw('newPassConfirm', this)">Show</span>
+      </div>
+      <button id="resetSubmitBtn">Set New Password</button>
+      <div id="authMsg"></div>
+    `;
+    document.getElementById('resetSubmitBtn').onclick = submitNewPassword;
   }
 }
 
@@ -164,6 +213,18 @@ function renderSidebar() {
   document.getElementById('signOutBtn').onclick = signOut;
 }
 
+// Resolve an email/phone/customer_id identifier down to an actual email address
+async function resolveEmailFromIdentifier(identifier) {
+  if (identifier.includes('@')) return identifier;
+  const { data, error } = await sb
+    .from('profiles')
+    .select('email')
+    .or(`phone.eq.${identifier},customer_id.eq.${identifier}`)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.email;
+}
+
 async function signIn() {
   const identifier = document.getElementById('authIdentifier').value.trim();
   const password = document.getElementById('authPass').value;
@@ -173,17 +234,9 @@ async function signIn() {
   }
   msg.style.color = 'var(--g3)'; msg.textContent = 'Signing in…';
 
-  let email = identifier;
-  if (!identifier.includes('@')) {
-    const { data, error: lookupErr } = await sb
-      .from('profiles')
-      .select('email')
-      .or(`phone.eq.${identifier},customer_id.eq.${identifier}`)
-      .maybeSingle();
-    if (lookupErr || !data) {
-      msg.style.color = '#C0392B'; msg.textContent = 'No account found with that phone number or Customer ID.'; return;
-    }
-    email = data.email;
+  const email = await resolveEmailFromIdentifier(identifier);
+  if (!email) {
+    msg.style.color = '#C0392B'; msg.textContent = 'No account found with that phone number or Customer ID.'; return;
   }
 
   const { error } = await sb.auth.signInWithPassword({ email, password });
@@ -206,16 +259,34 @@ async function signUp() {
     msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 6 characters.'; return;
   }
 
+  msg.style.color = 'var(--g3)'; msg.textContent = 'Checking your details…';
+
+  // Duplicate check on email OR phone before attempting signup
+  const { data: existing, error: checkErr } = await sb
+    .from('profiles')
+    .select('email, phone')
+    .or(`email.eq.${email},phone.eq.${phone}`);
+
+  if (!checkErr && existing && existing.length) {
+    const emailMatch = existing.some(p => p.email === email);
+    const phoneMatch = existing.some(p => p.phone === phone);
+    msg.style.color = '#C0392B';
+    if (emailMatch && phoneMatch) {
+      msg.textContent = 'An account with this email and phone number already exists. Try signing in instead.';
+    } else if (emailMatch) {
+      msg.textContent = 'An account with this email already exists. Try signing in instead.';
+    } else {
+      msg.textContent = 'An account with this phone number already exists. Try signing in instead.';
+    }
+    return;
+  }
+
   msg.style.color = 'var(--g3)'; msg.textContent = 'Creating your account…';
   const { data, error } = await sb.auth.signUp({
     email, password,
-    options: { data: { full_name, phone } }
+    options: { data: { full_name, phone, requested_role: requestedRole } }
   });
   if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
-
-  if (data.user && requestedRole) {
-    await sb.from('profiles').update({ requested_role: requestedRole }).eq('id', data.user.id);
-  }
 
   if (data.session) {
     await showCustomerIdThenContinue(data.user.id);
@@ -224,6 +295,50 @@ async function signUp() {
     msg.textContent = 'Account created! Check your email to confirm it, then sign in.';
     setTimeout(() => { authMode = 'signin'; renderAuthBox(); }, 3000);
   }
+}
+
+async function sendResetLink() {
+  const identifier = document.getElementById('forgotIdentifier').value.trim();
+  const msg = document.getElementById('authMsg');
+  if (!identifier) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Please enter your email, phone, or Customer ID.'; return;
+  }
+  msg.style.color = 'var(--g3)'; msg.textContent = 'Looking up your account…';
+
+  const email = await resolveEmailFromIdentifier(identifier);
+  if (!email) {
+    msg.style.color = '#C0392B'; msg.textContent = 'No account found with that email, phone, or Customer ID.'; return;
+  }
+
+  msg.textContent = 'Sending reset link…';
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+
+  msg.style.color = 'var(--green)';
+  msg.textContent = 'Reset link sent! Check your email.';
+}
+
+async function submitNewPassword() {
+  const p1 = document.getElementById('newPass').value;
+  const p2 = document.getElementById('newPassConfirm').value;
+  const msg = document.getElementById('authMsg');
+  if (!p1 || p1.length < 6) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 6 characters.'; return;
+  }
+  if (p1 !== p2) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Passwords do not match.'; return;
+  }
+  msg.style.color = 'var(--g3)'; msg.textContent = 'Updating password…';
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+
+  msg.style.color = 'var(--green)'; msg.textContent = 'Password updated! Signing you in…';
+  setTimeout(async () => {
+    history.replaceState(null, '', location.pathname);
+    await bootstrap();
+  }, 1200);
 }
 
 async function showCustomerIdThenContinue(userId) {
@@ -275,9 +390,16 @@ async function bootstrap() {
 }
 
 // ── INIT ─────────────────────────────────────────────
+sb.auth.onAuthStateChange((event) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    authMode = 'reset';
+    renderAuthBox();
+  }
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   injectShellStyles();
   renderAuthBox();
   const { data: { session } } = await sb.auth.getSession();
-  if (session) await bootstrap();
+  if (session && authMode !== 'reset') await bootstrap();
 });
