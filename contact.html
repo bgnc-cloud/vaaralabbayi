@@ -24,7 +24,7 @@
       <button class="lang-btn active" data-lang="en" onclick="setLang('en',event)">EN</button>
       <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
     </div>
-    <a class="nav-investor" href="investor.html">Investor Zone →</a>
+    <a class="nav-investor" href="investor.html">Portal Login →</a>
     <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
   </div>
 </nav>
@@ -63,25 +63,25 @@
       <div class="form-group">
         <label class="form-label eng">Full Name *</label>
         <label class="form-label tel" style="display:none">పూర్తి పేరు *</label>
-        <input class="form-input" type="text" placeholder="Your full name" required>
+        <input class="form-input" type="text" id="fName" placeholder="Your full name" required>
       </div>
 
       <div class="form-group">
         <label class="form-label eng">Mobile Number *</label>
         <label class="form-label tel" style="display:none">మొబైల్ నంబర్ *</label>
-        <input class="form-input" type="tel" placeholder="+91 XXXXX XXXXX" required>
+        <input class="form-input" type="tel" id="fMobile" placeholder="+91 XXXXX XXXXX" required>
       </div>
 
       <div class="form-group">
         <label class="form-label eng">Village & District</label>
         <label class="form-label tel" style="display:none">గ్రామం & జిల్లా</label>
-        <input class="form-input" type="text" placeholder="Village name, District, State">
+        <input class="form-input" type="text" id="fVillage" placeholder="Village name, District, State">
       </div>
 
       <div class="form-group">
         <label class="form-label eng">I am enquiring about... *</label>
         <label class="form-label tel" style="display:none">నేను ఏ విషయంలో విచారిస్తున్నాను...</label>
-        <select class="form-select" required>
+        <select class="form-select" id="fEnquiry" required>
           <option value="" class="eng">Select enquiry type</option>
           <option value="subscribe" class="eng">📦 Subscriber / Household subscription</option>
           <option value="store" class="eng">🏪 Digital Store operator application</option>
@@ -94,13 +94,15 @@
       <div class="form-group">
         <label class="form-label eng">Message</label>
         <label class="form-label tel" style="display:none">సందేశం</label>
-        <textarea class="form-textarea" placeholder="Tell us more about your enquiry..."></textarea>
+        <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..."></textarea>
       </div>
 
-      <button class="form-submit" onclick="handleSubmit(event)">
+      <button class="form-submit" id="submitBtn" onclick="handleSubmit(event)">
         <span class="eng">Send Message →</span>
         <span class="tel" style="display:none">సందేశం పంపండి →</span>
       </button>
+
+      <div id="submitErr" style="display:none;margin-top:14px;padding:14px;background:#FEE2E2;border-radius:10px;color:#C0392B;font-size:14px;font-weight:700"></div>
 
       <div id="submitMsg" style="display:none;margin-top:14px;padding:14px;background:#EAF3DE;border-radius:10px;color:#15803D;font-size:14px;font-weight:700">
         ✅ Message sent! We'll contact you within 48 hours.
@@ -174,10 +176,50 @@
 
 <script src="main.js"></script>
 <script>
-function handleSubmit(e) {
+async function handleSubmit(e) {
   e.preventDefault();
-  document.getElementById('submitMsg').style.display = 'block';
-  setTimeout(() => { document.getElementById('submitMsg').scrollIntoView({behavior:'smooth'}); }, 100);
+
+  const fullName = document.getElementById('fName').value.trim();
+  const mobileNumber = document.getElementById('fMobile').value.trim();
+  const villageDistrict = document.getElementById('fVillage').value.trim();
+  const enquiryType = document.getElementById('fEnquiry').value;
+  const message = document.getElementById('fMessage').value.trim();
+
+  const errBox = document.getElementById('submitErr');
+  const msgBox = document.getElementById('submitMsg');
+  const btn = document.getElementById('submitBtn');
+
+  errBox.style.display = 'none';
+  msgBox.style.display = 'none';
+
+  if (!fullName || !mobileNumber || !enquiryType) {
+    errBox.textContent = 'Please fill in your name, mobile number, and enquiry type.';
+    errBox.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = '<span>Sending…</span>';
+
+  try {
+    const res = await fetch('/api/submit-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fullName, mobileNumber, villageDistrict, enquiryType, message })
+    });
+    if (!res.ok) throw new Error('Submission failed');
+
+    msgBox.style.display = 'block';
+    setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
+    ['fName','fMobile','fVillage','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+  } catch (err) {
+    errBox.textContent = 'Something went wrong. Please try again, or contact us directly at the number above.';
+    errBox.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
 }
 </script>
 </body>
