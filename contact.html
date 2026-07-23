@@ -73,9 +73,21 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">Village & District</label>
-        <label class="form-label tel" style="display:none">గ్రామం & జిల్లా</label>
-        <input class="form-input" type="text" id="fVillage" placeholder="Village name, District, State">
+        <label class="form-label eng">Village</label>
+        <label class="form-label tel" style="display:none">గ్రామం</label>
+        <input class="form-input" type="text" id="fVillage" placeholder="Village name">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label eng">City / District</label>
+        <label class="form-label tel" style="display:none">నగరం / జిల్లా</label>
+        <input class="form-input" type="text" id="fCityDistrict" placeholder="City or District">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label eng">State</label>
+        <label class="form-label tel" style="display:none">రాష్ట్రం</label>
+        <input class="form-input" type="text" id="fState" placeholder="State">
       </div>
 
       <div class="form-group">
@@ -181,7 +193,9 @@ async function handleSubmit(e) {
 
   const fullName = document.getElementById('fName').value.trim();
   const mobileNumber = document.getElementById('fMobile').value.trim();
-  const villageDistrict = document.getElementById('fVillage').value.trim();
+  const village = document.getElementById('fVillage').value.trim();
+  const cityDistrict = document.getElementById('fCityDistrict').value.trim();
+  const state = document.getElementById('fState').value.trim();
   const enquiryType = document.getElementById('fEnquiry').value;
   const message = document.getElementById('fMessage').value.trim();
 
@@ -206,13 +220,13 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, villageDistrict, enquiryType, message })
+      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message })
     });
     if (!res.ok) throw new Error('Submission failed');
 
     msgBox.style.display = 'block';
     setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
-    ['fName','fMobile','fVillage','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+    ['fName','fMobile','fVillage','fCityDistrict','fState','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
   } catch (err) {
     errBox.textContent = 'Something went wrong. Please try again, or contact us directly at the number above.';
     errBox.style.display = 'block';
