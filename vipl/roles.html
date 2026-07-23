@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — Role Management</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
+  .roleToolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnDanger { background: #FEE2E2; color: #C0392B; }
+  .btnApprove { background: #EAF3DE; color: #15803D; }
+  .btnSm { padding: 6px 12px; font-size: 12.5px; }
+  .sectionTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; margin: 28px 0 12px; }
+  .modeBanner { font-size: 13px; padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; }
+  .modeBanner.hr { background: #FFF7ED; color: #9A5B0F; }
+  .modeBanner.admin { background: #F0F7FF; color: #0C447C; }
+  .roleTableWrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  table.roleTable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.roleTable th { text-align: left; padding: 12px 16px; background: var(--off); color: var(--g3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+  table.roleTable td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .catGroupRow td { background: var(--off); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--g3); padding: 8px 16px; }
+  .roleName { font-weight: 700; }
+  .roleCode { font-family: monospace; font-size: 12px; color: var(--g3); }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: var(--off); color: var(--g3); }
+  .pill.system { background: rgba(249,115,22,.15); color: #F97316; }
+  .pill.inactive { background: #FEE2E2; color: #C0392B; }
+  .pill.pending { background: #FFF7ED; color: #9A5B0F; }
+  .rowActions { display: flex; gap: 8px; }
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.4); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modalOverlay.open { display: flex; }
+  .modalBox { background: #fff; border-radius: 16px; padding: 28px; width: 440px; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
+  .modalBox h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .modalBox .modalSub { font-size: 12.5px; color: var(--g3); margin-bottom: 14px; }
+  .modalBox label { display: block; font-size: 12.5px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
+  .modalBox input, .modalBox select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .modalActions { display: flex; gap: 10px; margin-top: 22px; }
+  .modalActions .btn { flex: 1; }
+  #roleFormMsg { font-size: 13px; margin-top: 10px; color: #C0392B; }
+  .accessDenied { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .reqMeta { font-size: 12px; color: var(--g3); }
+  .emptyNote { font-size: 13px; color: var(--g3); padding: 18px 16px; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Role Management</h1>
+    <div class="lead">Create, edit, and organize roles. Changes here update the role catalog — wiring new roles into page access is a separate step.</div>
+    <div id="pageBody"></div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="roleModal">
+  <div class="modalBox">
+    <h3 id="roleModalTitle">Add Role</h3>
+    <div class="modalSub" id="roleModalSub"></div>
+    <input type="hidden" id="roleId">
+    <label>Role name</label>
+    <input type="text" id="roleName" placeholder="e.g. Regional Manager">
+    <label>Code (stable identifier — lowercase, underscores)</label>
+    <input type="text" id="roleCode" placeholder="e.g. regional_manager">
+    <label>Category</label>
+    <select id="roleCategory">
+      <option value="admin_staff">Admin staff</option>
+      <option value="investor">Investor</option>
+      <option value="warehouse">Warehouse</option>
+      <option value="dark_store">Dark store</option>
+      <option value="supply_chain">Supply chain</option>
+      <option value="digital_store">Digital store</option>
+      <option value="fbc">FBC</option>
+      <option value="subscriber">Subscriber</option>
+      <option value="fico">FICO</option>
+    </select>
+    <label>Scope level</label>
+    <select id="roleScope">
+      <option value="company">Company-wide</option>
+      <option value="district">District</option>
+      <option value="mandal">Mandal</option>
+      <option value="village">Village</option>
+      <option value="digital_store">Digital store</option>
+      <option value="warehouse">Warehouse</option>
+    </select>
+    <label>Reports to (optional)</label>
+    <select id="roleParent"><option value="">— None —</option></select>
+    <label>Sort order</label>
+    <input type="number" id="roleSort" value="100">
+    <div id="roleFormMsg"></div>
+    <div class="modalActions">
+      <button class="btn btnGhost" id="roleCancelBtn">Cancel</button>
+      <button class="btn btnPrimary" id="roleSaveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const CATEGORY_LABELS = {
+    admin_staff: 'Admin staff', investor: 'Investor', warehouse: 'Warehouse',
+    dark_store: 'Dark store', supply_chain: 'Supply chain', digital_store: 'Digital store',
+    fbc: 'FBC', subscriber: 'Subscriber', fico: 'FICO', system: 'System'
+  };
+  let allRoles = [];
+  let myRole = null;
+  let canDirectEdit = false;   // super_admin / admin
+  let canPropose = false;      // hr_manager / admin / super_admin
+
+  window.onVIPLReady = async function() {
+    myRole = VIPL.profile.role;
+    canDirectEdit = ['super_admin','admin'].includes(myRole);
+    canPropose = ['hr_manager','admin','super_admin'].includes(myRole);
+
+    if (!canPropose) {
+      document.getElementById('pageBody').innerHTML = `
+        <div class="accessDenied">
+          <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;margin-bottom:8px">Restricted</h2>
+          <p style="font-size:13.5px;color:var(--g3)">Role management is limited to Super Admin, Admin, and HR Manager accounts.</p>
+        </div>`;
+      return;
+    }
+
+    const banner = canDirectEdit
+      ? `<div class="modeBanner admin">You have full edit rights and can approve or reject HR Manager change requests below.</div>`
+      : `<div class="modeBanner hr">As HR Manager, your changes are submitted as requests. A Super Admin or Admin must approve them before they take effect.</div>`;
+
+    document.getElementById('pageBody').innerHTML = `
+      ${banner}
+      <div class="roleToolbar">
+        <div></div>
+        <button class="btn btnPrimary" id="addRoleBtn">+ ${canDirectEdit ? 'Add Role' : 'Propose New Role'}</button>
+      </div>
+      ${canDirectEdit ? `<div class="sectionTitle">Pending approvals</div><div class="roleTableWrap" id="approvalsWrap"><div id="approvalsBody"></div></div>` : ''}
+      <div class="sectionTitle">Role catalog</div>
+      <div class="roleTableWrap"><table class="roleTable">
+        <thead><tr><th>Role</th><th>Scope</th><th>Reports to</th><th>Status</th><th></th></tr></thead>
+        <tbody id="roleTableBody"></tbody>
+      </table></div>
+    `;
+    document.getElementById('addRoleBtn').onclick = () => openRoleModal(null);
+    document.getElementById('roleCancelBtn').onclick = closeRoleModal;
+    document.getElementById('roleSaveBtn').onclick = saveRole;
+    await loadRoles();
+    if (canDirectEdit) await loadApprovals();
+  };
+
+  async function loadRoles() {
+    const { data, error } = await VIPL.sb.from('roles').select('*').order('category').order('sort_order');
+    if (error) { document.getElementById('roleTableBody').innerHTML = `<tr><td colspan="5">Error loading roles: ${error.message}</td></tr>`; return; }
+    allRoles = data || [];
+    renderRoleTable();
+    populateParentSelect();
+  }
+
+  async function loadApprovals() {
+    const { data, error } = await VIPL.sb
+      .from('role_change_requests')
+      .select('*, requester:requested_by(full_name,email)')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+    const wrap = document.getElementById('approvalsBody');
+    if (error) { wrap.innerHTML = `<div class="emptyNote">Error loading requests: ${error.message}</div>`; return; }
+    if (!data || !data.length) { wrap.innerHTML = `<div class="emptyNote">No pending requests.</div>`; return; }
+
+    wrap.innerHTML = data.map(req => {
+      const requester = req.requester ? (req.requester.full_name || req.requester.email) : 'Unknown';
+      const actionLabel = { create: 'Create role', update: 'Edit role', deactivate: 'Deactivate role', reactivate: 'Reactivate role' }[req.action] || req.action;
+      const targetName = req.role_id ? (allRoles.find(r => r.id === req.role_id)?.name || '—') : (req.payload.name || '—');
+      return `
+        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <div style="font-weight:700;font-size:13.5px">${actionLabel}: ${escapeHtml(targetName)}</div>
+            <div class="reqMeta">Requested by ${escapeHtml(requester)} · ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+          </div>
+          <div class="rowActions">
+            <button class="btn btnApprove btnSm" onclick="reviewRequest('${req.id}', 'approved')">Approve</button>
+            <button class="btn btnDanger btnSm" onclick="reviewRequest('${req.id}', 'rejected')">Reject</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderRoleTable() {
+    const byId = Object.fromEntries(allRoles.map(r => [r.id, r]));
+    let html = '';
+    let lastCat = null;
+    allRoles.forEach(r => {
+      if (r.category !== lastCat) {
+        html += `<tr class="catGroupRow"><td colspan="5">${CATEGORY_LABELS[r.category] || r.category}</td></tr>`;
+        lastCat = r.category;
+      }
+      const parent = r.parent_role_id ? byId[r.parent_role_id] : null;
+      const statusPills = [
+        r.is_system ? '<span class="pill system">System</span>' : '',
+        !r.is_active ? '<span class="pill inactive">Inactive</span>' : ''
+      ].join(' ');
+      const editBtn = canDirectEdit
+        ? `<button class="btn btnGhost btnSm" onclick="openRoleModal('${r.id}')">Edit</button>`
+        : `<button class="btn btnGhost btnSm" onclick="openRoleModal('${r.id}')">Propose edit</button>`;
+      const deactivateBtn = r.is_system ? '' : (canDirectEdit
+        ? `<button class="btn btnDanger btnSm" onclick="toggleRoleActive('${r.id}', ${r.is_active})">${r.is_active ? 'Deactivate' : 'Reactivate'}</button>`
+        : `<button class="btn btnDanger btnSm" onclick="proposeToggle('${r.id}', ${r.is_active})">${r.is_active ? 'Propose deactivate' : 'Propose reactivate'}</button>`);
+      html += `
+        <tr>
+          <td><div class="roleName">${escapeHtml(r.name)}</div><div class="roleCode">${escapeHtml(r.code)}</div></td>
+          <td>${escapeHtml(r.scope_type)}</td>
+          <td>${parent ? escapeHtml(parent.name) : '—'}</td>
+          <td>${statusPills || '<span class="pill">Active</span>'}</td>
+          <td><div class="rowActions">${editBtn} ${deactivateBtn}</div></td>
+        </tr>`;
+    });
+    document.getElementById('roleTableBody').innerHTML = html;
+  }
+
+  function populateParentSelect() {
+    const sel = document.getElementById('roleParent');
+    sel.innerHTML = '<option value="">— None —</option>' +
+      allRoles.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('');
+  }
+
+  function openRoleModal(roleId) {
+    document.getElementById('roleFormMsg').textContent = '';
+    const r = roleId ? allRoles.find(x => x.id === roleId) : null;
+    document.getElementById('roleModalTitle').textContent = (canDirectEdit ? '' : 'Propose: ') + (r ? 'Edit Role' : 'Add Role');
+    document.getElementById('roleModalSub').textContent = canDirectEdit
+      ? 'This will apply immediately.'
+      : 'This will be submitted for Super Admin / Admin approval.';
+    document.getElementById('roleId').value = r ? r.id : '';
+    document.getElementById('roleName').value = r ? r.name : '';
+    document.getElementById('roleCode').value = r ? r.code : '';
+    document.getElementById('roleCode').disabled = !!(r && r.is_system);
+    document.getElementById('roleCategory').value = r ? r.category : 'admin_staff';
+    document.getElementById('roleScope').value = r ? r.scope_type : 'company';
+    document.getElementById('roleParent').value = r && r.parent_role_id ? r.parent_role_id : '';
+    document.getElementById('roleSort').value = r ? r.sort_order : 100;
+    document.getElementById('roleModal').classList.add('open');
+  }
+
+  function closeRoleModal() {
+    document.getElementById('roleModal').classList.remove('open');
+  }
+
+  function collectPayload() {
+    return {
+      name: document.getElementById('roleName').value.trim(),
+      code: document.getElementById('roleCode').value.trim().toLowerCase().replace(/\s+/g, '_'),
+      category: document.getElementById('roleCategory').value,
+      scope_type: document.getElementById('roleScope').value,
+      parent_role_id: document.getElementById('roleParent').value || null,
+      sort_order: parseInt(document.getElementById('roleSort').value, 10) || 100
+    };
+  }
+
+  async function saveRole() {
+    const id = document.getElementById('roleId').value;
+    const payload = collectPayload();
+    const msg = document.getElementById('roleFormMsg');
+
+    if (!payload.name || !payload.code) { msg.textContent = 'Name and code are required.'; return; }
+    if (payload.parent_role_id && id && payload.parent_role_id === id) { msg.textContent = 'A role cannot report to itself.'; return; }
+
+    if (canDirectEdit) {
+      const { error } = id
+        ? await VIPL.sb.from('roles').update(payload).eq('id', id)
+        : await VIPL.sb.from('roles').insert(payload);
+      if (error) { msg.textContent = error.message; return; }
+    } else {
+      const { error } = await VIPL.sb.from('role_change_requests').insert({
+        action: id ? 'update' : 'create',
+        role_id: id || null,
+        payload,
+        requested_by: VIPL.user.id
+      });
+      if (error) { msg.textContent = error.message; return; }
+      alert('Submitted for approval.');
+    }
+    closeRoleModal();
+    await loadRoles();
+  }
+
+  async function toggleRoleActive(id, currentlyActive) {
+    const { error } = await VIPL.sb.from('roles').update({ is_active: !currentlyActive }).eq('id', id);
+    if (error) { alert(error.message); return; }
+    await loadRoles();
+  }
+
+  async function proposeToggle(id, currentlyActive) {
+    const { error } = await VIPL.sb.from('role_change_requests').insert({
+      action: currentlyActive ? 'deactivate' : 'reactivate',
+      role_id: id,
+      payload: {},
+      requested_by: VIPL.user.id
+    });
+    if (error) { alert(error.message); return; }
+    alert('Submitted for approval.');
+    await loadRoles();
+  }
+
+  async function reviewRequest(requestId, decision) {
+    const { data: req, error: fetchErr } = await VIPL.sb.from('role_change_requests').select('*').eq('id', requestId).single();
+    if (fetchErr || !req) { alert('Could not load request.'); return; }
+
+    if (decision === 'approved') {
+      let applyError = null;
+      if (req.action === 'create') {
+        ({ error: applyError } = await VIPL.sb.from('roles').insert(req.payload));
+      } else if (req.action === 'update') {
+        ({ error: applyError } = await VIPL.sb.from('roles').update(req.payload).eq('id', req.role_id));
+      } else if (req.action === 'deactivate') {
+        ({ error: applyError } = await VIPL.sb.from('roles').update({ is_active: false }).eq('id', req.role_id));
+      } else if (req.action === 'reactivate') {
+        ({ error: applyError } = await VIPL.sb.from('roles').update({ is_active: true }).eq('id', req.role_id));
+      }
+      if (applyError) { alert('Failed to apply change: ' + applyError.message); return; }
+    }
+
+    const { error: reviewErr } = await VIPL.sb.from('role_change_requests').update({
+      status: decision, reviewed_by: VIPL.user.id, reviewed_at: new Date().toISOString()
+    }).eq('id', requestId);
+    if (reviewErr) { alert(reviewErr.message); return; }
+
+    await loadRoles();
+    await loadApprovals();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
