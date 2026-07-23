@@ -132,24 +132,27 @@
   async function loadEmployees() {
     const { data, error } = await VIPL.sb
       .from('profiles')
-      .select('customer_id, full_name, email, role, department, date_of_joining, reporting_manager_id')
+      .select('id, customer_id, full_name, email, role, department, date_of_joining, reporting_manager_id')
       .neq('role', 'pending')
       .order('created_at', { ascending: false });
     if (error) { document.getElementById('empTableBody').innerHTML = `<tr><td colspan="5">Error: ${error.message}</td></tr>`; return; }
     allEmployees = data || [];
-    const byId = {}; // not enough info to map manager id to name without another query; show role label only for now
     document.getElementById('empManager').innerHTML = '<option value="">— None —</option>' +
-      allEmployees.map(e => `<option value="${e.customer_id}">${escapeHtml(e.full_name || e.email)}</option>`).join('');
+      allEmployees.map(e => `<option value="${e.id}">${escapeHtml(e.full_name || e.email)}</option>`).join('');
 
-    document.getElementById('empTableBody').innerHTML = allEmployees.map(e => `
+    const byId = Object.fromEntries(allEmployees.map(e => [e.id, e]));
+    document.getElementById('empTableBody').innerHTML = allEmployees.map(e => {
+      const manager = e.reporting_manager_id ? byId[e.reporting_manager_id] : null;
+      return `
       <tr>
         <td><div class="empName">${escapeHtml(e.full_name || '—')}</div><div class="empId">${escapeHtml(e.customer_id || '')} · ${escapeHtml(e.email)}</div></td>
         <td><span class="pill">${escapeHtml(roleLabel(e.role))}</span></td>
         <td>${escapeHtml(e.department || '—')}</td>
-        <td>${e.reporting_manager_id ? 'Assigned' : '—'}</td>
+        <td>${manager ? escapeHtml(manager.full_name || manager.email) : '—'}</td>
         <td>${e.date_of_joining || '—'}</td>
       </tr>
-    `).join('') || '<tr><td colspan="5" style="color:var(--g3)">No employees yet.</td></tr>';
+    `;
+    }).join('') || '<tr><td colspan="5" style="color:var(--g3)">No employees yet.</td></tr>';
   }
 
   function roleLabel(code) {
