@@ -26,12 +26,14 @@ const NAV_CONFIG = [
     { label: '🚚 Supply Chain', href: null, roles: ['super_admin','fbc_rm','fbc_bdm','fbc_mm'], soon: true },
   ]},
   { group: 'Admin', items: [
+    { label: '🧩 Role Management', href: 'roles.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '👤 User Management', href: null, roles: ['super_admin'], soon: true },
   ]},
 ];
 
 const ROLE_LABELS = {
-  super_admin: 'Super Admin', accountant: 'Accountant', entry: 'Entry Staff',
+  super_admin: 'Super Admin', admin: 'Admin', hr_manager: 'HR Manager',
+  accountant: 'Accountant', entry: 'Entry Staff',
   store_operator: 'Store Operator', fbc_rm: 'FBC — RM', fbc_bdm: 'FBC — BDM',
   fbc_mm: 'FBC — MM', investor: 'Investor', subscriber: 'Subscriber', viewer: 'Viewer',
   pending: 'Pending Approval'
