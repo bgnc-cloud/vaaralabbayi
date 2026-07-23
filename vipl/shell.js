@@ -27,7 +27,7 @@ const NAV_CONFIG = [
   ]},
   { group: 'Admin', items: [
     { label: '🧩 Role Management', href: 'roles.html', roles: ['super_admin','admin','hr_manager'] },
-    { label: '👤 User Management', href: null, roles: ['super_admin'], soon: true },
+    { label: '👤 Employee Management', href: 'employees.html', roles: ['super_admin','admin','hr_manager'] },
   ]},
 ];
 
@@ -44,6 +44,7 @@ const REQUESTED_ROLE_OPTIONS = [
   { value: 'investor', label: 'Investor — view my stake & loan exposure' },
   { value: 'accountant', label: 'Accountant / Bookkeeper' },
   { value: 'entry', label: 'Ledger Entry Staff' },
+  { value: 'hr_manager', label: 'HR Manager' },
   { value: 'other', label: 'Other / Not sure' },
 ];
 
