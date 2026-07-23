@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — Employee Management</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnSm { padding: 6px 12px; font-size: 12.5px; }
+  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+  .empTableWrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  table.empTable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.empTable th { text-align: left; padding: 12px 16px; background: var(--off); color: var(--g3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+  table.empTable td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  .empName { font-weight: 700; }
+  .empId { font-family: monospace; font-size: 12px; color: var(--g3); }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: var(--off); color: var(--g3); }
+  .pill.pending { background: #FFF7ED; color: #9A5B0F; }
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.4); display: none; align-items: center; justify-content: center; z-index: 100; overflow-y: auto; }
+  .modalOverlay.open { display: flex; }
+  .modalBox { background: #fff; border-radius: 16px; padding: 28px; width: 460px; max-width: 92vw; max-height: 88vh; overflow-y: auto; margin: 24px; }
+  .modalBox h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .modalBox label { display: block; font-size: 12.5px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
+  .modalBox input, .modalBox select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .loginChoice { display: flex; gap: 10px; margin-top: 8px; }
+  .loginChoice label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+  .loginChoice input[type=radio] { width: auto; margin: 0; }
+  .modalActions { display: flex; gap: 10px; margin-top: 22px; }
+  .modalActions .btn { flex: 1; }
+  #empFormMsg { font-size: 13px; margin-top: 10px; color: #C0392B; }
+  .accessDenied { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .successBox { background: #EAF3DE; color: #15803D; border-radius: 10px; padding: 14px 16px; font-size: 13.5px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Employee Management</h1>
+    <div class="lead">Add employees, assign their role, and set up their login — all in one step.</div>
+    <div id="pageBody"></div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="empModal">
+  <div class="modalBox">
+    <h3>Add Employee</h3>
+    <label>Full name</label>
+    <input type="text" id="empName" placeholder="e.g. Vasikarla Anusha">
+    <label>Email</label>
+    <input type="email" id="empEmail" placeholder="name@example.com">
+    <label>Phone</label>
+    <input type="tel" id="empPhone" placeholder="+91 XXXXX XXXXX">
+    <label>Department</label>
+    <input type="text" id="empDept" placeholder="e.g. Finance, Warehouse, FBC">
+    <label>Date of joining</label>
+    <input type="date" id="empJoining">
+    <label>Role</label>
+    <select id="empRole"><option value="">Select role…</option></select>
+    <label>Reporting manager (optional — specific person)</label>
+    <select id="empManager"><option value="">— None —</option></select>
+    <label>Login setup</label>
+    <div class="loginChoice">
+      <label><input type="radio" name="loginMethod" value="invite" checked> Email invite link</label>
+      <label><input type="radio" name="loginMethod" value="temp_password"> Temporary password</label>
+    </div>
+    <div id="tempPassRow" style="display:none">
+      <label>Temporary password</label>
+      <input type="text" id="empTempPass" placeholder="Min 6 characters">
+    </div>
+    <div id="empFormMsg"></div>
+    <div id="empSuccess" style="display:none"></div>
+    <div class="modalActions">
+      <button class="btn btnGhost" id="empCancelBtn">Cancel</button>
+      <button class="btn btnPrimary" id="empSaveBtn">Create Employee</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  let allEmployees = [];
+  let allRoles = [];
+  let canManage = false;
+
+  window.onVIPLReady = async function() {
+    canManage = ['super_admin','admin','hr_manager'].includes(VIPL.profile.role);
+    if (!canManage) {
+      document.getElementById('pageBody').innerHTML = `
+        <div class="accessDenied">
+          <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;margin-bottom:8px">Restricted</h2>
+          <p style="font-size:13.5px;color:var(--g3)">Employee management is limited to Super Admin, Admin, and HR Manager accounts.</p>
+        </div>`;
+      return;
+    }
+
+    document.getElementById('pageBody').innerHTML = `
+      <div class="toolbar"><button class="btn btnPrimary" id="addEmpBtn">+ Add Employee</button></div>
+      <div class="empTableWrap"><table class="empTable">
+        <thead><tr><th>Employee</th><th>Role</th><th>Department</th><th>Reports to</th><th>Joined</th></tr></thead>
+        <tbody id="empTableBody"></tbody>
+      </table></div>
+    `;
+    document.getElementById('addEmpBtn').onclick = openEmpModal;
+    document.getElementById('empCancelBtn').onclick = closeEmpModal;
+    document.getElementById('empSaveBtn').onclick = createEmployee;
+    document.querySelectorAll('input[name=loginMethod]').forEach(r =>
+      r.onchange = () => { document.getElementById('tempPassRow').style.display = r.value === 'temp_password' && r.checked ? 'block' : 'none'; }
+    );
+
+    await loadRolesForSelect();
+    await loadEmployees();
+  };
+
+  async function loadRolesForSelect() {
+    const { data } = await VIPL.sb.from('roles').select('*').eq('is_active', true).order('category').order('sort_order');
+    allRoles = data || [];
+    document.getElementById('empRole').innerHTML = '<option value="">Select role…</option>' +
+      allRoles.map(r => `<option value="${r.code}">${escapeHtml(r.name)}</option>`).join('');
+  }
+
+  async function loadEmployees() {
+    const { data, error } = await VIPL.sb
+      .from('profiles')
+      .select('customer_id, full_name, email, role, department, date_of_joining, reporting_manager_id')
+      .neq('role', 'pending')
+      .order('created_at', { ascending: false });
+    if (error) { document.getElementById('empTableBody').innerHTML = `<tr><td colspan="5">Error: ${error.message}</td></tr>`; return; }
+    allEmployees = data || [];
+    const byId = {}; // not enough info to map manager id to name without another query; show role label only for now
+    document.getElementById('empManager').innerHTML = '<option value="">— None —</option>' +
+      allEmployees.map(e => `<option value="${e.customer_id}">${escapeHtml(e.full_name || e.email)}</option>`).join('');
+
+    document.getElementById('empTableBody').innerHTML = allEmployees.map(e => `
+      <tr>
+        <td><div class="empName">${escapeHtml(e.full_name || '—')}</div><div class="empId">${escapeHtml(e.customer_id || '')} · ${escapeHtml(e.email)}</div></td>
+        <td><span class="pill">${escapeHtml(roleLabel(e.role))}</span></td>
+        <td>${escapeHtml(e.department || '—')}</td>
+        <td>${e.reporting_manager_id ? 'Assigned' : '—'}</td>
+        <td>${e.date_of_joining || '—'}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" style="color:var(--g3)">No employees yet.</td></tr>';
+  }
+
+  function roleLabel(code) {
+    const r = allRoles.find(r => r.code === code);
+    return r ? r.name : code;
+  }
+
+  function openEmpModal() {
+    document.getElementById('empFormMsg').textContent = '';
+    document.getElementById('empSuccess').style.display = 'none';
+    ['empName','empEmail','empPhone','empDept','empJoining','empRole','empManager','empTempPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('tempPassRow').style.display = 'none';
+    document.querySelector('input[name=loginMethod][value=invite]').checked = true;
+    document.getElementById('empModal').classList.add('open');
+  }
+  function closeEmpModal() { document.getElementById('empModal').classList.remove('open'); }
+
+  async function createEmployee() {
+    const msg = document.getElementById('empFormMsg');
+    const successBox = document.getElementById('empSuccess');
+    msg.textContent = ''; successBox.style.display = 'none';
+
+    const fullName = document.getElementById('empName').value.trim();
+    const email = document.getElementById('empEmail').value.trim();
+    const phone = document.getElementById('empPhone').value.trim();
+    const department = document.getElementById('empDept').value.trim();
+    const dateOfJoining = document.getElementById('empJoining').value;
+    const roleCode = document.getElementById('empRole').value;
+    const reportingManagerId = document.getElementById('empManager').value;
+    const loginMethod = document.querySelector('input[name=loginMethod]:checked').value;
+    const tempPassword = document.getElementById('empTempPass').value;
+
+    if (!fullName || !email || !roleCode) { msg.textContent = 'Name, email, and role are required.'; return; }
+    if (loginMethod === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
+      msg.textContent = 'Temporary password must be at least 6 characters.'; return;
+    }
+
+    const btn = document.getElementById('empSaveBtn');
+    btn.disabled = true; btn.textContent = 'Creating…';
+
+    try {
+      const res = await fetch('/api/create-employee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requesterId: VIPL.user.id,
+          fullName, email, phone, department, dateOfJoining,
+          reportingManagerId: reportingManagerId || null,
+          roleCode, loginMethod, tempPassword
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create employee');
+
+      successBox.style.display = 'block';
+      successBox.textContent = loginMethod === 'invite'
+        ? `Employee created (${data.employeeId}). Invite email sent to ${email}.`
+        : `Employee created (${data.employeeId}). Share the temporary password with them directly — they can change it after signing in.`;
+      await loadEmployees();
+    } catch (err) {
+      msg.textContent = err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create Employee';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
