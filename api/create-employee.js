@@ -57,7 +57,8 @@ export default async function handler(req, res) {
 
     if (loginMethod === 'invite') {
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-        data: { full_name: fullName, phone }
+        data: { full_name: fullName, phone },
+        redirectTo: 'https://vaaralabbayi.com/vipl/index.html'
       });
       if (error) throw error;
       newUserId = data.user.id;
