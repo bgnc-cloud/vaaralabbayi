@@ -48,7 +48,8 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
-  const ALLOWED_ROLES = ['super_admin','accountant','investor'];
+  const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2'];
+  const SINGLE_ROW_ROLES = ['investor','director_1','director_2'];
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
@@ -120,7 +121,7 @@
       <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
     `;
 
-    const isSingleInvestorView = VIPL.profile.role === 'investor';
+    const isSingleInvestorView = SINGLE_ROW_ROLES.includes(VIPL.profile.role);
     let visibleInvestors = investors;
     let myRowMissing = false;
 
