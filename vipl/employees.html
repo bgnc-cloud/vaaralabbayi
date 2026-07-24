@@ -163,7 +163,9 @@
   function openEmpModal() {
     document.getElementById('empFormMsg').textContent = '';
     document.getElementById('empSuccess').style.display = 'none';
-    ['empName','empEmail','empPhone','empDept','empJoining','empRole','empManager','empTempPass'].forEach(id => document.getElementById(id).value = '');
+    ['empName','empEmail','empPhone','empDept','empJoining','empTempPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('empRole').selectedIndex = 0;
+    document.getElementById('empManager').selectedIndex = 0;
     document.getElementById('tempPassRow').style.display = 'none';
     document.querySelector('input[name=loginMethod][value=invite]').checked = true;
     document.getElementById('empModal').classList.add('open');
