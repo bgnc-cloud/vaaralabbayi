@@ -1,6 +1,6 @@
 /* ═══════════════════════════════════════════════════
    VIPL Internal — Shared App Shell
-   Handles: auth, sidebar, role-based navigation
+   Handles: auth, sidebar (desktop), bottom nav (mobile), role-based navigation
    Every page includes this file + has empty containers:
    <div id="authBox"></div>  <div id="appShell"></div>
 ═══════════════════════════════════════════════════ */
@@ -73,6 +73,8 @@ function injectShellStyles() {
     .pwToggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; user-select: none; }
     .customerIdBox { font-size: 22px; font-weight: 800; text-align: center; background: var(--off); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--blue); letter-spacing: .03em; }
     #appShell { display: none; }
+
+    /* ── Desktop sidebar ── */
     #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; background: var(--navy); color: #fff; padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; }
     #sidebar .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; padding: 0 8px; }
     #sidebar .brand img { height: 30px; filter: brightness(10); }
@@ -96,16 +98,58 @@ function injectShellStyles() {
     .pendingBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
     .pendingBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
     .pendingBox .idTag { display: inline-block; font-weight: 800; color: var(--blue); background: var(--off); padding: 4px 10px; border-radius: 6px; margin: 8px 0 16px; }
+
+    /* ── Mobile bottom tab bar ── */
+    #bottomNav { display: none; }
+    #moreSheetBackdrop { display: none; }
+    #moreSheet { display: none; }
+
     @media (max-width: 768px) {
       #appShell { flex-direction: column; }
-      #sidebar {
-        width: 100%; height: auto; position: relative; flex-direction: row;
-        overflow-x: auto; align-items: center; flex-shrink: 0; padding: 12px 12px;
+      #sidebar { display: none; }
+      #mainArea { margin-left: 0; padding: 20px 16px 88px; }
+
+      #bottomNav {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+        background: #fff; border-top: 1px solid var(--border);
+        padding: 6px 2px calc(6px + env(safe-area-inset-bottom, 0px));
+        box-shadow: 0 -6px 20px rgba(13,35,64,.06);
       }
-      #mainArea { margin-left: 0; padding: 24px 16px; }
-      #sidebar .brand, #sidebarFooter, .navGroupLbl, #roleBadge { display: none; }
-      .navGroup { display: flex; margin-bottom: 0; flex-shrink: 0; }
-      .navLink { white-space: nowrap; }
+      .bnItem {
+        flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+        padding: 7px 2px 5px; border-radius: 12px; text-decoration: none; color: var(--g3);
+        font-size: 10.5px; font-weight: 600; border: none; background: none; cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .bnItem .bnIcon { font-size: 19px; line-height: 1; }
+      .bnItem.active { color: var(--blue); font-weight: 800; }
+
+      #moreSheetBackdrop.open {
+        display: block; position: fixed; inset: 0; background: rgba(11,29,46,.42); z-index: 40;
+      }
+      #moreSheet {
+        display: block; position: fixed; left: 0; right: 0; bottom: 0; background: #fff;
+        border-radius: 18px 18px 0 0; z-index: 41; padding: 10px 8px calc(18px + env(safe-area-inset-bottom, 0px));
+        max-height: 72vh; overflow-y: auto; transform: translateY(100%); transition: transform .25s ease;
+      }
+      #moreSheet.open { transform: translateY(0); }
+      .sheetHandle { width: 36px; height: 4px; background: var(--border); border-radius: 3px; margin: 6px auto 14px; }
+      .sheetGroupLbl { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: rgba(16,24,40,.4); padding: 4px 14px; margin-top: 8px; }
+      .sheetLink {
+        display: flex; align-items: center; gap: 12px; padding: 13px 14px; border-radius: 10px;
+        color: var(--ink); text-decoration: none; font-size: 14.5px; font-weight: 600;
+      }
+      .sheetLink:active { background: var(--off); }
+      .sheetLink.soon { color: var(--g3); opacity: .55; }
+      .sheetLink .tag { margin-left: auto; font-size: 9px; background: var(--off); padding: 2px 7px; border-radius: 6px; text-transform: uppercase; color: var(--g3); }
+      .sheetDivider { height: 1px; background: var(--border); margin: 10px 6px; }
+      .sheetAccount { padding: 6px 14px 4px; }
+      .sheetEmail { font-size: 12.5px; color: var(--g3); word-break: break-all; }
+      .sheetCustomerId { font-size: 11.5px; color: #9aa5b1; margin-bottom: 12px; }
+      .sheetSignOut {
+        width: 100%; background: var(--off); border: none; border-radius: 9px; padding: 12px;
+        font-size: 13.5px; font-weight: 700; color: #C0392B; cursor: pointer;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -191,8 +235,18 @@ function renderAuthBox() {
   }
 }
 
+// Split a "🏠 Overview" style label into { icon, text }
+function splitIconLabel(label) {
+  const parts = label.split(' ');
+  return { icon: parts[0], text: parts.slice(1).join(' ') };
+}
+
 function renderSidebar() {
   const role = window.VIPL.profile ? window.VIPL.profile.role : 'viewer';
+  const email = window.VIPL.user ? window.VIPL.user.email : '';
+  const customerId = window.VIPL.profile ? window.VIPL.profile.customer_id || '' : '';
+
+  // ── Desktop sidebar (unchanged structure) ──
   let html = `
     <div class="brand"><img src="../logo.jpg" alt=""><span>VIPL Internal</span></div>
     <div id="roleBadge">${ROLE_LABELS[role] || role}</div>
@@ -213,13 +267,85 @@ function renderSidebar() {
   });
   html += `
     <div id="sidebarFooter">
-      <div class="userEmail">${window.VIPL.user ? window.VIPL.user.email : ''}</div>
-      <div class="userCustomerId">${window.VIPL.profile ? window.VIPL.profile.customer_id || '' : ''}</div>
+      <div class="userEmail">${email}</div>
+      <div class="userCustomerId">${customerId}</div>
       <button id="signOutBtn">Sign Out</button>
     </div>
   `;
   document.getElementById('sidebar').innerHTML = html;
   document.getElementById('signOutBtn').onclick = signOut;
+
+  renderBottomNav(role, email, customerId);
+}
+
+// ── Mobile bottom tab bar + "More" sheet ──
+function renderBottomNav(role, email, customerId) {
+  let bottomNav = document.getElementById('bottomNav');
+  let backdrop = document.getElementById('moreSheetBackdrop');
+  let sheet = document.getElementById('moreSheet');
+  if (!bottomNav) {
+    bottomNav = document.createElement('div'); bottomNav.id = 'bottomNav';
+    backdrop = document.createElement('div'); backdrop.id = 'moreSheetBackdrop';
+    sheet = document.createElement('div'); sheet.id = 'moreSheet';
+    document.body.appendChild(backdrop);
+    document.body.appendChild(sheet);
+    document.body.appendChild(bottomNav);
+    backdrop.onclick = closeMoreSheet;
+  }
+
+  // Flatten all visible items (real links only, "soon" kept for the sheet)
+  const flatLinked = [];
+  const flatAll = [];
+  NAV_CONFIG.forEach(group => {
+    group.items.filter(item => item.roles === 'all' || item.roles.includes(role)).forEach(item => {
+      flatAll.push(item);
+      if (item.href && !item.soon) flatLinked.push(item);
+    });
+  });
+
+  const MAX_TABS = 4;
+  const primaryTabs = flatLinked.slice(0, MAX_TABS);
+  const primaryHrefs = new Set(primaryTabs.map(i => i.href));
+  const overflowItems = flatAll.filter(i => !(i.href && primaryHrefs.has(i.href)));
+
+  // Bottom bar tabs
+  bottomNav.innerHTML = primaryTabs.map(item => {
+    const { icon, text } = splitIconLabel(item.label);
+    const activeClass = currentPage === item.href ? ' active' : '';
+    return `<a class="bnItem${activeClass}" href="${item.href}"><span class="bnIcon">${icon}</span>${text}</a>`;
+  }).join('') + `<button class="bnItem" onclick="openMoreSheet()"><span class="bnIcon">⋯</span>More</button>`;
+
+  // "More" sheet: overflow nav items (incl. soon) + account + sign out
+  let sheetHtml = `<div class="sheetHandle"></div>`;
+  if (overflowItems.length) {
+    sheetHtml += `<div class="sheetGroupLbl">More</div>`;
+    overflowItems.forEach(item => {
+      if (item.soon || !item.href) {
+        sheetHtml += `<div class="sheetLink soon">${item.label} <span class="tag">Soon</span></div>`;
+      } else {
+        sheetHtml += `<a class="sheetLink" href="${item.href}">${item.label}</a>`;
+      }
+    });
+    sheetHtml += `<div class="sheetDivider"></div>`;
+  }
+  sheetHtml += `
+    <div class="sheetAccount">
+      <div class="sheetEmail">${email}</div>
+      <div class="sheetCustomerId">${customerId}</div>
+      <button class="sheetSignOut" id="sheetSignOutBtn">Sign Out</button>
+    </div>
+  `;
+  sheet.innerHTML = sheetHtml;
+  document.getElementById('sheetSignOutBtn').onclick = signOut;
+}
+
+function openMoreSheet() {
+  document.getElementById('moreSheetBackdrop').classList.add('open');
+  document.getElementById('moreSheet').classList.add('open');
+}
+function closeMoreSheet() {
+  document.getElementById('moreSheetBackdrop').classList.remove('open');
+  document.getElementById('moreSheet').classList.remove('open');
 }
 
 // Resolve an email/phone/customer_id identifier down to an actual email address
@@ -411,4 +537,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderAuthBox();
   const { data: { session } } = await sb.auth.getSession();
   if (session && authMode !== 'reset') await bootstrap();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('../service-worker.js').catch(() => {});
+  }
 });
