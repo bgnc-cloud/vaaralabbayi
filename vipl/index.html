@@ -10,17 +10,62 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 28px; margin-top: -12px; }
+
+  /* ---- Summary stat cards ---- */
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; margin-bottom: 28px; }
-  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 26px; font-weight: 800; }
+  .summaryBox {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    position: relative; overflow: hidden;
+  }
+  .summaryBox::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #CBD5E1;
+  }
+  .summaryBox.accent-cash::before    { background: #94A3B8; }
+  .summaryBox.accent-bank::before    { background: #94A3B8; }
+  .summaryBox.accent-capital::before { background: #0E9488; }
+  .summaryBox.accent-loan::before    { background: #B7791F; }
+  .summaryBox .icon {
+    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; margin-bottom: 12px; background: #F1F3F6; color: #475467;
+  }
+  .summaryBox.accent-capital .icon { background: #E3F5F3; color: #0E9488; }
+  .summaryBox.accent-loan .icon    { background: #FBF1DE; color: #B7791F; }
+  .summaryBox .val {
+    font-family:'Plus Jakarta Sans',sans-serif; font-size: 26px; font-weight: 800;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.3px;
+  }
   .summaryBox .lbl { font-size: 12.5px; color: var(--g3); margin-top: 4px; }
+  .welcomeBox {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .welcomeBox .wave { font-size: 28px; }
+  .welcomeBox .lbl { font-size: 14.5px; color: var(--ink); font-weight: 600; }
+
+  /* ---- Quick access cards ---- */
   .quickGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; }
-  .quickCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px; text-decoration: none; color: var(--ink); transition: all .2s; display: block; }
-  .quickCard:hover { border-color: var(--blue); box-shadow: 0 8px 20px rgba(13,35,64,.08); }
-  .quickCard .icon { font-size: 26px; margin-bottom: 10px; }
-  .quickCard .title { font-weight: 800; font-size: 15px; margin-bottom: 4px; }
-  .quickCard .desc { font-size: 13px; color: var(--g3); }
-  .quickCard.soonCard { opacity: .5; cursor: default; }
+  .quickCard {
+    background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    text-decoration: none; color: var(--ink); transition: all .18s; display: flex; flex-direction: column; gap: 4px;
+  }
+  .quickCard:hover { border-color: var(--blue); box-shadow: 0 8px 20px rgba(13,35,64,.08); transform: translateY(-1px); }
+  .quickCard .icon {
+    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 19px; margin-bottom: 10px; background: #F1F3F6;
+  }
+  .quickCard .title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
+  .quickCard .desc { font-size: 13px; color: var(--g3); line-height: 1.5; }
+  .quickCard .goArrow {
+    margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--blue); display: flex; align-items: center; gap: 4px;
+    opacity: 0; transform: translateX(-4px); transition: all .18s;
+  }
+  .quickCard:hover .goArrow { opacity: 1; transform: translateX(0); }
+  .quickCard.soonCard { opacity: .55; cursor: default; }
+  .quickCard.soonCard:hover { border-color: var(--border); box-shadow: none; transform: none; }
+  .quickCard .soonTag {
+    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
+    background: #F1F3F6; color: var(--g3); padding: 2px 7px; border-radius: 5px; margin-top: 8px; width: fit-content;
+  }
 </style>
 </head>
 <body>
@@ -41,6 +86,13 @@
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
 
+  const CARD_META = {
+    'ledger.html':          { icon:'📒', accent:'#0E9488', bg:'#E3F5F3' },
+    'dashboard.html':       { icon:'📊', accent:'#5B4FCF', bg:'#EDECFC' },
+    'investor-portal.html': { icon:'📈', accent:'#0E9488', bg:'#E3F5F3' },
+    'loan-portal.html':     { icon:'💳', accent:'#B7791F', bg:'#FBF1DE' },
+  };
+
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
     const canSeeFinance = ['super_admin','accountant','investor','director_1','director_2'].includes(role);
@@ -56,13 +108,15 @@
       const totalInvested = totalsRow ? totalsRow.total_cash_invested : 0;
       const loanBal = loans && loans[0] ? loans[0].running_balance : 0;
       document.getElementById('topSummary').innerHTML = `
-        <div class="summaryBox"><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
-        <div class="summaryBox"><div class="val">${fmt(bank)}</div><div class="lbl">Bank Balance</div></div>
-        <div class="summaryBox"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
-        <div class="summaryBox"><div class="val">${fmt(loanBal)}</div><div class="lbl">Loan Outstanding</div></div>
+        <div class="summaryBox accent-cash"><div class="icon">₹</div><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
+        <div class="summaryBox accent-bank"><div class="icon">🏦</div><div class="val">${fmt(bank)}</div><div class="lbl">Bank Balance</div></div>
+        <div class="summaryBox accent-capital"><div class="icon">📈</div><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+        <div class="summaryBox accent-loan"><div class="icon">💳</div><div class="val">${fmt(loanBal)}</div><div class="lbl">Loan Outstanding</div></div>
       `;
     } else {
-      document.getElementById('topSummary').innerHTML = `<div class="summaryBox"><div class="val">👋</div><div class="lbl">Welcome, ${VIPL.profile.full_name || VIPL.user.email}</div></div>`;
+      document.getElementById('topSummary').innerHTML = `
+        <div class="welcomeBox"><div class="wave">👋</div><div class="lbl">Welcome, ${VIPL.profile.full_name || VIPL.user.email}</div></div>
+      `;
     }
 
     const cards = [];
@@ -73,10 +127,13 @@
     if (role === 'super_admin') {
       cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
     }
-    document.getElementById('quickGrid').innerHTML = cards.map(c => c.soon
-      ? `<div class="quickCard soonCard"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div></div>`
-      : `<a class="quickCard" href="${c.href}"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div></a>`
-    ).join('');
+    document.getElementById('quickGrid').innerHTML = cards.map(c => {
+      if (c.soon) {
+        return `<div class="quickCard soonCard"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><span class="soonTag">Soon</span></div>`;
+      }
+      const meta = CARD_META[c.href] || { bg:'#F1F3F6' };
+      return `<a class="quickCard" href="${c.href}"><div class="icon" style="background:${meta.bg}">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><div class="goArrow">Open →</div></a>`;
+    }).join('');
   };
 </script>
 </body>
