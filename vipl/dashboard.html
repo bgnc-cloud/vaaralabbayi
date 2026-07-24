@@ -12,21 +12,49 @@
   .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
   .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
   .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
-  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  th {
+    background: #FAFBFC; color: var(--g3); padding: 10px 14px; text-align: left;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800;
+    border-bottom: 1px solid var(--border); border-top: 1px solid var(--border);
+  }
+  th:first-child { border-top-left-radius: 8px; }
+  th:last-child { border-top-right-radius: 8px; }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: #FAFBFD; }
+  tbody tr:last-child td { border-bottom: none; }
+
   .balPos { color: var(--green); font-weight: 700; }
   .balNeg { color: #C0392B; font-weight: 700; }
+
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
-  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
-  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: left;
+    position: relative; overflow: hidden;
+  }
+  .summaryBox::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:#CBD5E1; }
+  .summaryBox.accent-capital::before { background: #0E9488; }
+  .summaryBox.accent-loan::before    { background: #B7791F; }
+  .summaryBox.accent-revenue::before { background: var(--green); }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
-  .barRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-  .barLabel { width: 160px; font-size: 13px; flex-shrink: 0; }
-  .barTrack { flex: 1; background: var(--off); border-radius: 6px; height: 20px; position: relative; overflow: hidden; }
-  .barFill { background: var(--blue); height: 100%; border-radius: 6px; }
-  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
-  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
+
+  .barRow { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+  .barLabel { width: 160px; font-size: 13px; flex-shrink: 0; font-weight: 500; }
+  .barTrack { flex: 1; background: #EEF1F5; border-radius: 6px; height: 18px; position: relative; overflow: hidden; }
+  .barFill { background: var(--blue); height: 100%; border-radius: 6px; transition: width .3s; }
+  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
+  .officialBadge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #0E9488; background: #E3F5F3;
+    padding: 2px 8px; border-radius: 5px; margin-left: 8px;
+  }
+  .approxBadge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #B7791F; background: #FBF1DE;
+    padding: 2px 8px; border-radius: 5px; margin-left: 8px;
+  }
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
 </style>
 </head>
@@ -71,7 +99,7 @@
         </table></div>
       </div>
       <div class="card">
-        <h2>Investor Capital (Official Cap Table)</h2>
+        <h2>Investor Capital <span class="officialBadge">Official</span></h2>
         <div class="sub">Verified figures from the company's official investor share records.</div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>Investor</th><th>Total Invested</th><th>Ownership %</th><th>Notes</th></tr></thead>
@@ -79,7 +107,7 @@
         </table></div>
       </div>
       <div class="card">
-        <h2>Investor Capital (From Ledger — Approximate)</h2>
+        <h2>Investor Capital <span class="approxBadge">From Ledger — Approximate</span></h2>
         <div class="sub">Total invested per investor, extracted from ledger entries tagged as investment.</div>
         <div style="overflow-x:auto"><table>
           <thead><tr><th>Investor</th><th>Total Invested</th><th>Transactions</th><th>First</th><th>Last</th></tr></thead>
@@ -114,9 +142,9 @@
     const loanOutstanding = loans.length ? Number(loans[loans.length-1].running_balance) : 0;
     const revenue = cats.find(c => c.category === 'Revenue');
     document.getElementById('topSummary').innerHTML = `
-      <div class="summaryBox"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
-      <div class="summaryBox"><div class="val">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding</div></div>
-      <div class="summaryBox"><div class="val">${fmt(revenue ? revenue.total_credit : 0)}</div><div class="lbl">Total Revenue</div></div>
+      <div class="summaryBox accent-capital"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+      <div class="summaryBox accent-loan"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding</div></div>
+      <div class="summaryBox accent-revenue"><div class="val balPos">${fmt(revenue ? revenue.total_credit : 0)}</div><div class="lbl">Total Revenue</div></div>
     `;
 
     const maxVal = Math.max(...cats.map(c => Math.max(Number(c.total_credit), Number(c.total_debit))));
@@ -128,17 +156,17 @@
     }).join('');
 
     document.getElementById('loanBody').innerHTML = loans.map(l => `
-      <tr><td>${l.month_label}</td><td>${fmt(l.borrowed)}</td><td>${fmt(l.repaid)}</td>
+      <tr><td><strong>${l.month_label}</strong></td><td>${fmt(l.borrowed)}</td><td>${fmt(l.repaid)}</td>
       <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
       <td class="balNeg">${fmt(l.running_balance)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
 
     document.getElementById('officialInvestorBody').innerHTML = officialInvestors.map(i => `
-      <tr><td>${i.investor_name}</td><td class="balPos">${fmt(i.total_invested)}</td>
+      <tr><td><strong>${i.investor_name}</strong></td><td class="balPos">${fmt(i.total_invested)}</td>
       <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
       <td>${i.notes || '—'}</td></tr>`).join('');
 
     document.getElementById('investorBody').innerHTML = investors.map(i => `
-      <tr><td>${i.investor_name}</td><td class="balPos">${fmt(i.total_invested)}</td><td>${i.num_transactions}</td>
+      <tr><td><strong>${i.investor_name}</strong></td><td class="balPos">${fmt(i.total_invested)}</td><td>${i.num_transactions}</td>
       <td>${i.first_investment}</td><td>${i.last_investment}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No investment entries found.</td></tr>';
 
     document.getElementById('monthlyBody').innerHTML = monthly.map(m => `
