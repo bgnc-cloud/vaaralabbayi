@@ -72,6 +72,11 @@ function injectShellStyles() {
     .pwWrap input { margin-bottom: 0; padding-right: 56px; }
     .pwToggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; user-select: none; }
     .customerIdBox { font-size: 22px; font-weight: 800; text-align: center; background: var(--off); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--blue); letter-spacing: .03em; }
+    .backToSite {
+      display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700;
+      color: var(--g3); text-decoration: none; margin-bottom: 18px;
+    }
+    .backToSite:hover { color: var(--blue); }
     #appShell { display: none; }
 
     /* ── Desktop sidebar ── */
@@ -93,6 +98,12 @@ function injectShellStyles() {
     #signOutBtn { width: 100%; background: rgba(255,255,255,.08); border: none; border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
     #shareAppBtn { width: 100%; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 9px; color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
     #shareAppBtn:hover { background: rgba(255,255,255,.06); }
+    #visitWebsiteBtn {
+      display: block; text-align: center; width: 100%; box-sizing: border-box;
+      background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 9px;
+      color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; text-decoration: none; margin-bottom: 8px;
+    }
+    #visitWebsiteBtn:hover { background: rgba(255,255,255,.06); }
     #mainArea { margin-left: 230px; padding: 32px 40px; max-width: 1100px; }
     #mainArea h1.pageTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 20px; }
     .pendingBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
@@ -156,6 +167,11 @@ function injectShellStyles() {
         width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 12px;
         font-size: 13.5px; font-weight: 700; color: var(--blue); cursor: pointer; margin-bottom: 8px;
       }
+      .sheetVisitWeb {
+        display: block; box-sizing: border-box; text-align: center; width: 100%;
+        background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 12px;
+        font-size: 13.5px; font-weight: 700; color: var(--ink); text-decoration: none; margin-bottom: 8px;
+      }
     }
   `;
   document.head.appendChild(style);
@@ -173,6 +189,7 @@ function renderAuthBox() {
 
   if (authMode === 'signin') {
     box.innerHTML = `
+      <a class="backToSite" href="../index.html">← Back to Cloud Super Market</a>
       <h1>VIPL Internal</h1>
       <p>Sign in with your email, phone number, or Customer ID.</p>
       <input type="text" id="authIdentifier" placeholder="Email, phone, or Customer ID">
@@ -191,6 +208,7 @@ function renderAuthBox() {
 
   } else if (authMode === 'signup') {
     box.innerHTML = `
+      <a class="backToSite" href="../index.html">← Back to Cloud Super Market</a>
       <h1>Create your account</h1>
       <p>Sign up to request access to VIPL Internal. You'll get a Customer ID you can use to log in later, alongside your email or phone. An admin will review and assign your role before you can see any financial data.</p>
       <input type="text" id="signupName" placeholder="Full name">
@@ -212,6 +230,7 @@ function renderAuthBox() {
 
   } else if (authMode === 'forgot') {
     box.innerHTML = `
+      <a class="backToSite" href="../index.html">← Back to Cloud Super Market</a>
       <h1>Reset your password</h1>
       <p>Enter your email, phone, or Customer ID and we'll send a password reset link to your registered email.</p>
       <input type="text" id="forgotIdentifier" placeholder="Email, phone, or Customer ID">
@@ -275,6 +294,7 @@ function renderSidebar() {
     <div id="sidebarFooter">
       <div class="userEmail">${email}</div>
       <div class="userCustomerId">${customerId}</div>
+      <a id="visitWebsiteBtn" href="../index.html">🌐 Visit Website</a>
       <button id="shareAppBtn" onclick="shareApp('shareAppBtn')">🔗 Share App</button>
       <button id="signOutBtn">Sign Out</button>
     </div>
@@ -339,6 +359,7 @@ function renderBottomNav(role, email, customerId) {
     <div class="sheetAccount">
       <div class="sheetEmail">${email}</div>
       <div class="sheetCustomerId">${customerId}</div>
+      <a class="sheetVisitWeb" href="../index.html">🌐 Visit Website</a>
       <button class="sheetShare" id="sheetShareBtn" onclick="shareApp('sheetShareBtn')">🔗 Share App</button>
       <button class="sheetSignOut" id="sheetSignOutBtn">Sign Out</button>
     </div>
@@ -523,6 +544,11 @@ async function signOut() {
   await sb.auth.signOut();
   document.getElementById('appShell').style.display = 'none';
   document.getElementById('authBox').style.display = 'block';
+  closeMoreSheet();
+  ['bottomNav', 'moreSheetBackdrop', 'moreSheet'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  });
   authMode = 'signin';
   renderAuthBox();
 }
