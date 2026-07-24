@@ -17,11 +17,11 @@ const NAV_CONFIG = [
   { group: 'Finance', items: [
     { label: '📒 Ledger Entry', href: 'ledger.html', roles: ['super_admin','accountant','entry'] },
     { label: '📊 Financial Dashboard', href: 'dashboard.html', roles: ['super_admin','accountant'] },
-    { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor'] },
+    { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
   ]},
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
-    { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor'] },
+    { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
     { label: '👥 Subscribers', href: null, roles: ['super_admin','subscriber'], soon: true },
     { label: '🚚 Supply Chain', href: null, roles: ['super_admin','fbc_rm','fbc_bdm','fbc_mm'], soon: true },
   ]},
@@ -33,6 +33,7 @@ const NAV_CONFIG = [
 
 const ROLE_LABELS = {
   super_admin: 'Super Admin', admin: 'Admin', hr_manager: 'HR Manager',
+  director_1: 'Director', director_2: 'Director',
   accountant: 'Accountant', entry: 'Entry Staff',
   store_operator: 'Store Operator', fbc_rm: 'FBC — RM', fbc_bdm: 'FBC — BDM',
   fbc_mm: 'FBC — MM', investor: 'Investor', subscriber: 'Subscriber', viewer: 'Viewer',
