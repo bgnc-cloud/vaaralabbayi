@@ -120,7 +120,24 @@
       <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
     `;
 
-    document.getElementById('shareholderBody').innerHTML = investors.map(i => {
+    const isSingleInvestorView = role === 'investor';
+    let visibleInvestors = investors;
+    let myRowMissing = false;
+
+    if (isSingleInvestorView) {
+      const myRow = investors.find(i => i.profile_id === VIPL.user.id)
+        || investors.find(i => (i.investor_name || '').trim().toLowerCase() === (VIPL.profile.full_name || '').trim().toLowerCase());
+      if (myRow) {
+        visibleInvestors = [myRow];
+      } else {
+        visibleInvestors = [];
+        myRowMissing = true;
+      }
+    }
+
+    document.getElementById('shareholderBody').innerHTML = myRowMissing
+      ? `<tr><td colspan="5" style="color:var(--g3);text-align:center;padding:20px">Your investment record hasn't been linked to your login yet. Contact VIPL to get this connected.</td></tr>`
+      : visibleInvestors.map(i => {
       const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
       const shareOfPL = pct / 100 * netPL;
       const isCompany = i.investor_type === 'company_share';
