@@ -139,7 +139,7 @@
         <div></div>
         <button class="btn btnPrimary" id="addRoleBtn">+ ${canDirectEdit ? 'Add Role' : 'Propose New Role'}</button>
       </div>
-      ${canDirectEdit ? `<div class="sectionTitle">Pending approvals</div><div class="roleTableWrap" id="approvalsWrap"><div id="approvalsBody"></div></div>` : ''}
+      ${canDirectEdit ? `<div class="sectionTitle">Pending approvals</div><div class="roleTableWrap" id="approvalsWrap"><div id="approvalsBody"></div></div>` : `<div class="sectionTitle">Your requests</div><div class="roleTableWrap" id="myRequestsWrap"><div id="myRequestsBody"></div></div>`}
       <div class="sectionTitle">Role catalog</div>
       <div class="roleTableWrap"><table class="roleTable">
         <thead><tr><th>Role</th><th>Scope</th><th>Reports to</th><th>Status</th><th></th></tr></thead>
@@ -151,7 +151,41 @@
     document.getElementById('roleSaveBtn').onclick = saveRole;
     await loadRoles();
     if (canDirectEdit) await loadApprovals();
+    else await loadMyRequests();
   };
+
+  async function loadMyRequests() {
+    const { data, error } = await VIPL.sb
+      .from('role_change_requests')
+      .select('*, reviewer:reviewed_by(full_name,email)')
+      .eq('requested_by', VIPL.user.id)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    const wrap = document.getElementById('myRequestsBody');
+    if (error) { wrap.innerHTML = `<div class="emptyNote">Error loading your requests: ${error.message}</div>`; return; }
+    if (!data || !data.length) { wrap.innerHTML = `<div class="emptyNote">You haven't submitted any requests yet.</div>`; return; }
+
+    wrap.innerHTML = data.map(req => {
+      const actionLabel = { create: 'Create role', update: 'Edit role', deactivate: 'Deactivate role', reactivate: 'Reactivate role' }[req.action] || req.action;
+      const targetName = req.role_id ? (allRoles.find(r => r.id === req.role_id)?.name || '—') : (req.payload.name || '—');
+      const statusPill = req.status === 'pending'
+        ? '<span class="pill pending">Pending</span>'
+        : req.status === 'approved'
+          ? '<span class="pill" style="background:#EAF3DE;color:#15803D">Approved</span>'
+          : '<span class="pill inactive">Rejected</span>';
+      const reviewer = req.reviewer ? (req.reviewer.full_name || req.reviewer.email) : null;
+      const reviewedLine = req.reviewed_at ? `<div class="reqMeta">${req.status === 'approved' ? 'Approved' : 'Reviewed'} by ${escapeHtml(reviewer || 'admin')} · ${new Date(req.reviewed_at).toLocaleString('en-IN')}</div>` : '';
+      return `
+        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px">
+          <div>
+            <div style="font-weight:700;font-size:13.5px">${actionLabel}: ${escapeHtml(targetName)}</div>
+            <div class="reqMeta">Submitted ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+            ${reviewedLine}
+          </div>
+          ${statusPill}
+        </div>`;
+    }).join('');
+  }
 
   async function loadRoles() {
     const { data, error } = await VIPL.sb.from('roles').select('*').order('category').order('sort_order');
@@ -282,6 +316,7 @@
       });
       if (error) { msg.textContent = error.message; return; }
       alert('Submitted for approval.');
+      await loadMyRequests();
     }
     closeRoleModal();
     await loadRoles();
@@ -303,6 +338,7 @@
     if (error) { alert(error.message); return; }
     alert('Submitted for approval.');
     await loadRoles();
+    await loadMyRequests();
   }
 
   async function reviewRequest(requestId, decision) {
