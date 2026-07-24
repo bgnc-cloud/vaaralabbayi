@@ -41,6 +41,7 @@
   .monthBody.open { display: block; }
   .fyControls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
   .expandAllBtn { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 6px 10px; }
+  .partyTag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--off); color: var(--g3); }
 </style>
 </head>
 <body>
@@ -59,6 +60,8 @@
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
   const ALLOWED_ROLES = ['super_admin','accountant','entry'];
+  const PARTY_TYPE_LABELS = { investor: 'Investor', employee: 'Employee', lender: 'Lender', subscriber: 'Subscriber', vendor: 'Vendor', other: 'Other' };
+  let allProfiles = [];
 
   // ── Financial Year helpers (India: Apr 1 – Mar 31) ──
   function fyKeyOf(dateStr) {
@@ -111,6 +114,21 @@
           </div>
           <div><label>Amount (₹) *</label><input type="number" id="fAmount" placeholder="0.00" step="0.01"></div>
           <div><label>Cheque No.</label><input type="text" id="fCheque" placeholder="Optional"></div>
+          <div><label>Relates to (optional)</label>
+            <select id="fPartyType" onchange="onPartyTypeChange()">
+              <option value="">— Not linked to a person —</option>
+              <option value="investor">Investor</option>
+              <option value="employee">Employee</option>
+              <option value="lender">Lender</option>
+              <option value="subscriber">Subscriber</option>
+              <option value="vendor">Vendor</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div id="fPartyPersonWrap" style="display:none">
+            <label>Person</label>
+            <select id="fPartyPerson"><option value="">Select…</option></select>
+          </div>
           <div><button onclick="addEntry()">Add Entry</button></div>
         </div>
         <div id="formMsg" style="margin-top:10px;font-size:13px"></div>
@@ -129,13 +147,34 @@
       </div>
     `;
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    await loadProfilesForParty();
     loadLedger();
   };
+
+  async function loadProfilesForParty() {
+    const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, role').neq('role', 'pending');
+    allProfiles = data || [];
+  }
+
+  function onPartyTypeChange() {
+    const type = document.getElementById('fPartyType').value;
+    const wrap = document.getElementById('fPartyPersonWrap');
+    if (!type) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    document.getElementById('fPartyPerson').innerHTML = '<option value="">Select…</option>' +
+      allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)}</option>`).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
 
   async function addEntry() {
     const particulars = document.getElementById('fParticulars').value.trim();
     const amount = parseFloat(document.getElementById('fAmount').value);
     const type = document.getElementById('fType').value;
+    const partyType = document.getElementById('fPartyType').value || null;
+    const partyProfileId = document.getElementById('fPartyPerson') ? (document.getElementById('fPartyPerson').value || null) : null;
     const msg = document.getElementById('formMsg');
     if (!particulars || !amount || amount <= 0) {
       msg.style.color = '#C0392B'; msg.textContent = 'Particulars and a valid amount are required.'; return;
@@ -146,7 +185,9 @@
       description: document.getElementById('fDescription').value || null,
       cheque_no: document.getElementById('fCheque').value || null,
       created_by: VIPL.user.id,
-      cash_credit: 0, cash_debit: 0, bank_credit: 0, bank_debit: 0
+      cash_credit: 0, cash_debit: 0, bank_credit: 0, bank_debit: 0,
+      party_type: partyType,
+      party_profile_id: partyType ? partyProfileId : null
     };
     row[type] = amount;
     const { error } = await VIPL.sb.from('ledger_entries').insert(row);
@@ -156,6 +197,8 @@
     document.getElementById('fDescription').value = '';
     document.getElementById('fAmount').value = '';
     document.getElementById('fCheque').value = '';
+    document.getElementById('fPartyType').value = '';
+    document.getElementById('fPartyPersonWrap').style.display = 'none';
     loadLedger();
   }
 
@@ -240,6 +283,7 @@
           <td class="${r.cash_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_balance)}</td>
           <td class="${r.bank_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_balance)}</td>
           <td>${r.created_by_name || '—'}</td>
+          <td>${r.party_type ? `<span class="partyTag">${PARTY_TYPE_LABELS[r.party_type] || r.party_type}</span> ${r.party_name || ''}` : '—'}</td>
         </tr>`).join('');
 
       return `
@@ -255,7 +299,7 @@
           </div>
           <div class="monthBody${isOpen ? ' open' : ''}" id="monthBody-${key}">
             <table>
-              <thead><tr><th>Date</th><th>Particulars</th><th>Description</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cheque</th><th>Cash Bal</th><th>Bank Bal</th><th>By</th></tr></thead>
+              <thead><tr><th>Date</th><th>Particulars</th><th>Description</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th><th>Cheque</th><th>Cash Bal</th><th>Bank Bal</th><th>By</th><th>Linked to</th></tr></thead>
               <tbody>${rows}</tbody>
             </table>
           </div>
