@@ -88,20 +88,20 @@
   };
 
   async function loadAll() {
-    const [{ data: investors, error: invErr }, { data: cats, error: catErr }, { data: loans, error: loanErr }] = await Promise.all([
+    const [{ data: investors, error: invErr }, { data: cats, error: catErr }, { data: loans, error: loanErr }, { data: totalsRow, error: totErr }] = await Promise.all([
       VIPL.sb.from('investors').select('*').order('total_invested', { ascending: false }),
       VIPL.sb.from('category_totals').select('*'),
-      VIPL.sb.from('loan_tracker').select('*').order('month_start')
+      VIPL.sb.from('loan_tracker').select('*').order('month_start'),
+      VIPL.sb.from('investor_totals').select('*').single()
     ]);
 
-    if (invErr || catErr || loanErr) {
-      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (invErr?.message || catErr?.message || loanErr?.message) + '</div>';
+    if (invErr || catErr || loanErr || totErr) {
+      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + (invErr?.message || catErr?.message || loanErr?.message || totErr?.message) + '</div>';
       return;
     }
 
-    const cashInvestors = investors.filter(i => i.investor_type !== 'company_share');
-    const companyShare = investors.find(i => i.investor_type === 'company_share');
-    const totalCashInvested = cashInvestors.reduce((s, i) => s + Number(i.total_invested), 0);
+    const totalCashInvested = Number(totalsRow.total_cash_invested || 0);
+    const companyShareAmount = Number(totalsRow.company_share_amount || 0);
 
     const NON_PL_CATEGORIES = ['Loan Movement', 'Investment'];
     const revenueCat = cats.find(c => c.category === 'Revenue');
@@ -118,7 +118,7 @@
       <div class="summaryBox"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding <span style="font-weight:600;font-size:11px">(see Loan Portal)</span></div></div>
       <div class="summaryBox"><div class="val">${fmt(totalExpenses)}</div><div class="lbl">Total Expenses (all-time)</div></div>
       <div class="summaryBox"><div class="val ${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</div><div class="lbl">Net Profit / Loss</div></div>
-      <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
+      <div class="summaryBox"><div class="val">${companyShareAmount ? fmt(companyShareAmount) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
     `;
 
     const isSingleInvestorView = SINGLE_ROW_ROLES.includes(VIPL.profile.role);
