@@ -120,7 +120,7 @@
       <div class="summaryBox"><div class="val">${companyShare ? fmt(companyShare.total_invested) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
     `;
 
-    const isSingleInvestorView = role === 'investor';
+    const isSingleInvestorView = VIPL.profile.role === 'investor';
     let visibleInvestors = investors;
     let myRowMissing = false;
 
