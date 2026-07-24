@@ -97,10 +97,15 @@ function injectShellStyles() {
     .pendingBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
     .pendingBox .idTag { display: inline-block; font-weight: 800; color: var(--blue); background: var(--off); padding: 4px 10px; border-radius: 6px; margin: 8px 0 16px; }
     @media (max-width: 768px) {
-      #sidebar { width: 100%; height: auto; position: relative; flex-direction: row; overflow-x: auto; }
+      #appShell { flex-direction: column; }
+      #sidebar {
+        width: 100%; height: auto; position: relative; flex-direction: row;
+        overflow-x: auto; align-items: center; flex-shrink: 0; padding: 12px 12px;
+      }
       #mainArea { margin-left: 0; padding: 24px 16px; }
       #sidebar .brand, #sidebarFooter, .navGroupLbl, #roleBadge { display: none; }
-      .navGroup { display: flex; margin-bottom: 0; }
+      .navGroup { display: flex; margin-bottom: 0; flex-shrink: 0; }
+      .navLink { white-space: nowrap; }
     }
   `;
   document.head.appendChild(style);
