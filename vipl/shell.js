@@ -91,6 +91,8 @@ function injectShellStyles() {
     #sidebarFooter .userEmail { font-size: 12px; color: rgba(255,255,255,.5); padding: 0 8px; margin-bottom: 4px; word-break: break-all; }
     #sidebarFooter .userCustomerId { font-size: 11px; color: rgba(255,255,255,.35); padding: 0 8px; margin-bottom: 10px; }
     #signOutBtn { width: 100%; background: rgba(255,255,255,.08); border: none; border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
+    #shareAppBtn { width: 100%; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 9px; color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
+    #shareAppBtn:hover { background: rgba(255,255,255,.06); }
     #mainArea { margin-left: 230px; padding: 32px 40px; max-width: 1100px; }
     #mainArea h1.pageTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 20px; }
     .pendingBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
@@ -149,6 +151,10 @@ function injectShellStyles() {
       .sheetSignOut {
         width: 100%; background: var(--off); border: none; border-radius: 9px; padding: 12px;
         font-size: 13.5px; font-weight: 700; color: #C0392B; cursor: pointer;
+      }
+      .sheetShare {
+        width: 100%; background: #fff; border: 1px solid var(--border); border-radius: 9px; padding: 12px;
+        font-size: 13.5px; font-weight: 700; color: var(--blue); cursor: pointer; margin-bottom: 8px;
       }
     }
   `;
@@ -269,6 +275,7 @@ function renderSidebar() {
     <div id="sidebarFooter">
       <div class="userEmail">${email}</div>
       <div class="userCustomerId">${customerId}</div>
+      <button id="shareAppBtn" onclick="shareApp('shareAppBtn')">🔗 Share App</button>
       <button id="signOutBtn">Sign Out</button>
     </div>
   `;
@@ -332,6 +339,7 @@ function renderBottomNav(role, email, customerId) {
     <div class="sheetAccount">
       <div class="sheetEmail">${email}</div>
       <div class="sheetCustomerId">${customerId}</div>
+      <button class="sheetShare" id="sheetShareBtn" onclick="shareApp('sheetShareBtn')">🔗 Share App</button>
       <button class="sheetSignOut" id="sheetSignOutBtn">Sign Out</button>
     </div>
   `;
@@ -346,6 +354,28 @@ function openMoreSheet() {
 function closeMoreSheet() {
   document.getElementById('moreSheetBackdrop').classList.remove('open');
   document.getElementById('moreSheet').classList.remove('open');
+}
+
+async function shareApp(btnId) {
+  const url = window.location.origin + '/vipl/index.html';
+  const shareData = {
+    title: 'VIPL Internal',
+    text: 'VIPL Internal — sign in to view the company dashboard.',
+    url
+  };
+  if (navigator.share) {
+    try { await navigator.share(shareData); } catch (e) { /* user cancelled — no-op */ }
+  } else {
+    try {
+      await navigator.clipboard.writeText(url);
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        const original = btn.textContent;
+        btn.textContent = 'Link copied!';
+        setTimeout(() => { btn.textContent = original; }, 1800);
+      }
+    } catch (e) { /* clipboard unavailable — silently ignore */ }
+  }
 }
 
 // Resolve an email/phone/customer_id identifier down to an actual email address
