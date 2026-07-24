@@ -43,19 +43,17 @@
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
-    const canSeeFinance = ['super_admin','accountant'].includes(role);
+    const canSeeFinance = ['super_admin','accountant','investor','director_1','director_2'].includes(role);
 
     if (canSeeFinance) {
-      const [{ data: ledger }, { data: investors }, { data: loans }] = await Promise.all([
+      const [{ data: ledger }, { data: totalsRow }, { data: loans }] = await Promise.all([
         VIPL.sb.from('ledger_with_balance').select('cash_balance,bank_balance').order('entry_date',{ascending:false}).limit(1),
-        VIPL.sb.from('investors').select('total_invested,investor_type'),
+        VIPL.sb.from('investor_totals').select('*').single(),
         VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1)
       ]);
       const cash = ledger && ledger[0] ? ledger[0].cash_balance : 0;
       const bank = ledger && ledger[0] ? ledger[0].bank_balance : 0;
-      const totalInvested = (investors||[])
-        .filter(i => i.investor_type !== 'company_share')
-        .reduce((s,i) => s + Number(i.total_invested), 0);
+      const totalInvested = totalsRow ? totalsRow.total_cash_invested : 0;
       const loanBal = loans && loans[0] ? loans[0].running_balance : 0;
       document.getElementById('topSummary').innerHTML = `
         <div class="summaryBox"><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
@@ -70,8 +68,8 @@
     const cards = [];
     if (['super_admin','accountant','entry'].includes(role)) cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
     if (['super_admin','accountant'].includes(role)) cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
-    if (['super_admin','accountant','investor'].includes(role)) cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
-    if (['super_admin','accountant','investor'].includes(role)) cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
+    if (['super_admin','accountant','investor','director_1','director_2'].includes(role)) cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
+    if (['super_admin','accountant','investor','director_1','director_2'].includes(role)) cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
     if (role === 'super_admin') {
       cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
     }
