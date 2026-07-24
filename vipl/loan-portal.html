@@ -28,6 +28,7 @@
   .saveMsg { font-size: 11px; margin-left: 8px; }
   .sectionLbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--g3); margin: 20px 0 10px; }
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+  .partyTag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--off); color: var(--g3); }
 </style>
 </head>
 <body>
@@ -45,13 +46,30 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
-  const ALLOWED_ROLES = ['super_admin','accountant','investor'];
+  const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2'];
   const CAN_EDIT_LOANS = ['super_admin','accountant'];
+  const SELF_VIEW_ROLES = ['investor','director_1','director_2'];
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
     if (!ALLOWED_ROLES.includes(role)) {
       document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+
+    if (SELF_VIEW_ROLES.includes(role)) {
+      document.getElementById('pageContent').innerHTML = `
+        <div id="myLoanCard"></div>
+        <div class="card">
+          <h2>Your Transactions</h2>
+          <div class="sub">Every ledger entry linked to you — repayments, interest, or other movements.</div>
+          <div style="overflow-x:auto"><table>
+            <thead><tr><th>Date</th><th>Particulars</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th></tr></thead>
+            <tbody id="myTxnBody"></tbody>
+          </table></div>
+        </div>
+      `;
+      loadMyLoan();
       return;
     }
 
@@ -88,6 +106,47 @@
     `;
     loadAll();
   };
+
+  async function loadMyLoan() {
+    const [{ data: myAccounts, error: laErr }, { data: myTxns, error: txnErr }] = await Promise.all([
+      VIPL.sb.from('loan_accounts').select('*').eq('profile_id', VIPL.user.id),
+      VIPL.sb.from('ledger_with_balance').select('*').eq('party_profile_id', VIPL.user.id).order('entry_date', { ascending: false })
+    ]);
+
+    const cardWrap = document.getElementById('myLoanCard');
+    if (laErr) { cardWrap.innerHTML = `<div class="note" style="color:#C0392B">${laErr.message}</div>`; return; }
+
+    if (!myAccounts || !myAccounts.length) {
+      cardWrap.innerHTML = `
+        <div class="card">
+          <h2>Your Loan</h2>
+          <div class="note">No loan record has been linked to your login yet. Contact VIPL to get this connected.</div>
+        </div>`;
+    } else {
+      cardWrap.innerHTML = myAccounts.map(l => `
+        <div class="card">
+          <h2>Your Loan${l.is_related_party ? '<span class="relatedBadge">DIRECTOR</span>' : ''}</h2>
+          <div class="summaryGrid">
+            <div class="summaryBox"><div class="val">${fmt(l.total_borrowed)}</div><div class="lbl">Total Lent</div></div>
+            <div class="summaryBox"><div class="val balPos">${fmt(l.total_repaid)}</div><div class="lbl">Total Repaid</div></div>
+            <div class="summaryBox"><div class="val ${l.balance > 0 ? 'balNeg' : 'balPos'}">${fmt(l.balance)}</div><div class="lbl">Outstanding Balance</div></div>
+          </div>
+          <div class="note">${l.notes || 'No additional notes.'}</div>
+        </div>
+      `).join('');
+    }
+
+    const txnBody = document.getElementById('myTxnBody');
+    if (txnErr) { txnBody.innerHTML = `<tr><td colspan="6" style="color:#C0392B">${txnErr.message}</td></tr>`; return; }
+    txnBody.innerHTML = (myTxns && myTxns.length)
+      ? myTxns.map(r => `
+        <tr>
+          <td>${r.entry_date}</td><td>${r.particulars}</td>
+          <td>${r.cash_credit ? fmt(r.cash_credit) : '—'}</td><td>${r.cash_debit ? fmt(r.cash_debit) : '—'}</td>
+          <td>${r.bank_credit ? fmt(r.bank_credit) : '—'}</td><td>${r.bank_debit ? fmt(r.bank_debit) : '—'}</td>
+        </tr>`).join('')
+      : `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--g3)">No transactions linked to you yet.</td></tr>`;
+  }
 
   async function loadAll() {
     const [{ data: loans, error: loanErr }, { data: loanAccounts, error: laErr }] = await Promise.all([
