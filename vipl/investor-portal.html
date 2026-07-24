@@ -12,24 +12,73 @@
   .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
   .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
   .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+
   table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
-  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  th {
+    background: #FAFBFC; color: var(--g3); padding: 10px 14px; text-align: left;
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800;
+    border-bottom: 1px solid var(--border); border-top: 1px solid var(--border);
+  }
+  th:first-child { border-top-left-radius: 8px; }
+  th:last-child { border-top-right-radius: 8px; }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  td.numCell { font-variant-numeric: tabular-nums; font-weight: 700; }
+  tbody tr:hover { background: #FAFBFD; }
+  tbody tr:last-child td { border-bottom: none; }
+
   .balPos { color: var(--green); font-weight: 700; }
   .balNeg { color: #C0392B; font-weight: 700; }
+
+  .nameCell { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .avatar {
+    width: 27px; height: 27px; border-radius: 50%; background: var(--blue); color: #fff;
+    font-size: 10.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .avatar.companyAvatar { background: #5B4FCF; }
+  .youTag {
+    font-size: 9px; font-weight: 800; letter-spacing: .4px; color: #0E9488; background: #E3F5F3;
+    padding: 2px 7px; border-radius: 5px; margin-left: 2px;
+  }
+  tr.myRow { background: #E3F5F3; }
+  tr.myRow:hover { background: #E3F5F3; }
+
+  .pctCell { display: flex; align-items: center; gap: 8px; }
+  .pctTrack { width: 48px; height: 5px; border-radius: 3px; background: #EAECF0; overflow: hidden; flex-shrink: 0; }
+  .pctFill { height: 100%; background: var(--blue); border-radius: 3px; }
+
+  .companyRow td { background: #FAFBFC; }
+  .companyBadge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #5B4FCF; background: #EDECFC;
+    padding: 2px 8px; border-radius: 5px;
+  }
+
+  /* Summary boxes — same language as Overview page */
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; margin-bottom: 24px; }
-  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
-  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    text-align: left; position: relative; overflow: hidden;
+  }
+  .summaryBox::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #CBD5E1; }
+  .summaryBox.accent-capital::before { background: #0E9488; }
+  .summaryBox.accent-loan::before    { background: #B7791F; }
+  .summaryBox.accent-pl::before      { background: #C0392B; }
+  .summaryBox.accent-pl.pos::before  { background: var(--green); }
+  .summaryBox.accent-company::before { background: #5B4FCF; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
-  .barRow { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-  .barLabel { width: 170px; font-size: 13px; flex-shrink: 0; }
-  .barTrack { flex: 1; background: var(--off); border-radius: 6px; height: 20px; position: relative; overflow: hidden; }
-  .barFill { background: #C0392B; height: 100%; border-radius: 6px; }
-  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; }
-  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; }
-  .plRow { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-  .plRow:last-child { border-bottom: none; font-weight: 800; font-size: 16px; padding-top: 14px; }
-  .companyRow { background: var(--off); }
+
+  .barRow { display: flex; align-items: center; gap: 12px; padding: 9px 0; }
+  .barLabel { width: 170px; font-size: 13px; flex-shrink: 0; font-weight: 500; }
+  .barTrack { flex: 1; background: #EEF1F5; border-radius: 6px; height: 18px; position: relative; overflow: hidden; }
+  .barFill { background: #C0392B; height: 100%; border-radius: 6px; transition: width .3s; }
+  .barVal { width: 110px; text-align: right; font-size: 13px; font-weight: 700; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
+
+  .plRow { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .plRow span:last-child { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .plRow:last-child { border-bottom: none; font-weight: 800; font-size: 16.5px; padding-top: 16px; }
+
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
 </style>
 </head>
@@ -48,6 +97,7 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  function initials(name) { return (name||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
   const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2'];
   const SINGLE_ROW_ROLES = ['investor','director_1','director_2'];
 
@@ -114,22 +164,24 @@
     const loanOutstanding = loans.length ? Number(loans[loans.length - 1].running_balance) : 0;
 
     document.getElementById('topSummary').innerHTML = `
-      <div class="summaryBox"><div class="val">${fmt(totalCashInvested)}</div><div class="lbl">Total Investor Capital</div></div>
-      <div class="summaryBox"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding <span style="font-weight:600;font-size:11px">(see Loan Portal)</span></div></div>
+      <div class="summaryBox accent-capital"><div class="val">${fmt(totalCashInvested)}</div><div class="lbl">Total Investor Capital</div></div>
+      <div class="summaryBox accent-loan"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding <span style="font-weight:600;font-size:11px">(see Loan Portal)</span></div></div>
       <div class="summaryBox"><div class="val">${fmt(totalExpenses)}</div><div class="lbl">Total Expenses (all-time)</div></div>
-      <div class="summaryBox"><div class="val ${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</div><div class="lbl">Net Profit / Loss</div></div>
-      <div class="summaryBox"><div class="val">${companyShareAmount ? fmt(companyShareAmount) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
+      <div class="summaryBox accent-pl ${netPL >= 0 ? 'pos' : ''}"><div class="val ${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</div><div class="lbl">Net Profit / Loss</div></div>
+      <div class="summaryBox accent-company"><div class="val">${companyShareAmount ? fmt(companyShareAmount) : '—'}</div><div class="lbl">Company Structural Share (40%)</div></div>
     `;
 
     const isSingleInvestorView = SINGLE_ROW_ROLES.includes(VIPL.profile.role);
     let visibleInvestors = investors;
     let myRowMissing = false;
+    let myRowId = null;
 
     if (isSingleInvestorView) {
       const myRow = investors.find(i => i.profile_id === VIPL.user.id)
         || investors.find(i => (i.investor_name || '').trim().toLowerCase() === (VIPL.profile.full_name || '').trim().toLowerCase());
       if (myRow) {
         visibleInvestors = [myRow];
+        myRowId = myRow.id;
       } else {
         visibleInvestors = [];
         myRowMissing = true;
@@ -142,11 +194,12 @@
       const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
       const shareOfPL = pct / 100 * netPL;
       const isCompany = i.investor_type === 'company_share';
-      return `<tr class="${isCompany ? 'companyRow' : ''}">
-        <td>${i.investor_name}</td>
-        <td class="balPos">${fmt(i.total_invested)}</td>
-        <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
-        <td class="${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
+      const isMe = isSingleInvestorView && i.id === myRowId;
+      return `<tr class="${isCompany ? 'companyRow' : ''} ${isMe ? 'myRow' : ''}">
+        <td><div class="nameCell"><div class="avatar ${isCompany ? 'companyAvatar' : ''}">${isCompany ? 'CO' : initials(i.investor_name)}</div>${i.investor_name}${isMe ? '<span class="youTag">YOU</span>' : ''}${isCompany ? '<span class="companyBadge">Structural</span>' : ''}</div></td>
+        <td class="balPos numCell">${fmt(i.total_invested)}</td>
+        <td>${i.ownership_percentage ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${i.ownership_percentage}%</div>` : '—'}</td>
+        <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
         <td>${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>
       </tr>`;
     }).join('');
