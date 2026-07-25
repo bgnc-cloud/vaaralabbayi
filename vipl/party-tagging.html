@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Party Tagging — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .statBar { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; }
+  .statChip { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 18px; }
+  .statChip .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 20px; font-weight: 800; }
+  .statChip .lbl { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+
+  .groupCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; margin-bottom: 16px; overflow: hidden; }
+  .groupHead {
+    display: flex; justify-content: space-between; align-items: center; padding: 16px 20px;
+    background: #FAFBFC; cursor: pointer; user-select: none; gap: 14px; flex-wrap: wrap;
+  }
+  .groupHead:hover { background: #F2F4F7; }
+  .groupTitle { display: flex; align-items: center; gap: 12px; }
+  .groupAvatar {
+    width: 34px; height: 34px; border-radius: 50%; background: var(--blue); color: #fff;
+    font-size: 12.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .groupName { font-weight: 800; font-size: 15px; }
+  .groupCount { font-size: 12px; color: var(--g3); }
+  .groupActions { display: flex; align-items: center; gap: 10px; }
+  .partyTypeSelect { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; font-family: inherit; }
+  .chevron { font-size: 11px; color: var(--g3); transition: transform .15s; }
+  .chevron.open { transform: rotate(90deg); }
+
+  .groupBody { display: none; border-top: 1px solid var(--border); }
+  .groupBody.open { display: block; }
+  .entryRow { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-top: 1px solid #F0F2F5; font-size: 13px; }
+  .entryRow:first-child { border-top: none; }
+  .entryRow:hover { background: #FAFBFD; }
+  .entryRow input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--blue); flex-shrink: 0; }
+  .entryDate { width: 90px; color: var(--g3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .entryText { flex: 1; min-width: 0; }
+  .entryParticulars { font-weight: 600; }
+  .entryDesc { font-size: 12px; color: var(--g3); }
+  .entryAmount { font-variant-numeric: tabular-nums; font-weight: 700; flex-shrink: 0; width: 100px; text-align: right; }
+
+  .groupFoot { padding: 14px 20px; background: #FAFBFC; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .btn { padding: 9px 16px; border-radius: 8px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .selectAllLink { font-size: 12.5px; color: var(--blue); font-weight: 700; cursor: pointer; background: none; border: none; }
+
+  .unmatchedCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .unmatchedRow {
+    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .unmatchedRow:first-child { border-top: none; }
+  .unmatchedRow select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; font-family: inherit; }
+
+  .sectionTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin: 30px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .sectionSub { font-size: 12.5px; color: var(--g3); margin-bottom: 14px; margin-top: -8px; }
+  .doneNote { font-size: 13px; color: var(--g3); padding: 30px; text-align: center; }
+  .successMsg { font-size: 12.5px; color: var(--green); font-weight: 700; margin-left: 10px; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Party Tagging</h1>
+    <div class="lead">Suggested matches for untagged ledger entries, grouped by person. Nothing is saved until you confirm a group.</div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const ALLOWED_ROLES = ['super_admin','accountant'];
+  const PARTY_TYPE_OPTIONS = [
+    { value: 'investor', label: 'Investor' }, { value: 'employee', label: 'Employee' },
+    { value: 'lender', label: 'Lender' }, { value: 'subscriber', label: 'Subscriber' },
+    { value: 'vendor', label: 'Vendor' }, { value: 'other', label: 'Other' }
+  ];
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function initials(s) { return (s||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+  function guessPartyType(role) {
+    if (['investor','director_1','director_2'].includes(role)) return 'investor';
+    if (role) return 'employee';
+    return 'other';
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  let allProfiles = [];
+  let untaggedEntries = [];
+  let groups = []; // { profileId, profileName, partyType, entries: [...] }
+  let unmatched = [];
+
+  window.onVIPLReady = async function() {
+    if (!ALLOWED_ROLES.includes(VIPL.profile.role)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page. Party tagging is limited to Super Admin and Accountant accounts.</div>';
+      return;
+    }
+    document.getElementById('pageContent').innerHTML = `<div style="text-align:center;color:var(--g3);padding:40px">Scanning entries for name matches…</div>`;
+    await loadAndMatch();
+  };
+
+  async function loadAndMatch() {
+    const [{ data: profiles }, { data: entries }] = await Promise.all([
+      VIPL.sb.from('profiles').select('id, full_name, role').neq('role', 'pending'),
+      VIPL.sb.from('ledger_entries').select('id, entry_date, particulars, description, cash_credit, cash_debit, bank_credit, bank_debit')
+        .is('party_profile_id', null).order('entry_date', { ascending: false })
+    ]);
+    allProfiles = profiles || [];
+    untaggedEntries = entries || [];
+
+    // Build a word list per profile (words of 4+ letters, to avoid trivial matches like "N" or "Raj")
+    const profileWordSets = allProfiles.map(p => ({
+      profile: p,
+      words: (p.full_name || '').toLowerCase().split(/\s+/).filter(w => w.length >= 4)
+    })).filter(pw => pw.words.length);
+
+    const groupMap = new Map(); // profileId -> entries[]
+    unmatched = [];
+
+    untaggedEntries.forEach(e => {
+      const haystack = `${e.particulars || ''} ${e.description || ''}`.toLowerCase();
+      let best = null, bestScore = 0;
+      profileWordSets.forEach(pw => {
+        const score = pw.words.filter(w => haystack.includes(w)).length;
+        if (score > bestScore) { bestScore = score; best = pw.profile; }
+      });
+      if (best) {
+        if (!groupMap.has(best.id)) groupMap.set(best.id, { profile: best, entries: [] });
+        groupMap.get(best.id).entries.push(e);
+      } else {
+        unmatched.push(e);
+      }
+    });
+
+    groups = Array.from(groupMap.values())
+      .map(g => ({ profileId: g.profile.id, profileName: g.profile.full_name, role: g.profile.role, entries: g.entries }))
+      .sort((a,b) => b.entries.length - a.entries.length);
+
+    render();
+  }
+
+  function render() {
+    if (!untaggedEntries.length) {
+      document.getElementById('pageContent').innerHTML = `<div class="doneNote">✅ All ledger entries are tagged. Nothing left to review here.</div>`;
+      return;
+    }
+
+    let html = `
+      <div class="statBar">
+        <div class="statChip"><div class="val">${untaggedEntries.length}</div><div class="lbl">Untagged entries</div></div>
+        <div class="statChip"><div class="val">${groups.length}</div><div class="lbl">Suggested groups</div></div>
+        <div class="statChip"><div class="val">${unmatched.length}</div><div class="lbl">No suggested match</div></div>
+      </div>
+      <div class="sectionTitle">Suggested Matches</div>
+      <div class="sectionSub">Grouped by likely person, based on their name appearing in the entry's particulars or description. Review each group, uncheck anything that doesn't belong, then confirm.</div>
+      <div id="groupsWrap"></div>
+    `;
+    if (unmatched.length) {
+      html += `
+        <div class="sectionTitle">No Suggested Match <span style="font-weight:600;color:var(--g3);font-size:12.5px">(${unmatched.length})</span></div>
+        <div class="sectionSub">No name in the team/investor list was found in these. Tag manually if relevant, or leave untagged.</div>
+        <div class="unmatchedCard" id="unmatchedWrap"></div>
+      `;
+    }
+    document.getElementById('pageContent').innerHTML = html;
+
+    document.getElementById('groupsWrap').innerHTML = groups.map((g, gi) => `
+      <div class="groupCard">
+        <div class="groupHead" onclick="toggleGroup(${gi})">
+          <div class="groupTitle">
+            <span class="chevron" id="chev-${gi}">▶</span>
+            <div class="groupAvatar">${initials(g.profileName)}</div>
+            <div><div class="groupName">${escapeHtml(g.profileName)}</div><div class="groupCount">${g.entries.length} matched entries</div></div>
+          </div>
+          <div class="groupActions" onclick="event.stopPropagation()">
+            <select class="partyTypeSelect" id="ptype-${gi}">
+              ${PARTY_TYPE_OPTIONS.map(o => `<option value="${o.value}"${o.value === guessPartyType(g.role) ? ' selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="groupBody" id="gbody-${gi}">
+          <div style="padding:10px 20px;border-top:1px solid var(--border)">
+            <button class="selectAllLink" onclick="toggleAllInGroup(${gi}, true)">Select all</button> ·
+            <button class="selectAllLink" onclick="toggleAllInGroup(${gi}, false)">Select none</button>
+          </div>
+          ${g.entries.map((e, ei) => `
+            <div class="entryRow">
+              <input type="checkbox" checked id="chk-${gi}-${ei}">
+              <div class="entryDate">${e.entry_date}</div>
+              <div class="entryText"><div class="entryParticulars">${escapeHtml(e.particulars || '')}</div><div class="entryDesc">${escapeHtml(e.description || '—')}</div></div>
+              <div class="entryAmount">${fmt((e.cash_credit||0)+(e.bank_credit||0)-(e.cash_debit||0)-(e.bank_debit||0))}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="groupFoot">
+          <span style="font-size:12.5px;color:var(--g3)">Confirming will link the checked entries to <strong>${escapeHtml(g.profileName)}</strong>.</span>
+          <span>
+            <button class="btn btnPrimary" id="confirmBtn-${gi}" onclick="confirmGroup(${gi})">Tag Selected Entries</button>
+            <span class="successMsg" id="successMsg-${gi}" style="display:none"></span>
+          </span>
+        </div>
+      </div>
+    `).join('');
+
+    if (unmatched.length) {
+      document.getElementById('unmatchedWrap').innerHTML = unmatched.map((e, ui) => `
+        <div class="unmatchedRow">
+          <div class="entryDate">${e.entry_date}</div>
+          <div class="entryText" style="flex:1;min-width:200px"><div class="entryParticulars">${escapeHtml(e.particulars || '')}</div><div class="entryDesc">${escapeHtml(e.description || '—')}</div></div>
+          <div class="entryAmount">${fmt((e.cash_credit||0)+(e.bank_credit||0)-(e.cash_debit||0)-(e.bank_debit||0))}</div>
+          <select id="uperson-${ui}"><option value="">Assign to…</option>${allProfiles.map(p=>`<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('')}</select>
+          <select id="utype-${ui}">${PARTY_TYPE_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('')}</select>
+          <button class="btn btnGhost" onclick="tagSingle(${ui})">Tag</button>
+        </div>
+      `).join('');
+    }
+  }
+
+  function toggleGroup(gi) {
+    document.getElementById(`gbody-${gi}`).classList.toggle('open');
+    document.getElementById(`chev-${gi}`).classList.toggle('open');
+  }
+
+  function toggleAllInGroup(gi, checked) {
+    const g = groups[gi];
+    g.entries.forEach((e, ei) => { document.getElementById(`chk-${gi}-${ei}`).checked = checked; });
+  }
+
+  async function confirmGroup(gi) {
+    const g = groups[gi];
+    const partyType = document.getElementById(`ptype-${gi}`).value;
+    const idsToTag = g.entries.filter((e, ei) => document.getElementById(`chk-${gi}-${ei}`).checked).map(e => e.id);
+    if (!idsToTag.length) return;
+
+    const btn = document.getElementById(`confirmBtn-${gi}`);
+    btn.disabled = true; btn.textContent = 'Tagging…';
+
+    const { error } = await VIPL.sb.from('ledger_entries')
+      .update({ party_type: partyType, party_profile_id: g.profileId })
+      .in('id', idsToTag);
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Tag Selected Entries';
+      alert(error.message);
+      return;
+    }
+
+    // Remove tagged entries from local state and re-render
+    const taggedSet = new Set(idsToTag);
+    untaggedEntries = untaggedEntries.filter(e => !taggedSet.has(e.id));
+    g.entries = g.entries.filter(e => !taggedSet.has(e.id));
+    if (!g.entries.length) groups.splice(gi, 1);
+    render();
+  }
+
+  async function tagSingle(ui) {
+    const e = unmatched[ui];
+    const personId = document.getElementById(`uperson-${ui}`).value;
+    const partyType = document.getElementById(`utype-${ui}`).value;
+    if (!personId) { alert('Choose a person first.'); return; }
+
+    const { error } = await VIPL.sb.from('ledger_entries')
+      .update({ party_type: partyType, party_profile_id: personId })
+      .eq('id', e.id);
+    if (error) { alert(error.message); return; }
+
+    untaggedEntries = untaggedEntries.filter(x => x.id !== e.id);
+    unmatched = unmatched.filter(x => x.id !== e.id);
+    render();
+  }
+</script>
+</body>
+</html>
