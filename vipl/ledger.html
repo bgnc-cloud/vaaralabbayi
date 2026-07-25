@@ -12,38 +12,99 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
-  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 16px; }
-  .entryForm { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 12px; align-items: end; }
-  .entryForm label { font-size: 12px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 4px; }
-  .entryForm input, .entryForm select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; }
-  .entryForm button { padding: 11px 20px; border-radius: 8px; background: var(--orange); color: #fff; border: none; font-weight: 700; cursor: pointer; height: 42px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  th { background: var(--blue); color: #fff; padding: 10px; text-align: left; font-size: 11px; text-transform: uppercase; }
-  td { padding: 10px; border-bottom: 1px solid var(--border); }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .card .cardSub { font-size: 12.5px; color: var(--g3); margin-bottom: 18px; }
+
+  .entryForm { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; align-items: end; }
+  .entryForm label { font-size: 11.5px; font-weight: 700; color: var(--g3); text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 6px; }
+  .entryForm input, .entryForm select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color .15s;
+  }
+  .entryForm input:focus, .entryForm select:focus { outline: none; border-color: var(--blue); }
+  .entryForm button {
+    padding: 11px 22px; border-radius: 8px; background: var(--blue); color: #fff; border: none;
+    font-weight: 700; cursor: pointer; height: 42px; font-size: 13.5px; transition: opacity .15s;
+  }
+  .entryForm button:hover { opacity: .9; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    background: #FAFBFC; color: var(--g3); padding: 10px 12px; text-align: left;
+    font-size: 10px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
+  tbody tr:hover { background: #FAFBFD; }
   .balPos { color: var(--green); font-weight: 700; }
   .balNeg { color: #C0392B; font-weight: 700; }
+
   .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
-  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
-  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .summaryBox {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: left;
+    position: relative; overflow: hidden;
+  }
+  .summaryBox::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:#CBD5E1; }
+  .summaryBox.accent-capital::before { background: #0E9488; }
+  .summaryBox.accent-loan::before { background: #B7791F; }
+  .summaryBox .icon {
+    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; margin-bottom: 10px; background: #F1F3F6; color: #475467;
+  }
+  .summaryBox.accent-capital .icon { background: #E3F5F3; color: #0E9488; }
+  .summaryBox.accent-loan .icon { background: #FBF1DE; color: #B7791F; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
 
-  .fySelector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-  .fyPill { padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff; font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); }
+  .fySelector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .fyPill {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all .15s;
+  }
+  .fyPill:hover { border-color: var(--blue); }
   .fyPill.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
-  .monthAccordion { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
-  .monthHeader { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; background: var(--off); cursor: pointer; user-select: none; }
-  .monthHeader .monthTitle { font-weight: 800; font-size: 14.5px; display: flex; align-items: center; gap: 8px; }
+  .monthAccordion { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .monthHeader {
+    display: flex; justify-content: space-between; align-items: center; padding: 14px 18px;
+    background: #FAFBFC; cursor: pointer; user-select: none; transition: background .15s; flex-wrap: wrap; gap: 8px;
+  }
+  .monthHeader:hover { background: #F2F4F7; }
+  .monthHeader .monthTitle { font-weight: 800; font-size: 14px; display: flex; align-items: center; gap: 8px; }
   .monthHeader .chevron { transition: transform .15s; font-size: 11px; color: var(--g3); }
   .monthHeader.open .chevron { transform: rotate(90deg); }
-  .monthHeader .monthStats { font-size: 12.5px; color: var(--g3); display: flex; gap: 16px; }
-  .monthHeader .monthStats b { color: var(--ink); }
+  .monthHeader .entryCount { color: var(--g3); font-weight: 600; font-size: 12.5px; }
+  .monthHeader .monthStats { font-size: 12px; color: var(--g3); display: flex; gap: 14px; flex-wrap: wrap; }
+  .monthHeader .monthStats b { color: var(--ink); font-variant-numeric: tabular-nums; }
   .monthBody { display: none; overflow-x: auto; }
   .monthBody.open { display: block; }
+
   .fyControls { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
-  .expandAllBtn { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 6px 10px; }
-  .partyTag { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 5px; background: var(--off); color: var(--g3); }
+  .fySummaryLine { font-size: 13px; color: var(--g3); }
+  .fySummaryLine b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .expandAllBtn {
+    font-size: 12.5px; font-weight: 700; color: var(--blue); background: #F0F7FF; border: none;
+    cursor: pointer; padding: 7px 14px; border-radius: 7px; transition: opacity .15s;
+  }
+  .expandAllBtn:hover { opacity: .85; }
+
+  .partyTag {
+    display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .2px;
+    padding: 2px 7px; border-radius: 5px; background: var(--off); color: var(--g3); margin-right: 4px;
+  }
+  .partyTag.investor { background: #E3F5F3; color: #0E9488; }
+  .partyTag.employee { background: #EDECFC; color: #5B4FCF; }
+  .partyTag.lender { background: #FBF1DE; color: #B7791F; }
+  .partyTag.subscriber { background: #E7F5EE; color: #1B7A4D; }
+  .partyTag.vendor { background: #F0F7FF; color: #1565C0; }
+  .partyTag.other { background: var(--off); color: var(--g3); }
+
+  .creatorCell { display: flex; align-items: center; gap: 6px; }
+  .creatorAvatar {
+    width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff;
+    font-size: 8.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -61,6 +122,7 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function initials(s) { return (s||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
   const ALLOWED_ROLES = ['super_admin','accountant','entry'];
   const PARTY_TYPE_LABELS = { investor: 'Investor', employee: 'Employee', lender: 'Lender', subscriber: 'Subscriber', vendor: 'Vendor', other: 'Other' };
   let allProfiles = [];
@@ -96,12 +158,13 @@
 
     document.getElementById('pageContent').innerHTML = `
       <div class="summaryGrid">
-        <div class="summaryBox"><div class="val" id="sumCash">₹0</div><div class="lbl">Cash Balance</div></div>
-        <div class="summaryBox"><div class="val" id="sumBank">₹0</div><div class="lbl">Bank Balance</div></div>
-        <div class="summaryBox"><div class="val" id="sumEntries">0</div><div class="lbl">Total Entries</div></div>
+        <div class="summaryBox"><div class="icon">₹</div><div class="val" id="sumCash">₹0</div><div class="lbl">Cash Balance</div></div>
+        <div class="summaryBox accent-capital"><div class="icon">🏦</div><div class="val" id="sumBank">₹0</div><div class="lbl">Bank Balance</div></div>
+        <div class="summaryBox accent-loan"><div class="icon">📒</div><div class="val" id="sumEntries">0</div><div class="lbl">Total Entries</div></div>
       </div>
       <div class="card">
         <h2>New Entry</h2>
+        <div class="cardSub">Add a cash or bank transaction to the ledger.</div>
         <div class="entryForm">
           <div><label>Date</label><input type="date" id="fDate"></div>
           <div><label>Particulars *</label><input type="text" id="fParticulars" placeholder="e.g. Rent for month of Jul-26"></div>
@@ -131,20 +194,22 @@
             <label>Person</label>
             <select id="fPartyPerson"><option value="">Select…</option></select>
           </div>
-          <div><button onclick="addEntry()">Add Entry</button></div>
+          <div><button onclick="addEntry()">+ Add Entry</button></div>
         </div>
-        <div id="formMsg" style="margin-top:10px;font-size:13px"></div>
+        <div id="formMsg" style="margin-top:12px;font-size:13px;font-weight:600"></div>
       </div>
       <div class="card">
         <h2>Financial Year</h2>
+        <div class="cardSub">Browse entries by year, then by month.</div>
         <div class="fySelector" id="fySelector"></div>
         <div class="fyControls">
-          <div class="sub" style="font-size:13px;color:var(--g3)" id="fySummaryLine"></div>
+          <div class="fySummaryLine" id="fySummaryLine"></div>
           <button class="expandAllBtn" id="expandAllBtn" onclick="toggleAllMonths()">Expand all</button>
         </div>
       </div>
       <div class="card">
         <h2>Ledger — by Month</h2>
+        <div class="cardSub">Every transaction, grouped by month, with running balances.</div>
         <div id="monthAccordions"><div style="text-align:center;color:var(--g3);padding:30px">Loading…</div></div>
       </div>
     `;
@@ -194,7 +259,7 @@
     row[type] = amount;
     const { error } = await VIPL.sb.from('ledger_entries').insert(row);
     if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
-    msg.style.color = 'var(--green)'; msg.textContent = 'Entry added.';
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ Entry added.';
     document.getElementById('fParticulars').value = '';
     document.getElementById('fDescription').value = '';
     document.getElementById('fAmount').value = '';
@@ -260,7 +325,7 @@
     const fyBankIn = fyEntries.reduce((s,e) => s + Number(e.bank_credit||0), 0);
     const fyBankOut = fyEntries.reduce((s,e) => s + Number(e.bank_debit||0), 0);
     document.getElementById('fySummaryLine').innerHTML =
-      `${fyLabelOf(selectedFY)}: ${fyEntries.length} entries · Cash In ${fmt(fyCashIn)} · Cash Out ${fmt(fyCashOut)} · Bank In ${fmt(fyBankIn)} · Bank Out ${fmt(fyBankOut)}`;
+      `${fyLabelOf(selectedFY)}: <b>${fyEntries.length}</b> entries · Cash In <b>${fmt(fyCashIn)}</b> · Cash Out <b>${fmt(fyCashOut)}</b> · Bank In <b>${fmt(fyBankIn)}</b> · Bank Out <b>${fmt(fyBankOut)}</b>`;
 
     // Open the most recent month by default
     if (monthKeys.length) openMonths.add(monthKeys[monthKeys.length - 1]);
@@ -284,14 +349,14 @@
           <td>${r.cheque_no || '—'}</td>
           <td class="${r.cash_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.cash_balance)}</td>
           <td class="${r.bank_balance >= 0 ? 'balPos' : 'balNeg'}">${fmt(r.bank_balance)}</td>
-          <td>${r.created_by_name || '—'}</td>
-          <td>${r.party_type ? `<span class="partyTag">${PARTY_TYPE_LABELS[r.party_type] || r.party_type}</span> ${r.party_name || ''}` : '—'}</td>
+          <td>${r.created_by_name ? `<div class="creatorCell"><div class="creatorAvatar">${initials(r.created_by_name)}</div>${r.created_by_name}</div>` : '—'}</td>
+          <td>${r.party_type ? `<span class="partyTag ${r.party_type}">${PARTY_TYPE_LABELS[r.party_type] || r.party_type}</span>${r.party_name || ''}` : '—'}</td>
         </tr>`).join('');
 
       return `
         <div class="monthAccordion">
           <div class="monthHeader${isOpen ? ' open' : ''}" onclick="toggleMonth('${key}')">
-            <div class="monthTitle"><span class="chevron">▶</span> ${label} <span style="color:var(--g3);font-weight:600">(${entries.length})</span></div>
+            <div class="monthTitle"><span class="chevron">▶</span> ${label} <span class="entryCount">(${entries.length})</span></div>
             <div class="monthStats">
               <span>Cash In <b>${fmt(cashIn)}</b></span>
               <span>Cash Out <b>${fmt(cashOut)}</b></span>
