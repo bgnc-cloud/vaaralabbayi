@@ -6,9 +6,13 @@
 // SECURITY: uses the Supabase service role key, which can create/manage any user account.
 // This key must ONLY ever be read from process.env here, server-side. Never expose it to
 // the browser, never log it, never put it in a client-side file.
-
+//
+// SECURITY: the caller's identity is verified from their real Supabase session token
+// (sent as an Authorization: Bearer header), never from a client-supplied ID field.
+// A client-supplied ID can be forged by anyone who can see it anywhere in the app (e.g.
+// in a reporting-manager dropdown's underlying data) — verifying against the actual
+// signed session token is the only way to know who is really calling this endpoint.
 import { createClient } from '@supabase/supabase-js';
-
 const SUPABASE_URL = 'https://uylkgldmyyvtxxsmkquy.supabase.co';
 
 export default async function handler(req, res) {
@@ -21,8 +25,23 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server misconfigured: missing service role key' });
   }
 
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+
+  // Verify the caller's identity from their real session token — never trust a client-supplied ID.
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ error: 'Missing auth token' });
+  }
+  const { data: { user }, error: authErr } = await admin.auth.getUser(token);
+  if (authErr || !user) {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+  const requesterId = user.id; // cryptographically verified, not client-supplied
+
   const {
-    requesterId,       // auth.uid() of the HR/Admin/Super Admin making this request
     fullName, email, phone,
     department, dateOfJoining, reportingManagerId,
     roleCode,           // e.g. 'hr_manager', 'accountant', 'cashier' — matches roles.code
@@ -30,31 +49,25 @@ export default async function handler(req, res) {
     tempPassword        // required if loginMethod === 'temp_password'
   } = req.body || {};
 
-  if (!fullName || !email || !roleCode || !loginMethod || !requesterId) {
+  if (!fullName || !email || !roleCode || !loginMethod) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
   if (loginMethod === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
     return res.status(400).json({ error: 'Temporary password must be at least 6 characters' });
   }
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
-
-  // Verify the requester is actually allowed to create employees (HR Manager / Admin / Super Admin)
+  // Verify this verified user is actually allowed to create employees (HR Manager / Admin / Super Admin)
   const { data: requester, error: requesterErr } = await admin
     .from('profiles')
     .select('role')
     .eq('id', requesterId)
     .single();
-
   if (requesterErr || !requester || !['hr_manager', 'admin', 'super_admin'].includes(requester.role)) {
     return res.status(403).json({ error: 'Not authorized to create employee accounts' });
   }
 
   try {
     let newUserId;
-
     if (loginMethod === 'invite') {
       const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
         data: { full_name: fullName, phone },
@@ -90,7 +103,6 @@ export default async function handler(req, res) {
       .eq('id', newUserId)
       .select('customer_id, full_name, role')
       .single();
-
     if (updateErr) throw updateErr;
 
     return res.status(200).json({
@@ -98,7 +110,6 @@ export default async function handler(req, res) {
       employeeId: updatedProfile.customer_id,
       loginMethod
     });
-
   } catch (err) {
     console.error('create-employee error:', err);
     return res.status(500).json({ error: err.message || 'Failed to create employee' });
