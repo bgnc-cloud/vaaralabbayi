@@ -12,33 +12,67 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
-  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
   .btnPrimary { background: var(--blue); color: #fff; }
   .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
   .btnSm { padding: 6px 12px; font-size: 12.5px; }
-  .toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .toolbarCount { font-size: 13px; color: var(--g3); font-weight: 600; }
+
   .empTableWrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   table.empTable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  table.empTable th { text-align: left; padding: 12px 16px; background: var(--off); color: var(--g3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
-  table.empTable td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  table.empTable th {
+    text-align: left; padding: 11px 16px; background: #FAFBFC; color: var(--g3);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.empTable td { padding: 13px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  table.empTable tbody tr:hover { background: #FAFBFD; }
+
+  .empNameCell { display: flex; align-items: center; gap: 10px; }
+  .empAvatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--blue); color: #fff;
+    font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
   .empName { font-weight: 700; }
-  .empId { font-family: monospace; font-size: 12px; color: var(--g3); }
-  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: var(--off); color: var(--g3); }
+  .empId { font-family: monospace; font-size: 11.5px; color: var(--g3); }
+
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; background: #E3F5F3; color: #0E9488; }
+  .pill.admin { background: #FFF7ED; color: #F97316; }
   .pill.pending { background: #FFF7ED; color: #9A5B0F; }
-  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.4); display: none; align-items: center; justify-content: center; z-index: 100; overflow-y: auto; }
+
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.45); display: none; align-items: center; justify-content: center; z-index: 100; overflow-y: auto; }
   .modalOverlay.open { display: flex; }
   .modalBox { background: #fff; border-radius: 16px; padding: 28px; width: 460px; max-width: 92vw; max-height: 88vh; overflow-y: auto; margin: 24px; }
   .modalBox h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
-  .modalBox label { display: block; font-size: 12.5px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
-  .modalBox input, .modalBox select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .modalBox label { display: block; font-size: 12px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
+  .modalBox input, .modalBox select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; transition: border-color .15s;
+  }
+  .modalBox input:focus, .modalBox select:focus { outline: none; border-color: var(--blue); }
+
   .loginChoice { display: flex; gap: 10px; margin-top: 8px; }
-  .loginChoice label { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink); margin: 0; flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
-  .loginChoice input[type=radio] { width: auto; margin: 0; }
+  .loginChoice label {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+    margin: 0; flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .loginChoice label:has(input:checked) { border-color: var(--blue); background: #F0F7FF; }
+  .loginChoice input[type=radio] { width: auto; margin: 0; accent-color: var(--blue); }
+
   .modalActions { display: flex; gap: 10px; margin-top: 22px; }
   .modalActions .btn { flex: 1; }
   #empFormMsg { font-size: 13px; margin-top: 10px; color: #C0392B; }
+
   .accessDenied { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
-  .successBox { background: #EAF3DE; color: #15803D; border-radius: 10px; padding: 14px 16px; font-size: 13.5px; margin-top: 10px; }
+  .successBox {
+    display: flex; align-items: flex-start; gap: 10px; background: #EAF3DE; color: #15803D;
+    border-radius: 10px; padding: 14px 16px; font-size: 13.5px; margin-top: 10px; line-height: 1.5;
+  }
 </style>
 </head>
 <body>
@@ -73,8 +107,8 @@
     <select id="empManager"><option value="">— None —</option></select>
     <label>Login setup</label>
     <div class="loginChoice">
-      <label><input type="radio" name="loginMethod" value="invite" checked> Email invite link</label>
-      <label><input type="radio" name="loginMethod" value="temp_password"> Temporary password</label>
+      <label><input type="radio" name="loginMethod" value="invite" checked> ✉️ Email invite link</label>
+      <label><input type="radio" name="loginMethod" value="temp_password"> 🔑 Temporary password</label>
     </div>
     <div id="tempPassRow" style="display:none">
       <label>Temporary password</label>
@@ -95,6 +129,8 @@
   let allRoles = [];
   let canManage = false;
 
+  function initials(s) { return (s||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+
   window.onVIPLReady = async function() {
     canManage = ['super_admin','admin','hr_manager'].includes(VIPL.profile.role);
     if (!canManage) {
@@ -107,7 +143,10 @@
     }
 
     document.getElementById('pageBody').innerHTML = `
-      <div class="toolbar"><button class="btn btnPrimary" id="addEmpBtn">+ Add Employee</button></div>
+      <div class="toolbar">
+        <div class="toolbarCount" id="empCount"></div>
+        <button class="btn btnPrimary" id="addEmpBtn">+ Add Employee</button>
+      </div>
       <div class="empTableWrap"><table class="empTable">
         <thead><tr><th>Employee</th><th>Role</th><th>Department</th><th>Reports to</th><th>Joined</th></tr></thead>
         <tbody id="empTableBody"></tbody>
@@ -139,22 +178,24 @@
       .order('created_at', { ascending: false });
     if (error) { document.getElementById('empTableBody').innerHTML = `<tr><td colspan="5">Error: ${error.message}</td></tr>`; return; }
     allEmployees = data || [];
+    document.getElementById('empCount').textContent = `${allEmployees.length} employee${allEmployees.length === 1 ? '' : 's'}`;
     document.getElementById('empManager').innerHTML = '<option value="">— None —</option>' +
       allEmployees.map(e => `<option value="${e.id}">${escapeHtml(e.full_name || e.email)}</option>`).join('');
 
     const byId = Object.fromEntries(allEmployees.map(e => [e.id, e]));
     document.getElementById('empTableBody').innerHTML = allEmployees.map(e => {
       const manager = e.reporting_manager_id ? byId[e.reporting_manager_id] : null;
+      const isAdminTier = ['super_admin','admin'].includes(e.role);
       return `
       <tr>
-        <td><div class="empName">${escapeHtml(e.full_name || '—')}</div><div class="empId">${escapeHtml(e.customer_id || '')} · ${escapeHtml(e.email)}</div></td>
-        <td><span class="pill">${escapeHtml(roleLabel(e.role))}</span></td>
+        <td><div class="empNameCell"><div class="empAvatar">${initials(e.full_name || e.email)}</div><div><div class="empName">${escapeHtml(e.full_name || '—')}</div><div class="empId">${escapeHtml(e.customer_id || '')} · ${escapeHtml(e.email)}</div></div></div></td>
+        <td><span class="pill${isAdminTier ? ' admin' : ''}">${escapeHtml(roleLabel(e.role))}</span></td>
         <td>${escapeHtml(e.department || '—')}</td>
         <td>${manager ? escapeHtml(manager.full_name || manager.email) : '—'}</td>
         <td>${e.date_of_joining || '—'}</td>
       </tr>
     `;
-    }).join('') || '<tr><td colspan="5" style="color:var(--g3)">No employees yet.</td></tr>';
+    }).join('') || '<tr><td colspan="5" style="color:var(--g3);text-align:center;padding:24px">No employees yet.</td></tr>';
   }
 
   function roleLabel(code) {
@@ -219,10 +260,10 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create employee');
 
-      successBox.style.display = 'block';
-      successBox.textContent = loginMethod === 'invite'
-        ? `Employee created (${data.employeeId}). Invite email sent to ${email}.`
-        : `Employee created (${data.employeeId}). Share the temporary password with them directly — they can change it after signing in.`;
+      successBox.style.display = 'flex';
+      successBox.innerHTML = `✅ <div>${loginMethod === 'invite'
+        ? `Employee created (<strong>${data.employeeId}</strong>). Invite email sent to ${escapeHtml(email)}.`
+        : `Employee created (<strong>${data.employeeId}</strong>). Share the temporary password with them directly — they can change it after signing in.`}</div>`;
       await loadEmployees();
     } catch (err) {
       msg.textContent = err.message;
