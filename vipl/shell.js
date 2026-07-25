@@ -18,6 +18,7 @@ const NAV_CONFIG = [
     { label: '📒 Ledger Entry', href: 'ledger.html', roles: ['super_admin','accountant','entry'] },
     { label: '📊 Financial Dashboard', href: 'dashboard.html', roles: ['super_admin','accountant'] },
     { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
+    { label: '🧾 Statements', href: 'statements.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
   ]},
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
