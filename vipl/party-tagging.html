@@ -218,10 +218,13 @@
         <div class="groupHead" onclick="toggleGroup(${gi})">
           <div class="groupTitle">
             <span class="chevron" id="chev-${gi}">▶</span>
-            <div class="groupAvatar">${initials(g.profileName)}</div>
-            <div><div class="groupName">${escapeHtml(g.profileName)} <span style="font-weight:600;color:var(--g3);font-size:12px">${g.customerId ? '· ' + escapeHtml(g.customerId) : ''}</span></div><div class="groupCount">${g.entries.length} matched entries</div></div>
+            <div class="groupAvatar" id="gavatar-${gi}">${initials(g.profileName)}</div>
+            <div><div class="groupName" id="gname-${gi}">${escapeHtml(g.profileName)} <span style="font-weight:600;color:var(--g3);font-size:12px">${g.customerId ? '· ' + escapeHtml(g.customerId) : ''}</span></div><div class="groupCount">${g.entries.length} matched entries</div></div>
           </div>
           <div class="groupActions" onclick="event.stopPropagation()">
+            <select class="partyTypeSelect" id="reassign-${gi}" style="max-width:190px" onchange="reassignGroup(${gi})">
+              ${allProfiles.map(p => `<option value="${p.id}"${p.id === g.profileId ? ' selected' : ''}>${escapeHtml(p.full_name)}${p.customer_id ? ' · ' + escapeHtml(p.customer_id) : ''}</option>`).join('')}
+            </select>
             <select class="partyTypeSelect" id="ptype-${gi}">
               ${PARTY_TYPE_OPTIONS.map(o => `<option value="${o.value}"${o.value === guessPartyType(g.role) ? ' selected' : ''}>${o.label}</option>`).join('')}
             </select>
@@ -242,7 +245,7 @@
           `).join('')}
         </div>
         <div class="groupFoot">
-          <span style="font-size:12.5px;color:var(--g3)">Confirming will link the checked entries to <strong>${escapeHtml(g.profileName)}</strong>.</span>
+          <span style="font-size:12.5px;color:var(--g3)">Confirming will link the checked entries to <strong id="gfoottext-${gi}">${escapeHtml(g.profileName)}</strong>.</span>
           <span>
             <button class="btn btnPrimary" id="confirmBtn-${gi}" onclick="confirmGroup(${gi})">Tag Selected Entries</button>
             <span class="successMsg" id="successMsg-${gi}" style="display:none"></span>
@@ -284,6 +287,21 @@
         </div>
       `).join('');
     }
+  }
+
+  function reassignGroup(gi) {
+    const g = groups[gi];
+    const newId = document.getElementById(`reassign-${gi}`).value;
+    const newProfile = allProfiles.find(p => p.id === newId);
+    if (!newProfile) return;
+    g.profileId = newProfile.id;
+    g.profileName = newProfile.full_name;
+    g.customerId = newProfile.customer_id;
+    g.role = newProfile.role;
+    document.getElementById(`gname-${gi}`).innerHTML = `${escapeHtml(g.profileName)} <span style="font-weight:600;color:var(--g3);font-size:12px">${g.customerId ? '· ' + escapeHtml(g.customerId) : ''}</span>`;
+    document.getElementById(`gavatar-${gi}`).textContent = initials(g.profileName);
+    document.getElementById(`gfoottext-${gi}`).textContent = g.profileName;
+    document.getElementById(`ptype-${gi}`).value = guessPartyType(g.role);
   }
 
   function toggleGroup(gi) {
