@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Statements — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .card .cardSub { font-size: 12.5px; color: var(--g3); margin-bottom: 18px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .fieldRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 16px; }
+  .fieldRow label { font-size: 11.5px; font-weight: 700; color: var(--g3); text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 6px; }
+  .fieldRow select, .fieldRow input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color .15s;
+  }
+  .fieldRow select:focus, .fieldRow input:focus { outline: none; border-color: var(--blue); }
+
+  .periodTabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .periodTab {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all .15s;
+  }
+  .periodTab:hover { border-color: var(--blue); }
+  .periodTab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnAmber { background: #FBF1DE; color: #B7791F; }
+
+  .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+  #genMsg { font-size: 13px; margin-top: 10px; font-weight: 600; }
+
+  /* Statement preview */
+  #statementPreview { display: none; }
+  .stmtSheet { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 32px; }
+  .stmtHead { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .stmtHead .brand { display: flex; align-items: center; gap: 10px; }
+  .stmtHead .brand img { height: 32px; }
+  .stmtHead .brandName { font-family:'Plus Jakarta Sans',sans-serif; font-weight: 800; font-size: 16px; }
+  .stmtHead .stmtMeta { text-align: right; font-size: 12.5px; color: var(--g3); }
+  .stmtHead .stmtMeta .periodLabel { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; color: var(--ink); margin-bottom: 3px; }
+
+  .stmtForRow { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; }
+  .stmtForBox .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--g3); font-weight: 700; margin-bottom: 4px; }
+  .stmtForBox .val { font-size: 15px; font-weight: 800; }
+
+  .stmtSummaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 24px; }
+  .stmtSummaryBox { background: var(--off); border-radius: 10px; padding: 14px 16px; }
+  .stmtSummaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .stmtSummaryBox .lbl { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+  .balPos { color: var(--green); } .balNeg { color: #C0392B; }
+
+  table.stmtTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.stmtTable th {
+    text-align: left; padding: 9px 10px; background: #FAFBFC; color: var(--g3);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.stmtTable td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  .stmtFoot { margin-top: 18px; font-size: 11px; color: var(--g3); text-align: center; }
+
+  .reqPanel { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .reqCard { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-top: 1px solid var(--border); }
+  .reqCard:first-child { border-top: none; }
+  .reqCard:hover { background: #FAFBFD; }
+  .reqTitle { font-weight: 700; font-size: 13.5px; }
+  .reqMeta { font-size: 12px; color: var(--g3); margin-top: 2px; }
+  .emptyNote { font-size: 13px; color: var(--g3); padding: 20px 16px; text-align: center; }
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; }
+  .pill.pending { background: #FFF7ED; color: #9A5B0F; }
+  .pill.fulfilled { background: #EAF3DE; color: #15803D; }
+
+  @media print {
+    #sidebar, .card:not(.printOnly), .toolbar, .periodTabs, .fieldRow, .actionRow, #genMsg, .pageTitle, .lead { display: none !important; }
+    #mainArea { margin-left: 0 !important; padding: 0 !important; }
+    #statementPreview { display: block !important; }
+    .stmtSheet { border: none !important; padding: 0 !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Statements</h1>
+    <div class="lead" id="pageLead" style="font-size:14px;color:var(--g3);margin-bottom:24px;margin-top:-12px"></div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function fmtPlain(n) { return Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2'];
+  const FULL_ACCESS_ROLES = ['super_admin','accountant'];
+  const SELF_VIEW_ROLES = ['investor','director_1','director_2'];
+
+  let myRole = null;
+  let isFullAccess = false;
+  let allProfiles = [];
+  let selectedForId = null; // null = "Company (All)" for full-access users
+  let periodType = 'month';
+  let currentStatement = null; // holds generated statement data for download/share
+
+  function fyKeyOf(dateStr) {
+    const d = new Date(dateStr); const m = d.getMonth() + 1, y = d.getFullYear();
+    return m >= 4 ? y : y - 1;
+  }
+
+  window.onVIPLReady = async function() {
+    myRole = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(myRole)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+    isFullAccess = FULL_ACCESS_ROLES.includes(myRole);
+    document.getElementById('pageLead').textContent = isFullAccess
+      ? 'Generate a statement for any individual or the whole company, for any period.'
+      : 'Generate a statement of your own transactions for any period.';
+
+    let html = `
+      <div class="card">
+        <h2>Generate a Statement</h2>
+        <div class="cardSub">Choose a period${isFullAccess ? ' and who it\'s for' : ''}, then generate.</div>
+        <div class="fieldRow" id="forRow" style="display:none">
+          <div>
+            <label>Statement for</label>
+            <select id="forSelect"></select>
+          </div>
+        </div>
+        <div class="periodTabs" id="periodTabs">
+          <button class="periodTab active" data-type="month" onclick="setPeriodType('month')">Month</button>
+          <button class="periodTab" data-type="quarter" onclick="setPeriodType('quarter')">Quarter</button>
+          <button class="periodTab" data-type="year" onclick="setPeriodType('year')">Calendar Year</button>
+          <button class="periodTab" data-type="financial_year" onclick="setPeriodType('financial_year')">Financial Year</button>
+        </div>
+        <div class="fieldRow" id="periodFields"></div>
+        <div class="actionRow">
+          <button class="btn btnPrimary" id="generateBtn" onclick="generateStatement()">Generate Statement</button>
+        </div>
+        <div id="genMsg"></div>
+      </div>
+
+      <div id="statementPreview">
+        <div class="card printOnly" style="padding:0;border:none">
+          <div class="stmtSheet" id="stmtSheet"></div>
+          <div class="actionRow" style="padding:0 4px">
+            <button class="btn btnPrimary" onclick="downloadStatementPDF()">⬇️ Download PDF</button>
+            <button class="btn btnGreen" id="shareStmtBtn" onclick="shareStatement()">🔗 Share</button>
+            ${!isFullAccess ? `<button class="btn btnAmber" onclick="requestStatement()">📨 Request from Admin/Accountant</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    if (isFullAccess) {
+      html += `
+        <div class="sectionTitle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;margin:30px 0 12px">Pending Statement Requests</div>
+        <div class="reqPanel" id="reqPanel"><div class="emptyNote">Loading…</div></div>
+      `;
+    }
+
+    document.getElementById('pageContent').innerHTML = html;
+
+    if (isFullAccess) {
+      const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, customer_id').neq('role','pending').order('full_name');
+      allProfiles = data || [];
+      document.getElementById('forRow').style.display = 'block';
+      document.getElementById('forSelect').innerHTML =
+        `<option value="">🏢 Company (All)</option>` +
+        allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)} (${p.customer_id || '—'})</option>`).join('');
+      document.getElementById('forSelect').onchange = (e) => { selectedForId = e.target.value || null; };
+      await loadRequests();
+    } else {
+      selectedForId = VIPL.user.id;
+    }
+
+    renderPeriodFields();
+  };
+
+  function setPeriodType(type) {
+    periodType = type;
+    document.querySelectorAll('.periodTab').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    renderPeriodFields();
+  }
+
+  function renderPeriodFields() {
+    const now = new Date();
+    const wrap = document.getElementById('periodFields');
+    if (periodType === 'month') {
+      const val = now.toISOString().slice(0,7);
+      wrap.innerHTML = `<div><label>Month</label><input type="month" id="pMonth" value="${val}"></div>`;
+    } else if (periodType === 'quarter') {
+      const y = now.getFullYear();
+      const q = Math.floor(now.getMonth()/3) + 1;
+      wrap.innerHTML = `
+        <div><label>Year</label><input type="number" id="pYear" value="${y}" min="2020" max="2100"></div>
+        <div><label>Quarter</label><select id="pQuarter">
+          <option value="1"${q===1?' selected':''}>Q1 (Jan–Mar)</option>
+          <option value="2"${q===2?' selected':''}>Q2 (Apr–Jun)</option>
+          <option value="3"${q===3?' selected':''}>Q3 (Jul–Sep)</option>
+          <option value="4"${q===4?' selected':''}>Q4 (Oct–Dec)</option>
+        </select></div>`;
+    } else if (periodType === 'year') {
+      wrap.innerHTML = `<div><label>Calendar Year</label><input type="number" id="pYear" value="${now.getFullYear()}" min="2020" max="2100"></div>`;
+    } else {
+      const fy = fyKeyOf(now.toISOString());
+      wrap.innerHTML = `<div><label>Financial Year</label><input type="number" id="pYear" value="${fy}" min="2020" max="2100"></div>
+        <div style="align-self:end;font-size:12.5px;color:var(--g3);padding-bottom:10px">Apr ${fy} – Mar ${fy+1}</div>`;
+    }
+  }
+
+  function getPeriodRange() {
+    if (periodType === 'month') {
+      const [y,m] = document.getElementById('pMonth').value.split('-').map(Number);
+      const start = new Date(y, m-1, 1);
+      const end = new Date(y, m, 0);
+      return { start, end, label: start.toLocaleDateString('en-IN',{month:'long',year:'numeric'}) };
+    } else if (periodType === 'quarter') {
+      const y = parseInt(document.getElementById('pYear').value,10);
+      const q = parseInt(document.getElementById('pQuarter').value,10);
+      const startMonth = (q-1)*3;
+      const start = new Date(y, startMonth, 1);
+      const end = new Date(y, startMonth+3, 0);
+      return { start, end, label: `Q${q} ${y} (${start.toLocaleDateString('en-IN',{month:'short'})}–${end.toLocaleDateString('en-IN',{month:'short'})})` };
+    } else if (periodType === 'year') {
+      const y = parseInt(document.getElementById('pYear').value,10);
+      return { start: new Date(y,0,1), end: new Date(y,11,31), label: `Calendar Year ${y}` };
+    } else {
+      const fy = parseInt(document.getElementById('pYear').value,10);
+      return { start: new Date(fy,3,1), end: new Date(fy+1,2,31), label: `FY ${fy}–${String(fy+1).slice(2)} (Apr ${fy}–Mar ${fy+1})` };
+    }
+  }
+
+  function isoDate(d) { return d.toISOString().slice(0,10); }
+
+  async function generateStatement() {
+    const msg = document.getElementById('genMsg');
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Generating…';
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = true;
+
+    try {
+      const { start, end, label } = getPeriodRange();
+      const startIso = isoDate(start), endIso = isoDate(end);
+
+      let q = VIPL.sb.from('ledger_with_balance').select('*')
+        .gte('entry_date', startIso).lte('entry_date', endIso)
+        .order('entry_date').order('created_at');
+      if (selectedForId) q = q.eq('party_profile_id', selectedForId);
+      const { data: rows, error } = await q;
+      if (error) throw error;
+
+      let openingCash = 0, openingBank = 0;
+      if (!selectedForId) {
+        // Company-wide statement: opening balance = running balance just before the period
+        const { data: prior } = await VIPL.sb.from('ledger_with_balance').select('cash_balance,bank_balance')
+          .lt('entry_date', startIso).order('entry_date',{ascending:false}).order('created_at',{ascending:false}).limit(1);
+        if (prior && prior[0]) { openingCash = Number(prior[0].cash_balance)||0; openingBank = Number(prior[0].bank_balance)||0; }
+      }
+
+      const forName = selectedForId
+        ? (allProfiles.find(p=>p.id===selectedForId)?.full_name || VIPL.profile.full_name || VIPL.user.email)
+        : 'Company (All Accounts)';
+
+      currentStatement = { label, startIso, endIso, rows: rows||[], openingCash, openingBank, forName, isCompanyWide: !selectedForId };
+      renderStatementPreview(currentStatement);
+      msg.style.color = 'var(--green)'; msg.textContent = `✓ Statement generated — ${rows.length} entries.`;
+      document.getElementById('statementPreview').style.display = 'block';
+      document.getElementById('statementPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (err) {
+      msg.style.color = '#C0392B'; msg.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderStatementPreview(stmt) {
+    const cashIn = stmt.rows.reduce((s,r)=>s+Number(r.cash_credit||0),0);
+    const cashOut = stmt.rows.reduce((s,r)=>s+Number(r.cash_debit||0),0);
+    const bankIn = stmt.rows.reduce((s,r)=>s+Number(r.bank_credit||0),0);
+    const bankOut = stmt.rows.reduce((s,r)=>s+Number(r.bank_debit||0),0);
+
+    let summaryHtml, tableRows;
+    if (stmt.isCompanyWide) {
+      const closingCash = stmt.openingCash + cashIn - cashOut;
+      const closingBank = stmt.openingBank + bankIn - bankOut;
+      summaryHtml = `
+        <div class="stmtSummaryBox"><div class="val">${fmt(stmt.openingCash + stmt.openingBank)}</div><div class="lbl">Opening Balance</div></div>
+        <div class="stmtSummaryBox"><div class="val balPos">${fmt(cashIn + bankIn)}</div><div class="lbl">Total In</div></div>
+        <div class="stmtSummaryBox"><div class="val balNeg">${fmt(cashOut + bankOut)}</div><div class="lbl">Total Out</div></div>
+        <div class="stmtSummaryBox"><div class="val">${fmt(closingCash + closingBank)}</div><div class="lbl">Closing Balance</div></div>
+      `;
+      tableRows = stmt.rows.map(r => `
+        <tr>
+          <td>${r.entry_date}</td><td>${escapeHtml(r.particulars||'')}</td>
+          <td>${r.cash_credit ? fmt(r.cash_credit) : '—'}</td><td>${r.cash_debit ? fmt(r.cash_debit) : '—'}</td>
+          <td>${r.bank_credit ? fmt(r.bank_credit) : '—'}</td><td>${r.bank_debit ? fmt(r.bank_debit) : '—'}</td>
+          <td>${fmt(r.cash_balance)}</td><td>${fmt(r.bank_balance)}</td>
+        </tr>`).join('');
+    } else {
+      const net = cashIn + bankIn - cashOut - bankOut;
+      summaryHtml = `
+        <div class="stmtSummaryBox"><div class="val balPos">${fmt(cashIn + bankIn)}</div><div class="lbl">Total Credited</div></div>
+        <div class="stmtSummaryBox"><div class="val balNeg">${fmt(cashOut + bankOut)}</div><div class="lbl">Total Debited</div></div>
+        <div class="stmtSummaryBox"><div class="val ${net>=0?'balPos':'balNeg'}">${fmt(net)}</div><div class="lbl">Net for Period</div></div>
+        <div class="stmtSummaryBox"><div class="val">${stmt.rows.length}</div><div class="lbl">Transactions</div></div>
+      `;
+      tableRows = stmt.rows.map(r => `
+        <tr>
+          <td>${r.entry_date}</td><td>${escapeHtml(r.particulars||'')}</td>
+          <td>${r.cash_credit ? fmt(r.cash_credit) : '—'}</td><td>${r.cash_debit ? fmt(r.cash_debit) : '—'}</td>
+          <td>${r.bank_credit ? fmt(r.bank_credit) : '—'}</td><td>${r.bank_debit ? fmt(r.bank_debit) : '—'}</td>
+        </tr>`).join('');
+    }
+
+    document.getElementById('stmtSheet').innerHTML = `
+      <div class="stmtHead">
+        <div class="brand"><img src="../logo.jpg" alt=""><div class="brandName">VIPL Internal — Statement</div></div>
+        <div class="stmtMeta"><div class="periodLabel">${stmt.label}</div>Generated ${new Date().toLocaleString('en-IN')}</div>
+      </div>
+      <div class="stmtForRow">
+        <div class="stmtForBox"><div class="lbl">Statement for</div><div class="val">${escapeHtml(stmt.forName)}</div></div>
+        <div class="stmtForBox"><div class="lbl">Period</div><div class="val">${stmt.startIso} to ${stmt.endIso}</div></div>
+      </div>
+      <div class="stmtSummaryGrid">${summaryHtml}</div>
+      <div style="overflow-x:auto"><table class="stmtTable">
+        <thead><tr><th>Date</th><th>Particulars</th><th>Cash In</th><th>Cash Out</th><th>Bank In</th><th>Bank Out</th>${stmt.isCompanyWide?'<th>Cash Bal</th><th>Bank Bal</th>':''}</tr></thead>
+        <tbody>${tableRows || `<tr><td colspan="8" style="text-align:center;color:var(--g3);padding:20px">No transactions in this period.</td></tr>`}</tbody>
+      </table></div>
+      <div class="stmtFoot">VIPL Internal — auto-generated statement. Figures reflect the ledger at time of generation.</div>
+    `;
+  }
+
+  function downloadStatementPDF() {
+    if (!currentStatement) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const stmt = currentStatement;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('VIPL Internal — Statement', 14, 18);
+    doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.text(stmt.label, 14, 25);
+    doc.text(`For: ${stmt.forName}`, 14, 31);
+    doc.text(`Period: ${stmt.startIso} to ${stmt.endIso}`, 14, 37);
+    doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 43);
+
+    const head = stmt.isCompanyWide
+      ? [['Date','Particulars','Cash In','Cash Out','Bank In','Bank Out','Cash Bal','Bank Bal']]
+      : [['Date','Particulars','Cash In','Cash Out','Bank In','Bank Out']];
+    const body = stmt.rows.map(r => stmt.isCompanyWide
+      ? [r.entry_date, r.particulars||'', r.cash_credit?fmtPlain(r.cash_credit):'—', r.cash_debit?fmtPlain(r.cash_debit):'—', r.bank_credit?fmtPlain(r.bank_credit):'—', r.bank_debit?fmtPlain(r.bank_debit):'—', fmtPlain(r.cash_balance), fmtPlain(r.bank_balance)]
+      : [r.entry_date, r.particulars||'', r.cash_credit?fmtPlain(r.cash_credit):'—', r.cash_debit?fmtPlain(r.cash_debit):'—', r.bank_credit?fmtPlain(r.bank_credit):'—', r.bank_debit?fmtPlain(r.bank_debit):'—']
+    );
+    doc.autoTable({ head, body, startY: 50, styles: { fontSize: 8 }, headStyles: { fillColor: [11,29,46] } });
+
+    const filename = `VIPL-Statement-${(stmt.forName||'').replace(/\s+/g,'_')}-${stmt.startIso}_to_${stmt.endIso}.pdf`;
+    doc.save(filename);
+  }
+
+  async function shareStatement() {
+    if (!currentStatement) return;
+    const stmt = currentStatement;
+    const btn = document.getElementById('shareStmtBtn');
+    const text = `VIPL Internal Statement — ${stmt.forName}, ${stmt.label}`;
+
+    // Try sharing the actual PDF file where supported (mobile Chrome/Safari)
+    try {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFont('helvetica','bold'); doc.setFontSize(14);
+      doc.text('VIPL Internal — Statement', 14, 18);
+      doc.setFontSize(10); doc.setFont('helvetica','normal');
+      doc.text(stmt.label, 14, 25);
+      doc.text(`For: ${stmt.forName}`, 14, 31);
+      const head = stmt.isCompanyWide
+        ? [['Date','Particulars','Cash In','Cash Out','Bank In','Bank Out','Cash Bal','Bank Bal']]
+        : [['Date','Particulars','Cash In','Cash Out','Bank In','Bank Out']];
+      const body = stmt.rows.map(r => stmt.isCompanyWide
+        ? [r.entry_date, r.particulars||'', r.cash_credit?fmtPlain(r.cash_credit):'—', r.cash_debit?fmtPlain(r.cash_debit):'—', r.bank_credit?fmtPlain(r.bank_credit):'—', r.bank_debit?fmtPlain(r.bank_debit):'—', fmtPlain(r.cash_balance), fmtPlain(r.bank_balance)]
+        : [r.entry_date, r.particulars||'', r.cash_credit?fmtPlain(r.cash_credit):'—', r.cash_debit?fmtPlain(r.cash_debit):'—', r.bank_credit?fmtPlain(r.bank_credit):'—', r.bank_debit?fmtPlain(r.bank_debit):'—']
+      );
+      doc.autoTable({ head, body, startY: 38, styles: { fontSize: 8 } });
+      const blob = doc.output('blob');
+      const file = new File([blob], `VIPL-Statement-${stmt.startIso}.pdf`, { type: 'application/pdf' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: text, text });
+        return;
+      }
+    } catch (e) { /* fall through to text-share fallback below */ }
+
+    // Fallback: share/copy a text summary (most desktop browsers can't share files)
+    if (navigator.share) {
+      try { await navigator.share({ title: text, text }); return; } catch (e) { return; }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      const original = btn.textContent;
+      btn.textContent = 'Summary copied!';
+      setTimeout(() => { btn.textContent = original; }, 1800);
+    } catch (e) {}
+  }
+
+  async function requestStatement() {
+    if (!currentStatement) return;
+    const stmt = currentStatement;
+    const note = prompt('Anything specific to mention to Admin/Accountant? (optional)') || null;
+    const { error } = await VIPL.sb.from('statement_requests').insert({
+      requested_by: VIPL.user.id,
+      period_type: periodType,
+      period_label: stmt.label,
+      period_start: stmt.startIso,
+      period_end: stmt.endIso,
+      note
+    });
+    const msg = document.getElementById('genMsg');
+    if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ Request sent to Admin/Accountant.';
+  }
+
+  async function loadRequests() {
+    const panel = document.getElementById('reqPanel');
+    const { data, error } = await VIPL.sb.from('statement_requests')
+      .select('*, requester:requested_by(full_name,email)')
+      .order('created_at', { ascending: false }).limit(30);
+    if (error) { panel.innerHTML = `<div class="emptyNote">Error: ${error.message}</div>`; return; }
+    if (!data || !data.length) { panel.innerHTML = `<div class="emptyNote">No statement requests yet.</div>`; return; }
+    panel.innerHTML = data.map(r => {
+      const name = r.requester ? (r.requester.full_name || r.requester.email) : 'Unknown';
+      const statusPill = r.status === 'pending' ? '<span class="pill pending">Pending</span>' : '<span class="pill fulfilled">Fulfilled</span>';
+      const fulfillBtn = r.status === 'pending' ? `<button class="btn btnGreen" style="padding:6px 12px;font-size:12px" onclick="fulfillRequest('${r.id}')">Mark Fulfilled</button>` : '';
+      return `<div class="reqCard">
+        <div>
+          <div class="reqTitle">${escapeHtml(name)} — ${escapeHtml(r.period_label)}</div>
+          <div class="reqMeta">Requested ${new Date(r.created_at).toLocaleString('en-IN')}${r.note ? ' · "' + escapeHtml(r.note) + '"' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">${statusPill}${fulfillBtn}</div>
+      </div>`;
+    }).join('');
+  }
+
+  async function fulfillRequest(id) {
+    const { error } = await VIPL.sb.from('statement_requests').update({
+      status: 'fulfilled', fulfilled_by: VIPL.user.id, fulfilled_at: new Date().toISOString()
+    }).eq('id', id);
+    if (error) { alert(error.message); return; }
+    await loadRequests();
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
