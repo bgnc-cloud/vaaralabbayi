@@ -12,42 +12,85 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
-  .roleToolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; }
-  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
   .btnPrimary { background: var(--blue); color: #fff; }
   .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
   .btnDanger { background: #FEE2E2; color: #C0392B; }
   .btnApprove { background: #EAF3DE; color: #15803D; }
   .btnSm { padding: 6px 12px; font-size: 12.5px; }
-  .sectionTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; margin: 28px 0 12px; }
-  .modeBanner { font-size: 13px; padding: 12px 16px; border-radius: 10px; margin-bottom: 18px; }
-  .modeBanner.hr { background: #FFF7ED; color: #9A5B0F; }
-  .modeBanner.admin { background: #F0F7FF; color: #0C447C; }
+
+  .sectionTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin: 30px 0 12px; display: flex; align-items: center; gap: 8px; }
+  .sectionCount { font-size: 11.5px; font-weight: 800; color: var(--g3); background: var(--off); padding: 2px 8px; border-radius: 20px; }
+
+  .modeBanner {
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13px; padding: 14px 16px;
+    border-radius: 10px; margin-bottom: 20px; line-height: 1.5;
+  }
+  .modeBanner.hr { background: #FFF7ED; color: #9A5B0F; border: 1px solid #FDE3C0; }
+  .modeBanner.admin { background: #F0F7FF; color: #0C447C; border: 1px solid #D6E9FC; }
+
   .roleTableWrap { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   table.roleTable { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  table.roleTable th { text-align: left; padding: 12px 16px; background: var(--off); color: var(--g3); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
-  table.roleTable td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
-  .catGroupRow td { background: var(--off); font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--g3); padding: 8px 16px; }
+  table.roleTable th {
+    text-align: left; padding: 11px 16px; background: #FAFBFC; color: var(--g3);
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.roleTable td { padding: 13px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+  table.roleTable tbody tr:hover { background: #FAFBFD; }
+
+  .catGroupRow td {
+    background: var(--off); font-weight: 800; font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--g3); padding: 9px 16px; border-top: none;
+  }
+
+  .roleNameCell { display: flex; align-items: center; gap: 10px; }
+  .roleAvatar {
+    width: 26px; height: 26px; border-radius: 8px; background: var(--blue); color: #fff;
+    font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .roleAvatar.sys { background: #F97316; }
+  .roleAvatar.inactive { background: #9AA5B1; }
   .roleName { font-weight: 700; }
-  .roleCode { font-family: monospace; font-size: 12px; color: var(--g3); }
-  .pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px; background: var(--off); color: var(--g3); }
-  .pill.system { background: rgba(249,115,22,.15); color: #F97316; }
+  .roleCode { font-family: monospace; font-size: 11.5px; color: var(--g3); }
+
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; background: var(--off); color: var(--g3); }
+  .pill.system { background: #FFF7ED; color: #F97316; }
   .pill.inactive { background: #FEE2E2; color: #C0392B; }
   .pill.pending { background: #FFF7ED; color: #9A5B0F; }
+  .pill.approved { background: #EAF3DE; color: #15803D; }
+  .pill.active { background: #E3F5F3; color: #0E9488; }
+
   .rowActions { display: flex; gap: 8px; }
-  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.4); display: none; align-items: center; justify-content: center; z-index: 100; }
+
+  .reqCard {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    padding: 14px 16px; border-top: 1px solid var(--border);
+  }
+  .reqCard:first-child { border-top: none; }
+  .reqCard:hover { background: #FAFBFD; }
+  .reqTitle { font-weight: 700; font-size: 13.5px; margin-bottom: 2px; }
+  .reqMeta { font-size: 12px; color: var(--g3); }
+
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
   .modalOverlay.open { display: flex; }
   .modalBox { background: #fff; border-radius: 16px; padding: 28px; width: 440px; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
   .modalBox h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
   .modalBox .modalSub { font-size: 12.5px; color: var(--g3); margin-bottom: 14px; }
-  .modalBox label { display: block; font-size: 12.5px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
-  .modalBox input, .modalBox select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .modalBox label { display: block; font-size: 12px; font-weight: 700; color: var(--g3); margin-bottom: 6px; margin-top: 14px; }
+  .modalBox input, .modalBox select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-family: inherit; transition: border-color .15s;
+  }
+  .modalBox input:focus, .modalBox select:focus { outline: none; border-color: var(--blue); }
   .modalActions { display: flex; gap: 10px; margin-top: 22px; }
   .modalActions .btn { flex: 1; }
   #roleFormMsg { font-size: 13px; margin-top: 10px; color: #C0392B; }
+
   .accessDenied { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
-  .reqMeta { font-size: 12px; color: var(--g3); }
-  .emptyNote { font-size: 13px; color: var(--g3); padding: 18px 16px; }
+  .emptyNote { font-size: 13px; color: var(--g3); padding: 20px 16px; text-align: center; }
 </style>
 </head>
 <body>
@@ -117,6 +160,8 @@
   let canDirectEdit = false;   // super_admin / admin
   let canPropose = false;      // hr_manager / admin / super_admin
 
+  function initials(s) { return (s||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
+
   window.onVIPLReady = async function() {
     myRole = VIPL.profile.role;
     canDirectEdit = ['super_admin','admin'].includes(myRole);
@@ -132,17 +177,18 @@
     }
 
     const banner = canDirectEdit
-      ? `<div class="modeBanner admin">You have full edit rights and can approve or reject HR Manager change requests below.</div>`
-      : `<div class="modeBanner hr">As HR Manager, your changes are submitted as requests. A Super Admin or Admin must approve them before they take effect.</div>`;
+      ? `<div class="modeBanner admin">✓ You have full edit rights and can approve or reject HR Manager change requests below.</div>`
+      : `<div class="modeBanner hr">ℹ️ As HR Manager, your changes are submitted as requests. A Super Admin or Admin must approve them before they take effect.</div>`;
 
     document.getElementById('pageBody').innerHTML = `
       ${banner}
-      <div class="roleToolbar">
-        <div></div>
+      <div class="roleToolbar" style="display:flex;justify-content:flex-end;margin-bottom:4px">
         <button class="btn btnPrimary" id="addRoleBtn">+ ${canDirectEdit ? 'Add Role' : 'Propose New Role'}</button>
       </div>
-      ${canDirectEdit ? `<div class="sectionTitle">Pending approvals</div><div class="roleTableWrap" id="approvalsWrap"><div id="approvalsBody"></div></div>` : `<div class="sectionTitle">Your requests</div><div class="roleTableWrap" id="myRequestsWrap"><div id="myRequestsBody"></div></div>`}
-      <div class="sectionTitle">Role catalog</div>
+      ${canDirectEdit
+        ? `<div class="sectionTitle">Pending approvals <span class="sectionCount" id="approvalsCount">0</span></div><div class="roleTableWrap" id="approvalsWrap"><div id="approvalsBody"></div></div>`
+        : `<div class="sectionTitle">Your requests</div><div class="roleTableWrap" id="myRequestsWrap"><div id="myRequestsBody"></div></div>`}
+      <div class="sectionTitle">Role catalog <span class="sectionCount" id="catalogCount">0</span></div>
       <div class="roleTableWrap"><table class="roleTable">
         <thead><tr><th>Role</th><th>Scope</th><th>Reports to</th><th>Status</th><th></th></tr></thead>
         <tbody id="roleTableBody"></tbody>
@@ -173,14 +219,14 @@
       const statusPill = req.status === 'pending'
         ? '<span class="pill pending">Pending</span>'
         : req.status === 'approved'
-          ? '<span class="pill" style="background:#EAF3DE;color:#15803D">Approved</span>'
+          ? '<span class="pill approved">Approved</span>'
           : '<span class="pill inactive">Rejected</span>';
       const reviewer = req.reviewer ? (req.reviewer.full_name || req.reviewer.email) : null;
       const reviewedLine = req.reviewed_at ? `<div class="reqMeta">${req.status === 'approved' ? 'Approved' : 'Reviewed'} by ${escapeHtml(reviewer || 'admin')} · ${new Date(req.reviewed_at).toLocaleString('en-IN')}</div>` : '';
       return `
-        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <div class="reqCard">
           <div>
-            <div style="font-weight:700;font-size:13.5px">${actionLabel}: ${escapeHtml(targetName)}</div>
+            <div class="reqTitle">${actionLabel}: ${escapeHtml(targetName)}</div>
             <div class="reqMeta">Submitted ${new Date(req.created_at).toLocaleString('en-IN')}</div>
             ${reviewedLine}
           </div>
@@ -193,6 +239,7 @@
     const { data, error } = await VIPL.sb.from('roles').select('*').order('category').order('sort_order');
     if (error) { document.getElementById('roleTableBody').innerHTML = `<tr><td colspan="5">Error loading roles: ${error.message}</td></tr>`; return; }
     allRoles = data || [];
+    document.getElementById('catalogCount').textContent = allRoles.length;
     renderRoleTable();
     populateParentSelect();
   }
@@ -205,6 +252,7 @@
       .order('created_at', { ascending: true });
     const wrap = document.getElementById('approvalsBody');
     if (error) { wrap.innerHTML = `<div class="emptyNote">Error loading requests: ${error.message}</div>`; return; }
+    document.getElementById('approvalsCount').textContent = (data || []).length;
     if (!data || !data.length) { wrap.innerHTML = `<div class="emptyNote">No pending requests.</div>`; return; }
 
     wrap.innerHTML = data.map(req => {
@@ -212,10 +260,13 @@
       const actionLabel = { create: 'Create role', update: 'Edit role', deactivate: 'Deactivate role', reactivate: 'Reactivate role' }[req.action] || req.action;
       const targetName = req.role_id ? (allRoles.find(r => r.id === req.role_id)?.name || '—') : (req.payload.name || '—');
       return `
-        <div style="padding:14px 16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px">
-          <div>
-            <div style="font-weight:700;font-size:13.5px">${actionLabel}: ${escapeHtml(targetName)}</div>
-            <div class="reqMeta">Requested by ${escapeHtml(requester)} · ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+        <div class="reqCard">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="roleAvatar">${initials(requester)}</div>
+            <div>
+              <div class="reqTitle">${actionLabel}: ${escapeHtml(targetName)}</div>
+              <div class="reqMeta">Requested by ${escapeHtml(requester)} · ${new Date(req.created_at).toLocaleString('en-IN')}</div>
+            </div>
           </div>
           <div class="rowActions">
             <button class="btn btnApprove btnSm" onclick="reviewRequest('${req.id}', 'approved')">Approve</button>
@@ -237,7 +288,7 @@
       const parent = r.parent_role_id ? byId[r.parent_role_id] : null;
       const statusPills = [
         r.is_system ? '<span class="pill system">System</span>' : '',
-        !r.is_active ? '<span class="pill inactive">Inactive</span>' : ''
+        !r.is_active ? '<span class="pill inactive">Inactive</span>' : (r.is_system ? '' : '<span class="pill active">Active</span>')
       ].join(' ');
       const editBtn = canDirectEdit
         ? `<button class="btn btnGhost btnSm" onclick="openRoleModal('${r.id}')">Edit</button>`
@@ -245,12 +296,13 @@
       const deactivateBtn = r.is_system ? '' : (canDirectEdit
         ? `<button class="btn btnDanger btnSm" onclick="toggleRoleActive('${r.id}', ${r.is_active})">${r.is_active ? 'Deactivate' : 'Reactivate'}</button>`
         : `<button class="btn btnDanger btnSm" onclick="proposeToggle('${r.id}', ${r.is_active})">${r.is_active ? 'Propose deactivate' : 'Propose reactivate'}</button>`);
+      const avatarCls = r.is_system ? 'sys' : (!r.is_active ? 'inactive' : '');
       html += `
         <tr>
-          <td><div class="roleName">${escapeHtml(r.name)}</div><div class="roleCode">${escapeHtml(r.code)}</div></td>
+          <td><div class="roleNameCell"><div class="roleAvatar ${avatarCls}">${r.is_system ? '★' : initials(r.name)}</div><div><div class="roleName">${escapeHtml(r.name)}</div><div class="roleCode">${escapeHtml(r.code)}</div></div></div></td>
           <td>${escapeHtml(r.scope_type)}</td>
           <td>${parent ? escapeHtml(parent.name) : '—'}</td>
-          <td>${statusPills || '<span class="pill">Active</span>'}</td>
+          <td>${statusPills}</td>
           <td><div class="rowActions">${editBtn} ${deactivateBtn}</div></td>
         </tr>`;
     });
