@@ -109,6 +109,16 @@
         <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..."></textarea>
       </div>
 
+      <!-- Honeypot field — invisible to real visitors, left empty by them. Bots that fill every
+           input on a page blindly will fill this too, which is how we quietly filter them out
+           server-side. Kept out of the visual flow and out of tab order; not display:none since
+           a few bots specifically skip display:none fields, so this uses off-screen positioning
+           instead, which most bots don't check for. -->
+      <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+        <label for="fCompanyWebsite">Company Website</label>
+        <input type="text" id="fCompanyWebsite" name="companyWebsite" tabindex="-1" autocomplete="off">
+      </div>
+
       <button class="form-submit" id="submitBtn" onclick="handleSubmit(event)">
         <span class="eng">Send Message →</span>
         <span class="tel" style="display:none">సందేశం పంపండి →</span>
@@ -198,6 +208,7 @@ async function handleSubmit(e) {
   const state = document.getElementById('fState').value.trim();
   const enquiryType = document.getElementById('fEnquiry').value;
   const message = document.getElementById('fMessage').value.trim();
+  const companyWebsite = document.getElementById('fCompanyWebsite').value.trim(); // honeypot — should always be empty for real users
 
   const errBox = document.getElementById('submitErr');
   const msgBox = document.getElementById('submitMsg');
@@ -220,7 +231,7 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message })
+      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite })
     });
     if (!res.ok) throw new Error('Submission failed');
 
