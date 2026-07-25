@@ -29,6 +29,7 @@ const NAV_CONFIG = [
   { group: 'Admin', items: [
     { label: '🧩 Role Management', href: 'roles.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '👤 Employee Management', href: 'employees.html', roles: ['super_admin','admin','hr_manager'] },
+    { label: '🔗 Party Tagging', href: 'party-tagging.html', roles: ['super_admin','accountant'] },
   ]},
 ];
 
