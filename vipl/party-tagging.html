@@ -122,19 +122,31 @@
 
   function suggestCommonCode(text) {
     const t = (text || '').toLowerCase();
-    if (/electric|power|gp electricity/.test(t)) return 'UTILITIES';
-    if (/airtel|vi post|vi\s|mobile|internet|net bill/.test(t)) return 'UTILITIES';
-    if (/petrol|fuel/.test(t)) return 'FUEL';
+    // Same order as category_totals' categorization, so Party Tagging and the Financial
+    // Dashboard's Category Breakdown agree on how any given entry gets classified.
     if (/salary|allowance/.test(t)) return 'SALARY_UNLINKED';
     if (/intrest|interest/.test(t)) return 'INTEREST';
-    if (/\bloan\b/.test(t)) return 'LOAN_OTHERS';
-    if (/market|advertis|\bads\b|pamphlet|hoarding|banner|\bpromo/.test(t)) return 'MARKETING';
+    if (/\bloan\b/.test(t)) return 'LOAN_MOVEMENT';
+    if (/\binvest/.test(t)) return 'INVESTMENT';
     if (/\brent\b|rental/.test(t)) return 'RENT';
-    if (/food|restaurent|restaurant/.test(t)) return 'FOOD';
+    if (/petrol|fuel/.test(t)) return 'FUEL';
     if (/travel|\bbus\b|flight|hotel|conveyance|\bcab\b|\btaxi\b|\btoll\b/.test(t)) return 'TRAVEL';
+    if (/market|advertis|\bads\b|pamphlet|hoarding|banner|\bpromo/.test(t)) return 'ADVERTISING';
+    // Ravi Prasad's printing invoices are for marketing materials specifically, not general
+    // office printing — only fires when both "ravi prasad" AND "print" appear together.
+    if (/ravi prasad/.test(t) && /print/.test(t)) return 'ADVERTISING';
+    if (/software/.test(t)) return 'SOFTWARE';
+    if (/electric|power|gp electricity/.test(t)) return 'UTILITIES';
+    // "Vi" (the telecom operator) needs a specific phrase — a bare "vi" pattern false-matches
+    // any word ending in "-vi" followed by a space, e.g. "Vasavi Rent", "Ravi Prasad".
+    if (/airtel|vi post paid|vodafone|mobile bill|net bill|internet bill|broadband/.test(t)) return 'UTILITIES';
     if (/bank charg/.test(t)) return 'BANK_CHARGES';
+    if (/stock|packing|hamali/.test(t)) return 'STOCK_INVENTORY';
+    if (/food|restaurent|restaurant/.test(t)) return 'FOOD';
+    if (/subscription|sales collection|emi collection/.test(t)) return 'REVENUE';
     if (/office|printing|stationary|maintenance/.test(t)) return 'OFFICE';
-    return 'MISC';
+    if (/reg.*doc|registration/.test(t)) return 'REGISTRATION_DOCS';
+    return 'OTHER';
   }
 
   async function loadAndMatch() {
