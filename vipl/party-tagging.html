@@ -59,10 +59,12 @@
 
   .unmatchedCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   .unmatchedRow {
-    display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); flex-wrap: wrap;
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-top: 1px solid var(--border); flex-wrap: wrap;
   }
   .unmatchedRow:first-child { border-top: none; }
+  .unmatchedRow:hover { background: #FAFBFD; }
   .unmatchedRow select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 12.5px; font-family: inherit; }
+  .btnAmber { background: #FBF1DE; color: #B7791F; }
 
   .sectionTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin: 30px 0 12px; display: flex; align-items: center; gap: 8px; }
   .sectionSub { font-size: 12.5px; color: var(--g3); margin-bottom: 14px; margin-top: -8px; }
@@ -103,8 +105,10 @@
   }
 
   let allProfiles = [];
+  let commonCodes = [];
   let untaggedEntries = [];
   let groups = []; // { profileId, profileName, partyType, entries: [...] }
+  let codeGroups = []; // { code, label, codeId, entries: [...] }
   let unmatched = [];
 
   window.onVIPLReady = async function() {
@@ -116,13 +120,29 @@
     await loadAndMatch();
   };
 
+  function suggestCommonCode(text) {
+    const t = (text || '').toLowerCase();
+    if (/electric|power|gp electricity/.test(t)) return 'UTILITIES';
+    if (/airtel|vi post|vi\s|mobile|internet|net bill/.test(t)) return 'UTILITIES';
+    if (/petrol|fuel/.test(t)) return 'FUEL';
+    if (/salary|allowance/.test(t)) return 'SALARY_UNLINKED';
+    if (/\brent\b/.test(t)) return 'RENT';
+    if (/food|restaurent|restaurant/.test(t)) return 'FOOD';
+    if (/travel|\bbus\b|flight|hotel/.test(t)) return 'TRAVEL';
+    if (/bank charg/.test(t)) return 'BANK_CHARGES';
+    if (/office|printing|stationary|maintenance/.test(t)) return 'OFFICE';
+    return 'MISC';
+  }
+
   async function loadAndMatch() {
-    const [{ data: profiles }, { data: entries }] = await Promise.all([
-      VIPL.sb.from('profiles').select('id, full_name, role').neq('role', 'pending'),
+    const [{ data: profiles }, { data: entries }, { data: codes }] = await Promise.all([
+      VIPL.sb.from('profiles').select('id, full_name, customer_id, role').neq('role', 'pending'),
       VIPL.sb.from('ledger_entries').select('id, entry_date, particulars, description, cash_credit, cash_debit, bank_credit, bank_debit')
-        .is('party_profile_id', null).order('entry_date', { ascending: false })
+        .is('party_profile_id', null).is('common_code_id', null).order('entry_date', { ascending: false }),
+      VIPL.sb.from('common_codes').select('*').order('sort_order')
     ]);
     allProfiles = profiles || [];
+    commonCodes = codes || [];
     untaggedEntries = entries || [];
 
     // Build a word list per profile (words of 4+ letters, to avoid trivial matches like "N" or "Raj")
@@ -150,7 +170,19 @@
     });
 
     groups = Array.from(groupMap.values())
-      .map(g => ({ profileId: g.profile.id, profileName: g.profile.full_name, role: g.profile.role, entries: g.entries }))
+      .map(g => ({ profileId: g.profile.id, profileName: g.profile.full_name, customerId: g.profile.customer_id, role: g.profile.role, entries: g.entries }))
+      .sort((a,b) => b.entries.length - a.entries.length);
+
+    const codeById = Object.fromEntries(commonCodes.map(c => [c.code, c]));
+    const codeGroupMap = new Map();
+    unmatched.forEach(e => {
+      const text = `${e.particulars || ''} ${e.description || ''}`;
+      const code = suggestCommonCode(text);
+      if (!codeGroupMap.has(code)) codeGroupMap.set(code, []);
+      codeGroupMap.get(code).push(e);
+    });
+    codeGroups = Array.from(codeGroupMap.entries())
+      .map(([code, entries]) => ({ code, label: codeById[code]?.label || code, codeId: codeById[code]?.id, entries }))
       .sort((a,b) => b.entries.length - a.entries.length);
 
     render();
@@ -165,18 +197,18 @@
     let html = `
       <div class="statBar">
         <div class="statChip"><div class="val">${untaggedEntries.length}</div><div class="lbl">Untagged entries</div></div>
-        <div class="statChip"><div class="val">${groups.length}</div><div class="lbl">Suggested groups</div></div>
-        <div class="statChip"><div class="val">${unmatched.length}</div><div class="lbl">No suggested match</div></div>
+        <div class="statChip"><div class="val">${groups.length}</div><div class="lbl">Suggested people</div></div>
+        <div class="statChip"><div class="val">${codeGroups.length}</div><div class="lbl">Common-code groups</div></div>
       </div>
-      <div class="sectionTitle">Suggested Matches</div>
+      <div class="sectionTitle">Suggested Matches — People</div>
       <div class="sectionSub">Grouped by likely person, based on their name appearing in the entry's particulars or description. Review each group, uncheck anything that doesn't belong, then confirm.</div>
       <div id="groupsWrap"></div>
     `;
-    if (unmatched.length) {
+    if (codeGroups.length) {
       html += `
-        <div class="sectionTitle">No Suggested Match <span style="font-weight:600;color:var(--g3);font-size:12.5px">(${unmatched.length})</span></div>
-        <div class="sectionSub">No name in the team/investor list was found in these. Tag manually if relevant, or leave untagged.</div>
-        <div class="unmatchedCard" id="unmatchedWrap"></div>
+        <div class="sectionTitle">Suggested Common Codes <span style="font-weight:600;color:var(--g3);font-size:12.5px">(${unmatched.length} entries not tied to a specific person)</span></div>
+        <div class="sectionSub">Grouped by likely category — utility bills, fuel, unlinked staff salaries, etc. Review, then confirm each group. Each row also has a quick "Or person" override if one of these actually belongs to someone specific.</div>
+        <div id="codeGroupsWrap"></div>
       `;
     }
     document.getElementById('pageContent').innerHTML = html;
@@ -187,7 +219,7 @@
           <div class="groupTitle">
             <span class="chevron" id="chev-${gi}">▶</span>
             <div class="groupAvatar">${initials(g.profileName)}</div>
-            <div><div class="groupName">${escapeHtml(g.profileName)}</div><div class="groupCount">${g.entries.length} matched entries</div></div>
+            <div><div class="groupName">${escapeHtml(g.profileName)} <span style="font-weight:600;color:var(--g3);font-size:12px">${g.customerId ? '· ' + escapeHtml(g.customerId) : ''}</span></div><div class="groupCount">${g.entries.length} matched entries</div></div>
           </div>
           <div class="groupActions" onclick="event.stopPropagation()">
             <select class="partyTypeSelect" id="ptype-${gi}">
@@ -219,15 +251,36 @@
       </div>
     `).join('');
 
-    if (unmatched.length) {
-      document.getElementById('unmatchedWrap').innerHTML = unmatched.map((e, ui) => `
-        <div class="unmatchedRow">
-          <div class="entryDate">${e.entry_date}</div>
-          <div class="entryText" style="flex:1;min-width:200px"><div class="entryParticulars">${escapeHtml(e.particulars || '')}</div><div class="entryDesc">${escapeHtml(e.description || '—')}</div></div>
-          <div class="entryAmount">${fmt((e.cash_credit||0)+(e.bank_credit||0)-(e.cash_debit||0)-(e.bank_debit||0))}</div>
-          <select id="uperson-${ui}"><option value="">Assign to…</option>${allProfiles.map(p=>`<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join('')}</select>
-          <select id="utype-${ui}">${PARTY_TYPE_OPTIONS.map(o=>`<option value="${o.value}">${o.label}</option>`).join('')}</select>
-          <button class="btn btnGhost" onclick="tagSingle(${ui})">Tag</button>
+    if (codeGroups.length) {
+      document.getElementById('codeGroupsWrap').innerHTML = codeGroups.map((cg, ci) => `
+        <div class="groupCard">
+          <div class="groupHead" onclick="toggleCodeGroup(${ci})">
+            <div class="groupTitle">
+              <span class="chevron" id="cchev-${ci}">▶</span>
+              <div class="groupAvatar" style="background:#B7791F">🏷️</div>
+              <div><div class="groupName">${escapeHtml(cg.label)}</div><div class="groupCount">${cg.entries.length} entries</div></div>
+            </div>
+          </div>
+          <div class="groupBody" id="cgbody-${ci}">
+            <div style="padding:10px 20px;border-top:1px solid var(--border)">
+              <button class="selectAllLink" onclick="toggleAllInCodeGroup(${ci}, true)">Select all</button> ·
+              <button class="selectAllLink" onclick="toggleAllInCodeGroup(${ci}, false)">Select none</button>
+            </div>
+            ${cg.entries.map(e => `
+              <div class="entryRow">
+                <input type="checkbox" checked id="cchk-${ci}-${e.id}">
+                <div class="entryDate">${e.entry_date}</div>
+                <div class="entryText"><div class="entryParticulars">${escapeHtml(e.particulars || '')}</div><div class="entryDesc">${escapeHtml(e.description || '—')}</div></div>
+                <div class="entryAmount">${fmt((e.cash_credit||0)+(e.bank_credit||0)-(e.cash_debit||0)-(e.bank_debit||0))}</div>
+                <select id="mp-${e.id}" style="max-width:170px"><option value="">Or person…</option>${allProfiles.map(p=>`<option value="${p.id}">${escapeHtml(p.full_name)}${p.customer_id ? ' · ' + escapeHtml(p.customer_id) : ''}</option>`).join('')}</select>
+                <button class="btn btnGhost" style="padding:5px 10px;font-size:11px" onclick="tagSingle('${e.id}')">Tag</button>
+              </div>
+            `).join('')}
+          </div>
+          <div class="groupFoot">
+            <span style="font-size:12.5px;color:var(--g3)">Confirming will tag the checked entries as <strong>${escapeHtml(cg.label)}</strong>.</span>
+            <span><button class="btn btnAmber" id="codeConfirmBtn-${ci}" onclick="confirmCodeGroup(${ci})">Tag Selected Entries</button></span>
+          </div>
         </div>
       `).join('');
     }
@@ -262,7 +315,6 @@
       return;
     }
 
-    // Remove tagged entries from local state and re-render
     const taggedSet = new Set(idsToTag);
     untaggedEntries = untaggedEntries.filter(e => !taggedSet.has(e.id));
     g.entries = g.entries.filter(e => !taggedSet.has(e.id));
@@ -270,11 +322,48 @@
     render();
   }
 
-  async function tagSingle(ui) {
-    const e = unmatched[ui];
-    const personId = document.getElementById(`uperson-${ui}`).value;
-    const partyType = document.getElementById(`utype-${ui}`).value;
+  function toggleCodeGroup(ci) {
+    document.getElementById(`cgbody-${ci}`).classList.toggle('open');
+    document.getElementById(`cchev-${ci}`).classList.toggle('open');
+  }
+
+  function toggleAllInCodeGroup(ci, checked) {
+    codeGroups[ci].entries.forEach(e => { document.getElementById(`cchk-${ci}-${e.id}`).checked = checked; });
+  }
+
+  async function confirmCodeGroup(ci) {
+    const cg = codeGroups[ci];
+    const idsToTag = cg.entries.filter(e => document.getElementById(`cchk-${ci}-${e.id}`).checked).map(e => e.id);
+    if (!idsToTag.length) return;
+
+    const btn = document.getElementById(`codeConfirmBtn-${ci}`);
+    btn.disabled = true; btn.textContent = 'Tagging…';
+
+    const { error } = await VIPL.sb.from('ledger_entries')
+      .update({ common_code_id: cg.codeId, party_type: 'other' })
+      .in('id', idsToTag);
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Tag Selected Entries';
+      alert(error.message);
+      return;
+    }
+
+    const taggedSet = new Set(idsToTag);
+    untaggedEntries = untaggedEntries.filter(e => !taggedSet.has(e.id));
+    unmatched = unmatched.filter(e => !taggedSet.has(e.id));
+    cg.entries = cg.entries.filter(e => !taggedSet.has(e.id));
+    if (!cg.entries.length) codeGroups.splice(ci, 1);
+    render();
+  }
+
+  async function tagSingle(entryId) {
+    const e = unmatched.find(x => x.id === entryId);
+    if (!e) return;
+    const personId = document.getElementById(`mp-${entryId}`).value;
     if (!personId) { alert('Choose a person first.'); return; }
+    const profile = allProfiles.find(p => p.id === personId);
+    const partyType = guessPartyType(profile ? profile.role : null);
 
     const { error } = await VIPL.sb.from('ledger_entries')
       .update({ party_type: partyType, party_profile_id: personId })
@@ -283,6 +372,8 @@
 
     untaggedEntries = untaggedEntries.filter(x => x.id !== e.id);
     unmatched = unmatched.filter(x => x.id !== e.id);
+    codeGroups.forEach(cg => { cg.entries = cg.entries.filter(x => x.id !== e.id); });
+    codeGroups = codeGroups.filter(cg => cg.entries.length);
     render();
   }
 </script>
