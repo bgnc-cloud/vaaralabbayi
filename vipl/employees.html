@@ -198,11 +198,19 @@
     btn.disabled = true; btn.textContent = 'Creating…';
 
     try {
+      // Send the real session token so the server can verify who's actually calling this —
+      // never send our own user id as a plain field, since that can be spoofed by anyone
+      // who can see a profile id anywhere else in the app (e.g. this very dropdown's data).
+      const { data: { session } } = await VIPL.sb.auth.getSession();
+      if (!session) throw new Error('Your session has expired — please sign in again.');
+
       const res = await fetch('/api/create-employee', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
-          requesterId: VIPL.user.id,
           fullName, email, phone, department, dateOfJoining,
           reportingManagerId: reportingManagerId || null,
           roleCode, loginMethod, tempPassword
