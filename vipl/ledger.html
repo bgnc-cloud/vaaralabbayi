@@ -219,7 +219,7 @@
   };
 
   async function loadProfilesForParty() {
-    const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, role').neq('role', 'pending');
+    const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, customer_id, role').neq('role', 'pending');
     allProfiles = data || [];
   }
 
@@ -229,7 +229,7 @@
     if (!type) { wrap.style.display = 'none'; return; }
     wrap.style.display = 'block';
     document.getElementById('fPartyPerson').innerHTML = '<option value="">Select…</option>' +
-      allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)}</option>`).join('');
+      allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)}${p.customer_id ? ' · ' + escapeHtml(p.customer_id) : ''}</option>`).join('');
   }
 
   function escapeHtml(s) {
