@@ -126,9 +126,12 @@
     if (/airtel|vi post|vi\s|mobile|internet|net bill/.test(t)) return 'UTILITIES';
     if (/petrol|fuel/.test(t)) return 'FUEL';
     if (/salary|allowance/.test(t)) return 'SALARY_UNLINKED';
-    if (/\brent\b/.test(t)) return 'RENT';
+    if (/intrest|interest/.test(t)) return 'INTEREST';
+    if (/\bloan\b/.test(t)) return 'LOAN_OTHERS';
+    if (/market|advertis|\bads\b|pamphlet|hoarding|banner|\bpromo/.test(t)) return 'MARKETING';
+    if (/\brent\b|rental/.test(t)) return 'RENT';
     if (/food|restaurent|restaurant/.test(t)) return 'FOOD';
-    if (/travel|\bbus\b|flight|hotel/.test(t)) return 'TRAVEL';
+    if (/travel|\bbus\b|flight|hotel|conveyance|\bcab\b|\btaxi\b|\btoll\b/.test(t)) return 'TRAVEL';
     if (/bank charg/.test(t)) return 'BANK_CHARGES';
     if (/office|printing|stationary|maintenance/.test(t)) return 'OFFICE';
     return 'MISC';
