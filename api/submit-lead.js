@@ -8,7 +8,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Server misconfigured: missing Airtable key' });
   }
 
-  const { fullName, mobileNumber, village, cityDistrict, state, enquiryType, message } = req.body || {};
+  const { fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite } = req.body || {};
+
+  // Honeypot: a field real users never see or fill (hidden via CSS on the form).
+  // Bots that blindly fill every input trip this — silently pretend success so they
+  // don't learn they were caught, but never touch Airtable with their submission.
+  if (companyWebsite) {
+    return res.status(200).json({ success: true });
+  }
 
   if (!fullName || !mobileNumber || !enquiryType) {
     return res.status(400).json({ error: 'Missing required fields' });
