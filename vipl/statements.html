@@ -203,11 +203,21 @@
     renderPeriodFields();
   }
 
+  // Build a local YYYY-MM-DD string with no UTC conversion (avoids IST midnight shift)
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  // Local YYYY-MM (for the month-picker default value) — same reasoning as isoDate()
+  function isoMonth(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+
   function renderPeriodFields() {
     const now = new Date();
     const wrap = document.getElementById('periodFields');
     if (periodType === 'month') {
-      const val = now.toISOString().slice(0,7);
+      const val = isoMonth(now);
       wrap.innerHTML = `<div><label>Month</label><input type="month" id="pMonth" value="${val}"></div>`;
     } else if (periodType === 'quarter') {
       const y = now.getFullYear();
@@ -224,9 +234,19 @@
       wrap.innerHTML = `<div><label>Calendar Year</label><input type="number" id="pYear" value="${now.getFullYear()}" min="2020" max="2100"></div>`;
     } else {
       const fy = fyKeyOf(now.toISOString());
-      wrap.innerHTML = `<div><label>Financial Year</label><input type="number" id="pYear" value="${fy}" min="2020" max="2100"></div>
-        <div style="align-self:end;font-size:12.5px;color:var(--g3);padding-bottom:10px">Apr ${fy} – Mar ${fy+1}</div>`;
+      wrap.innerHTML = `<div><label>Financial Year</label><input type="number" id="pYear" value="${fy}" min="2020" max="2100" oninput="updateFYLabel()"></div>
+        <div style="align-self:end;font-size:12.5px;color:var(--g3);padding-bottom:10px" id="fyLabel">Apr ${fy} – Mar ${fy+1}</div>`;
     }
+  }
+
+  // Keeps the "Apr X – Mar X+1" helper text in sync as the user types a different FY
+  function updateFYLabel() {
+    const input = document.getElementById('pYear');
+    const el = document.getElementById('fyLabel');
+    if (!input || !el) return;
+    const fy = parseInt(input.value, 10);
+    if (isNaN(fy)) return;
+    el.textContent = `Apr ${fy} – Mar ${fy+1}`;
   }
 
   function getPeriodRange() {
@@ -250,8 +270,6 @@
       return { start: new Date(fy,3,1), end: new Date(fy+1,2,31), label: `FY ${fy}–${String(fy+1).slice(2)} (Apr ${fy}–Mar ${fy+1})` };
     }
   }
-
-  function isoDate(d) { return d.toISOString().slice(0,10); }
 
   async function generateStatement() {
     const msg = document.getElementById('genMsg');
