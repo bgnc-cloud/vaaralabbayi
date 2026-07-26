@@ -20,6 +20,7 @@ const NAV_CONFIG = [
     { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
     { label: '🧾 Statements', href: 'statements.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
     { label: '🧮 GST / Audit', href: 'gst-audit.html', roles: ['super_admin','accountant','auditor_team'] },
+    { label: '📄 Invoices', href: 'invoices.html', roles: ['super_admin','accountant','auditor_team'] },
   ]},
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
