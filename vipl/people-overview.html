@@ -108,6 +108,18 @@
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
   function sameLocalDay(d1, d2) { return d1.getFullYear()===d2.getFullYear() && d1.getMonth()===d2.getMonth() && d1.getDate()===d2.getDate(); }
   function daysAgo(dateStr) { if (!dateStr) return Infinity; return (new Date() - new Date(dateStr)) / 86400000; }
+  // Calendar-day difference (not a rolling 24h window) — so "1 day ago" always means
+  // "yesterday's calendar date," consistent with how "Active Today" is calculated above,
+  // rather than a raw millisecond count that can say "0 days ago" for a login that
+  // happened yesterday just because it was within the last 24 hours.
+  function calendarDaysAgo(dateStr) {
+    if (!dateStr) return null;
+    const d = new Date(dateStr);
+    const now = new Date();
+    const d0 = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const now0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return Math.round((now0 - d0) / 86400000);
+  }
 
   let allRoles = [];
   let roleCategoryMap = {};
@@ -233,7 +245,9 @@
             const loginText = p.last_sign_in_at
               ? new Date(p.last_sign_in_at).toLocaleString('en-IN', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
               : 'Never logged in';
-            const loginSub = p.last_sign_in_at ? `${Math.floor(d)} day${Math.floor(d)===1?'':'s'} ago` : '';
+            const loginSub = p.last_sign_in_at
+              ? (calendarDaysAgo(p.last_sign_in_at) === 0 ? 'Today' : calendarDaysAgo(p.last_sign_in_at) === 1 ? '1 day ago' : `${calendarDaysAgo(p.last_sign_in_at)} days ago`)
+              : '';
             return `
             <tr>
               <td><div class="personCell"><div class="personAvatar">${initials(p.full_name)}</div><div><div class="personName">${escapeHtml(p.full_name || p.email)}</div><div class="personId">${escapeHtml(p.customer_id || '')} · ${escapeHtml(p.email)}</div></div></div></td>
