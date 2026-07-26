@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Invoices — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .card .cardSub { font-size: 12.5px; color: var(--g3); margin-bottom: 18px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .fieldRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 16px; }
+  .fieldRow label { font-size: 11.5px; font-weight: 700; color: var(--g3); text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 6px; }
+  .fieldRow select, .fieldRow input, .fieldRow textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color .15s; box-sizing: border-box;
+  }
+  .fieldRow textarea { resize: vertical; min-height: 44px; }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnDanger { background: #FEE2E2; color: #C0392B; }
+  .btnSm { padding: 6px 12px; font-size: 12px; }
+  .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+  .collapseToggle { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 0; }
+
+  table.lineItemsTable { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+  table.lineItemsTable th {
+    text-align: left; padding: 8px 8px; background: #FAFBFC; color: var(--g3);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.lineItemsTable td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.lineItemsTable input { width: 100%; padding: 7px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: inherit; box-sizing: border-box; }
+  table.lineItemsTable input.narrow { width: 70px; }
+  table.lineItemsTable input.narrower { width: 56px; }
+  .lineTotal { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  .rmBtn { background: none; border: none; color: #C0392B; font-size: 16px; cursor: pointer; padding: 2px 6px; }
+
+  .totalsBox { display: flex; justify-content: flex-end; }
+  .totalsInner { min-width: 260px; }
+  .totalsRow { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13.5px; }
+  .totalsRow.grand { border-top: 2px solid var(--ink); margin-top: 6px; padding-top: 10px; font-weight: 800; font-size: 16px; }
+  .totalsRow span:last-child { font-variant-numeric: tabular-nums; }
+
+  .taxModeNote { font-size: 12.5px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; }
+  .taxModeNote b { color: var(--ink); }
+
+  table.historyTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.historyTable th {
+    text-align: left; padding: 9px 10px; background: #FAFBFC; color: var(--g3);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.historyTable td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: middle; }
+  table.historyTable tr:hover td { background: #FAFBFD; }
+  .emptyNote { text-align: center; color: var(--g3); padding: 24px; }
+  .tableWrap { overflow-x: auto; }
+  #genMsg { font-size: 13px; margin-top: 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Invoices</h1>
+    <div class="lead" id="pageLead" style="font-size:14px;color:var(--g3);margin-bottom:24px;margin-top:-12px"></div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function fmtPlain(n) { return Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
+  const EDIT_ROLES = ['super_admin','accountant'];
+
+  let myRole = null;
+  let canEdit = false;
+  let company = null;
+  let lineItems = [];
+  let lineItemSeq = 0;
+  let allInvoices = [];
+
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fyKeyOf(dateStr) {
+    const d = new Date(dateStr); const m = d.getMonth() + 1, y = d.getFullYear();
+    return m >= 4 ? y : y - 1;
+  }
+
+  window.onVIPLReady = async function() {
+    myRole = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(myRole)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+    canEdit = EDIT_ROLES.includes(myRole);
+    document.getElementById('pageLead').textContent = canEdit
+      ? 'Create GST tax invoices for customers and buyers, and keep a record of everything issued.'
+      : 'View and export invoices already issued, for audit and tax filing reference.';
+
+    let html = '';
+
+    if (canEdit) {
+      html += `
+        <div class="card">
+          <h2>Your Company Details</h2>
+          <div class="cardSub">Shown on every invoice. Set this up once.</div>
+          <button class="collapseToggle" id="companyToggle" onclick="toggleCompanyCard()">Edit company details ▾</button>
+          <div id="companyFields" style="display:none;margin-top:16px"></div>
+        </div>
+
+        <div class="card">
+          <h2>Create Invoice</h2>
+          <div class="cardSub">Fill in buyer details and line items. Tax splits automatically based on buyer's state.</div>
+          <div class="fieldRow">
+            <div><label>Invoice Number</label><input type="text" id="fInvoiceNumber"></div>
+            <div><label>Invoice Date</label><input type="date" id="fInvoiceDate"></div>
+          </div>
+          <div class="fieldRow">
+            <div><label>Buyer Name *</label><input type="text" id="fBuyerName" placeholder="Customer or company name"></div>
+            <div><label>Buyer GSTIN (optional)</label><input type="text" id="fBuyerGstin" placeholder="e.g. 37ABCDE1234F1Z5"></div>
+            <div><label>Buyer State</label><input type="text" id="fBuyerState" placeholder="e.g. Andhra Pradesh" oninput="onBuyerStateChange()"></div>
+          </div>
+          <div class="fieldRow">
+            <div style="grid-column:1/-1"><label>Buyer Address</label><textarea id="fBuyerAddress" rows="2" placeholder="Full billing address"></textarea></div>
+          </div>
+          <div class="taxModeNote" id="taxModeNote"></div>
+
+          <div class="tableWrap"><table class="lineItemsTable">
+            <thead><tr>
+              <th style="width:28%">Description</th><th>HSN/SAC</th><th>Qty</th><th>Unit Price</th><th>GST %</th><th>Taxable Value</th><th></th>
+            </tr></thead>
+            <tbody id="lineItemsBody"></tbody>
+          </table></div>
+          <button class="btn btnGhost btnSm" onclick="addLineItem()">+ Add Line</button>
+
+          <div class="fieldRow" style="margin-top:20px">
+            <div style="grid-column:1/-1"><label>Notes (optional)</label><textarea id="fNotes" rows="2" placeholder="Payment terms, thank-you note, etc."></textarea></div>
+          </div>
+
+          <div class="totalsBox">
+            <div class="totalsInner">
+              <div class="totalsRow"><span>Subtotal (Taxable Value)</span><span id="tSubtotal">₹0</span></div>
+              <div class="totalsRow" id="tCgstRow"><span>CGST</span><span id="tCgst">₹0</span></div>
+              <div class="totalsRow" id="tSgstRow"><span>SGST</span><span id="tSgst">₹0</span></div>
+              <div class="totalsRow" id="tIgstRow"><span>IGST</span><span id="tIgst">₹0</span></div>
+              <div class="totalsRow grand"><span>Grand Total</span><span id="tGrand">₹0</span></div>
+            </div>
+          </div>
+
+          <div class="actionRow">
+            <button class="btn btnPrimary" onclick="saveInvoice()">Save &amp; Generate Invoice</button>
+          </div>
+          <div id="genMsg"></div>
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="card">
+        <h2>Invoice History</h2>
+        <div class="cardSub">All invoices issued to date.</div>
+        <div class="tableWrap"><table class="historyTable">
+          <thead><tr><th>Invoice #</th><th>Date</th><th>Buyer</th><th>Taxable Value</th><th>Total GST</th><th>Grand Total</th><th></th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="7" class="emptyNote">Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    `;
+
+    document.getElementById('pageContent').innerHTML = html;
+
+    if (canEdit) {
+      document.getElementById('fInvoiceDate').value = isoDate(new Date());
+      await loadCompanyProfile();
+      await suggestNextInvoiceNumber();
+      addLineItem();
+    }
+    await loadHistory();
+  };
+
+  // ── Company profile ──
+  async function loadCompanyProfile() {
+    const { data } = await VIPL.sb.from('company_profile').select('*').single();
+    company = data || {};
+    renderCompanyFields();
+  }
+
+  function renderCompanyFields() {
+    document.getElementById('companyFields').innerHTML = `
+      <div class="fieldRow">
+        <div><label>Company Name</label><input type="text" id="cName" value="${escapeAttr(company.company_name||'')}"></div>
+        <div><label>GSTIN</label><input type="text" id="cGstin" value="${escapeAttr(company.gstin||'')}"></div>
+        <div><label>PAN</label><input type="text" id="cPan" value="${escapeAttr(company.pan||'')}"></div>
+      </div>
+      <div class="fieldRow">
+        <div><label>State (for CGST/SGST vs IGST)</label><input type="text" id="cState" value="${escapeAttr(company.state||'')}"></div>
+        <div><label>Bank Name</label><input type="text" id="cBankName" value="${escapeAttr(company.bank_name||'')}"></div>
+        <div><label>Account Number</label><input type="text" id="cBankAcc" value="${escapeAttr(company.bank_account_number||'')}"></div>
+        <div><label>IFSC</label><input type="text" id="cBankIfsc" value="${escapeAttr(company.bank_ifsc||'')}"></div>
+      </div>
+      <div class="fieldRow">
+        <div style="grid-column:1/-1"><label>Address</label><textarea id="cAddress" rows="2">${escapeAttr(company.address||'')}</textarea></div>
+      </div>
+      <div class="actionRow">
+        <button class="btn btnPrimary btnSm" onclick="saveCompanyProfile()">Save Company Details</button>
+      </div>
+      <div id="companyMsg" style="font-size:13px;margin-top:8px;font-weight:600"></div>
+    `;
+  }
+
+  function toggleCompanyCard() {
+    const el = document.getElementById('companyFields');
+    const isOpen = el.style.display !== 'none';
+    el.style.display = isOpen ? 'none' : 'block';
+    document.getElementById('companyToggle').textContent = isOpen ? 'Edit company details ▾' : 'Hide company details ▴';
+  }
+
+  async function saveCompanyProfile() {
+    const payload = {
+      company_name: document.getElementById('cName').value.trim(),
+      gstin: document.getElementById('cGstin').value.trim() || null,
+      pan: document.getElementById('cPan').value.trim() || null,
+      state: document.getElementById('cState').value.trim() || null,
+      bank_name: document.getElementById('cBankName').value.trim() || null,
+      bank_account_number: document.getElementById('cBankAcc').value.trim() || null,
+      bank_ifsc: document.getElementById('cBankIfsc').value.trim() || null,
+      address: document.getElementById('cAddress').value.trim() || null,
+      updated_at: new Date().toISOString()
+    };
+    const msg = document.getElementById('companyMsg');
+    const { error } = await VIPL.sb.from('company_profile').update(payload).eq('id', '00000000-0000-0000-0000-000000000001');
+    if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved.';
+    company = { ...company, ...payload };
+    onBuyerStateChange();
+  }
+
+  // ── Invoice numbering ──
+  async function suggestNextInvoiceNumber() {
+    const fy = fyKeyOf(new Date().toISOString());
+    const fyLabel = `${fy}-${String(fy+1).slice(2)}`;
+    const { count } = await VIPL.sb.from('invoices').select('*', { count: 'exact', head: true })
+      .gte('invoice_date', isoDate(new Date(fy,3,1))).lte('invoice_date', isoDate(new Date(fy+1,2,31)));
+    const next = (count || 0) + 1;
+    document.getElementById('fInvoiceNumber').value = `INV/${fyLabel}/${String(next).padStart(4,'0')}`;
+  }
+
+  // ── Line items ──
+  function addLineItem() {
+    lineItemSeq++;
+    lineItems.push({ key: lineItemSeq, description: '', hsn: '', qty: 1, price: 0, rate: 18 });
+    renderLineItems();
+  }
+  function removeLineItem(key) {
+    lineItems = lineItems.filter(li => li.key !== key);
+    if (!lineItems.length) addLineItem();
+    else renderLineItems();
+  }
+
+  function renderLineItems() {
+    document.getElementById('lineItemsBody').innerHTML = lineItems.map(li => `
+      <tr>
+        <td><input value="${escapeAttr(li.description)}" oninput="updateLineItem(${li.key},'description',this.value)" placeholder="Item or service"></td>
+        <td><input class="narrow" value="${escapeAttr(li.hsn)}" oninput="updateLineItem(${li.key},'hsn',this.value)" placeholder="HSN/SAC"></td>
+        <td><input class="narrower" type="number" step="1" value="${li.qty}" oninput="updateLineItem(${li.key},'qty',this.value)"></td>
+        <td><input class="narrow" type="number" step="0.01" value="${li.price}" oninput="updateLineItem(${li.key},'price',this.value)"></td>
+        <td><input class="narrower" type="number" step="0.01" value="${li.rate}" oninput="updateLineItem(${li.key},'rate',this.value)"></td>
+        <td class="lineTotal">${fmt((Number(li.qty)||0) * (Number(li.price)||0))}</td>
+        <td><button class="rmBtn" onclick="removeLineItem(${li.key})" title="Remove line">✕</button></td>
+      </tr>`).join('');
+    updateTotals();
+  }
+
+  function updateLineItem(key, field, value) {
+    const li = lineItems.find(l => l.key === key);
+    if (!li) return;
+    li[field] = field === 'description' || field === 'hsn' ? value : parseFloat(value) || 0;
+    renderLineItems();
+  }
+
+  function isInterState() {
+    const buyerState = (document.getElementById('fBuyerState')?.value || '').trim().toLowerCase();
+    const companyState = (company?.state || '').trim().toLowerCase();
+    if (!buyerState || !companyState) return null; // unknown yet
+    return buyerState !== companyState;
+  }
+
+  function onBuyerStateChange() {
+    const interState = isInterState();
+    const note = document.getElementById('taxModeNote');
+    if (interState === null) {
+      note.innerHTML = `Set your company's state above and the buyer's state to auto-determine <b>CGST+SGST</b> (same state) vs <b>IGST</b> (different state).`;
+    } else if (interState) {
+      note.innerHTML = `Buyer is in a <b>different state</b> from your company — this invoice will charge <b>IGST</b> only.`;
+    } else {
+      note.innerHTML = `Buyer is in the <b>same state</b> as your company — this invoice will split tax into <b>CGST + SGST</b>.`;
+    }
+    updateTotals();
+  }
+
+  function updateTotals() {
+    const subtotal = lineItems.reduce((s, li) => s + (Number(li.qty)||0) * (Number(li.price)||0), 0);
+    const totalTax = lineItems.reduce((s, li) => {
+      const taxable = (Number(li.qty)||0) * (Number(li.price)||0);
+      return s + taxable * (Number(li.rate)||0) / 100;
+    }, 0);
+    const interState = isInterState();
+    let cgst = 0, sgst = 0, igst = 0;
+    if (interState === true) { igst = totalTax; }
+    else { cgst = totalTax / 2; sgst = totalTax / 2; } // default to same-state split when unknown, safest common case for a single-state business
+
+    document.getElementById('tSubtotal').textContent = fmt(subtotal);
+    document.getElementById('tCgst').textContent = fmt(cgst);
+    document.getElementById('tSgst').textContent = fmt(sgst);
+    document.getElementById('tIgst').textContent = fmt(igst);
+    document.getElementById('tGrand').textContent = fmt(subtotal + cgst + sgst + igst);
+    document.getElementById('tCgstRow').style.display = interState === true ? 'none' : 'flex';
+    document.getElementById('tSgstRow').style.display = interState === true ? 'none' : 'flex';
+    document.getElementById('tIgstRow').style.display = interState === true ? 'flex' : 'none';
+  }
+
+  // ── Save invoice ──
+  async function saveInvoice() {
+    const msg = document.getElementById('genMsg');
+    const buyerName = document.getElementById('fBuyerName').value.trim();
+    const invoiceNumber = document.getElementById('fInvoiceNumber').value.trim();
+    const invoiceDate = document.getElementById('fInvoiceDate').value;
+    if (!buyerName || !invoiceNumber || !invoiceDate) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Invoice number, date, and buyer name are required.'; return;
+    }
+    const validLines = lineItems.filter(li => li.description.trim() && (Number(li.qty)||0) > 0);
+    if (!validLines.length) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Add at least one line item with a description and quantity.'; return;
+    }
+
+    const subtotal = validLines.reduce((s, li) => s + li.qty * li.price, 0);
+    const totalTax = validLines.reduce((s, li) => s + (li.qty * li.price) * (li.rate/100), 0);
+    const interState = isInterState() === true;
+    const cgst = interState ? 0 : totalTax / 2;
+    const sgst = interState ? 0 : totalTax / 2;
+    const igst = interState ? totalTax : 0;
+
+    const invoicePayload = {
+      invoice_number: invoiceNumber,
+      invoice_date: invoiceDate,
+      buyer_name: buyerName,
+      buyer_gstin: document.getElementById('fBuyerGstin').value.trim() || null,
+      buyer_address: document.getElementById('fBuyerAddress').value.trim() || null,
+      buyer_state: document.getElementById('fBuyerState').value.trim() || null,
+      place_of_supply: document.getElementById('fBuyerState').value.trim() || null,
+      subtotal, cgst_amount: cgst, sgst_amount: sgst, igst_amount: igst,
+      total_amount: subtotal + cgst + sgst + igst,
+      notes: document.getElementById('fNotes').value.trim() || null,
+      created_by: VIPL.user.id
+    };
+
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Saving…';
+    const { data: inv, error: invErr } = await VIPL.sb.from('invoices').insert(invoicePayload).select().single();
+    if (invErr) { msg.style.color = '#C0392B'; msg.textContent = invErr.message; return; }
+
+    const lineRows = validLines.map((li, i) => ({
+      invoice_id: inv.id,
+      description: li.description.trim(),
+      hsn_sac_code: li.hsn.trim() || null,
+      quantity: li.qty,
+      unit_price: li.price,
+      gst_rate: li.rate,
+      line_taxable: li.qty * li.price,
+      sort_order: i
+    }));
+    const { error: lineErr } = await VIPL.sb.from('invoice_line_items').insert(lineRows);
+    if (lineErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice saved but line items failed: ' + lineErr.message; return; }
+
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ Invoice saved.';
+    downloadInvoicePDF(inv, lineRows);
+
+    // Reset form for the next invoice
+    document.getElementById('fBuyerName').value = '';
+    document.getElementById('fBuyerGstin').value = '';
+    document.getElementById('fBuyerAddress').value = '';
+    document.getElementById('fBuyerState').value = '';
+    document.getElementById('fNotes').value = '';
+    lineItems = [];
+    addLineItem();
+    onBuyerStateChange();
+    await suggestNextInvoiceNumber();
+    await loadHistory();
+  }
+
+  // ── PDF generation ──
+  function numberToWordsINR(num) {
+    const a = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    const b = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+    function inWords(n) {
+      if (n < 20) return a[n];
+      if (n < 100) return b[Math.floor(n/10)] + (n%10 ? ' ' + a[n%10] : '');
+      if (n < 1000) return a[Math.floor(n/100)] + ' hundred' + (n%100 ? ' ' + inWords(n%100) : '');
+      if (n < 100000) return inWords(Math.floor(n/1000)) + ' thousand' + (n%1000 ? ' ' + inWords(n%1000) : '');
+      if (n < 10000000) return inWords(Math.floor(n/100000)) + ' lakh' + (n%100000 ? ' ' + inWords(n%100000) : '');
+      return inWords(Math.floor(n/10000000)) + ' crore' + (n%10000000 ? ' ' + inWords(n%10000000) : '');
+    }
+    const rupees = Math.floor(num);
+    const paise = Math.round((num - rupees) * 100);
+    let words = rupees === 0 ? 'zero' : inWords(rupees);
+    words = words.charAt(0).toUpperCase() + words.slice(1) + ' rupees';
+    if (paise > 0) words += ' and ' + inWords(paise) + ' paise';
+    return words + ' only';
+  }
+
+  function downloadInvoicePDF(inv, lines) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 18;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text(company?.company_name || 'Company Name', 14, y);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    y += 6;
+    if (company?.address) { doc.text(doc.splitTextToSize(company.address, 90), 14, y); y += 10; }
+    if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, 14, y); y += 5; }
+    if (company?.pan) { doc.text(`PAN: ${company.pan}`, 14, y); y += 5; }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('TAX INVOICE', 196, 18, { align: 'right' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.text(`Invoice #: ${inv.invoice_number}`, 196, 26, { align: 'right' });
+    doc.text(`Date: ${inv.invoice_date}`, 196, 32, { align: 'right' });
+    if (inv.place_of_supply) doc.text(`Place of Supply: ${inv.place_of_supply}`, 196, 38, { align: 'right' });
+
+    y = Math.max(y, 45) + 6;
+    doc.setDrawColor(11,29,46); doc.line(14, y, 196, y); y += 8;
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(10);
+    doc.text('Bill To:', 14, y); y += 6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
+    doc.text(inv.buyer_name, 14, y); y += 5;
+    if (inv.buyer_address) { const lines2 = doc.splitTextToSize(inv.buyer_address, 100); doc.text(lines2, 14, y); y += lines2.length * 5; }
+    if (inv.buyer_gstin) { doc.text(`GSTIN: ${inv.buyer_gstin}`, 14, y); y += 5; }
+    if (inv.buyer_state) { doc.text(`State: ${inv.buyer_state}`, 14, y); y += 5; }
+
+    y += 4;
+    const isInterStateInv = Number(inv.igst_amount) > 0;
+    const head = isInterStateInv
+      ? [['Description','HSN/SAC','Qty','Unit Price','Taxable Value','IGST %','IGST Amt','Total']]
+      : [['Description','HSN/SAC','Qty','Unit Price','Taxable Value','GST %','CGST Amt','SGST Amt','Total']];
+    const body = lines.map(li => {
+      const taxable = li.line_taxable;
+      const taxAmt = taxable * li.gst_rate / 100;
+      const total = taxable + taxAmt;
+      return isInterStateInv
+        ? [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate, fmtPlain(taxAmt), fmtPlain(total)]
+        : [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate, fmtPlain(taxAmt/2), fmtPlain(taxAmt/2), fmtPlain(total)];
+    });
+    doc.autoTable({ head, body, startY: y, styles: { fontSize: 8 }, headStyles: { fillColor: [11,29,46] } });
+
+    let finalY = doc.lastAutoTable.finalY + 10;
+    const totalsX = 140;
+    doc.setFontSize(9.5);
+    doc.text('Subtotal:', totalsX, finalY); doc.text(fmt(inv.subtotal), 196, finalY, { align: 'right' }); finalY += 6;
+    if (isInterStateInv) {
+      doc.text('IGST:', totalsX, finalY); doc.text(fmt(inv.igst_amount), 196, finalY, { align: 'right' }); finalY += 6;
+    } else {
+      doc.text('CGST:', totalsX, finalY); doc.text(fmt(inv.cgst_amount), 196, finalY, { align: 'right' }); finalY += 6;
+      doc.text('SGST:', totalsX, finalY); doc.text(fmt(inv.sgst_amount), 196, finalY, { align: 'right' }); finalY += 6;
+    }
+    doc.setFont('helvetica','bold');
+    doc.text('Grand Total:', totalsX, finalY); doc.text(fmt(inv.total_amount), 196, finalY, { align: 'right' }); finalY += 8;
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    const words = doc.splitTextToSize(`Amount in words: ${numberToWordsINR(Number(inv.total_amount))}`, 182);
+    doc.text(words, 14, finalY); finalY += words.length * 4.5 + 6;
+
+    if (company?.bank_name || company?.bank_account_number) {
+      doc.setFont('helvetica','bold'); doc.text('Bank Details:', 14, finalY); finalY += 5;
+      doc.setFont('helvetica','normal');
+      if (company.bank_name) { doc.text(`Bank: ${company.bank_name}`, 14, finalY); finalY += 4.5; }
+      if (company.bank_account_number) { doc.text(`Account No: ${company.bank_account_number}`, 14, finalY); finalY += 4.5; }
+      if (company.bank_ifsc) { doc.text(`IFSC: ${company.bank_ifsc}`, 14, finalY); finalY += 4.5; }
+      finalY += 4;
+    }
+
+    if (inv.notes) {
+      doc.setFont('helvetica','italic'); doc.setFontSize(8.5);
+      const noteLines = doc.splitTextToSize(inv.notes, 182);
+      doc.text(noteLines, 14, finalY); finalY += noteLines.length * 4.5 + 4;
+    }
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.text('This is a computer-generated invoice.', 14, 285);
+
+    doc.save(`${inv.invoice_number.replace(/\//g,'-')}.pdf`);
+  }
+
+  async function reprintInvoice(id) {
+    const { data: inv, error } = await VIPL.sb.from('invoices').select('*').eq('id', id).single();
+    if (error) { alert(error.message); return; }
+    const { data: lines } = await VIPL.sb.from('invoice_line_items').select('*').eq('invoice_id', id).order('sort_order');
+    if (!company) await loadCompanyProfile();
+    downloadInvoicePDF(inv, lines || []);
+  }
+
+  async function deleteInvoice(id, invoiceNumber) {
+    if (!confirm(`Delete invoice ${invoiceNumber}? This cannot be undone.`)) return;
+    const { error } = await VIPL.sb.from('invoices').delete().eq('id', id);
+    if (error) { alert(error.message); return; }
+    await loadHistory();
+  }
+
+  async function loadHistory() {
+    const tbody = document.getElementById('historyBody');
+    const { data, error } = await VIPL.sb.from('invoices').select('*').order('invoice_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) { tbody.innerHTML = `<tr><td colspan="7" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    allInvoices = data || [];
+    if (!allInvoices.length) { tbody.innerHTML = `<tr><td colspan="7" class="emptyNote">No invoices issued yet.</td></tr>`; return; }
+    tbody.innerHTML = allInvoices.map(inv => {
+      const totalGst = Number(inv.cgst_amount||0) + Number(inv.sgst_amount||0) + Number(inv.igst_amount||0);
+      return `
+        <tr>
+          <td><strong>${escapeHtml(inv.invoice_number)}</strong></td>
+          <td>${inv.invoice_date}</td>
+          <td>${escapeHtml(inv.buyer_name)}</td>
+          <td>${fmt(inv.subtotal)}</td>
+          <td>${fmt(totalGst)}</td>
+          <td><strong>${fmt(inv.total_amount)}</strong></td>
+          <td>
+            <div class="actionRow" style="margin:0">
+              <button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">Download</button>
+              ${canEdit ? `<button class="btn btnDanger btnSm" onclick="deleteInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}')">Delete</button>` : ''}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+</script>
+</body>
+</html>
