@@ -109,6 +109,7 @@
   let untaggedEntries = [];
   let groups = []; // { profileId, profileName, partyType, entries: [...] }
   let codeGroups = []; // { code, label, codeId, entries: [...] }
+  let auditGroups = []; // { code, label, codeId, entries: [...] } — re-audit of legacy Utilities entries
   let unmatched = [];
 
   window.onVIPLReady = async function() {
@@ -136,10 +137,10 @@
     // office printing — only fires when both "ravi prasad" AND "print" appear together.
     if (/ravi prasad/.test(t) && /print/.test(t)) return 'ADVERTISING';
     if (/software/.test(t)) return 'SOFTWARE';
-    if (/electric|power|gp electricity/.test(t)) return 'UTILITIES';
+    if (/electric|power|gp electricity/.test(t)) return 'ELECTRICITY';
     // "Vi" (the telecom operator) needs a specific phrase — a bare "vi" pattern false-matches
     // any word ending in "-vi" followed by a space, e.g. "Vasavi Rent", "Ravi Prasad".
-    if (/airtel|vi post paid|vodafone|mobile bill|net bill|internet bill|broadband/.test(t)) return 'UTILITIES';
+    if (/airtel|vi post paid|vodafone|mobile bill|net bill|internet bill|broadband/.test(t)) return 'MOBILE_INTERNET';
     if (/bank charg/.test(t)) return 'BANK_CHARGES';
     if (/stock|packing|hamali/.test(t)) return 'STOCK_INVENTORY';
     if (/food|restaurent|restaurant/.test(t)) return 'FOOD';
@@ -200,11 +201,33 @@
       .map(([code, entries]) => ({ code, label: codeById[code]?.label || code, codeId: codeById[code]?.id, entries }))
       .sort((a,b) => b.entries.length - a.entries.length);
 
+    // Re-audit entries already tagged under the old merged "Utilities" code (before it was
+    // split into Electricity / Mobile & Internet) — re-suggests each one's TRUE category,
+    // which might not even be a utility (a few Salary/Rent entries slipped through before
+    // an earlier matching bug was fixed). Never bulk-reassigned automatically.
+    const legacyUtilities = commonCodes.find(c => c.code === 'UTILITIES');
+    auditGroups = [];
+    if (legacyUtilities) {
+      const { data: legacyEntries } = await VIPL.sb.from('ledger_entries')
+        .select('id, entry_date, particulars, description, cash_credit, cash_debit, bank_credit, bank_debit')
+        .eq('common_code_id', legacyUtilities.id);
+      const auditMap = new Map();
+      (legacyEntries || []).forEach(e => {
+        const text = `${e.particulars || ''} ${e.description || ''}`;
+        const newCode = suggestCommonCode(text);
+        if (!auditMap.has(newCode)) auditMap.set(newCode, []);
+        auditMap.get(newCode).push(e);
+      });
+      auditGroups = Array.from(auditMap.entries())
+        .map(([code, entries]) => ({ code, label: codeById[code]?.label || code, codeId: codeById[code]?.id, entries }))
+        .sort((a,b) => b.entries.length - a.entries.length);
+    }
+
     render();
   }
 
   function render() {
-    if (!untaggedEntries.length) {
+    if (!untaggedEntries.length && !auditGroups.length) {
       document.getElementById('pageContent').innerHTML = `<div class="doneNote">✅ All ledger entries are tagged. Nothing left to review here.</div>`;
       return;
     }
@@ -215,10 +238,14 @@
         <div class="statChip"><div class="val">${groups.length}</div><div class="lbl">Suggested people</div></div>
         <div class="statChip"><div class="val">${codeGroups.length}</div><div class="lbl">Common-code groups</div></div>
       </div>
-      <div class="sectionTitle">Suggested Matches — People</div>
-      <div class="sectionSub">Grouped by likely person, based on their name appearing in the entry's particulars or description. Review each group, uncheck anything that doesn't belong, then confirm.</div>
-      <div id="groupsWrap"></div>
     `;
+    if (groups.length) {
+      html += `
+        <div class="sectionTitle">Suggested Matches — People</div>
+        <div class="sectionSub">Grouped by likely person, based on their name appearing in the entry's particulars or description. Review each group, uncheck anything that doesn't belong, then confirm.</div>
+        <div id="groupsWrap"></div>
+      `;
+    }
     if (codeGroups.length) {
       html += `
         <div class="sectionTitle">Suggested Common Codes <span style="font-weight:600;color:var(--g3);font-size:12.5px">(${unmatched.length} entries not tied to a specific person)</span></div>
@@ -226,9 +253,16 @@
         <div id="codeGroupsWrap"></div>
       `;
     }
+    if (auditGroups.length) {
+      html += `
+        <div class="sectionTitle">🔄 Re-check: Previously Tagged "Utilities" <span style="font-weight:600;color:var(--g3);font-size:12.5px">(${auditGroups.reduce((s,g)=>s+g.entries.length,0)} entries)</span></div>
+        <div class="sectionSub">These were tagged under the old merged Utilities code before it was split. Re-suggested here by their true category — some may not be utilities at all (a few Salary/Rent entries slipped through an earlier matching bug). Review and confirm each group to move them to the right code.</div>
+        <div id="auditGroupsWrap"></div>
+      `;
+    }
     document.getElementById('pageContent').innerHTML = html;
 
-    document.getElementById('groupsWrap').innerHTML = groups.map((g, gi) => `
+    if (groups.length) document.getElementById('groupsWrap').innerHTML = groups.map((g, gi) => `
       <div class="groupCard">
         <div class="groupHead" onclick="toggleGroup(${gi})">
           <div class="groupTitle">
@@ -302,6 +336,73 @@
         </div>
       `).join('');
     }
+
+    if (auditGroups.length) {
+      document.getElementById('auditGroupsWrap').innerHTML = auditGroups.map((ag, ai) => `
+        <div class="groupCard">
+          <div class="groupHead" onclick="toggleAuditGroup(${ai})">
+            <div class="groupTitle">
+              <span class="chevron" id="achev-${ai}">▶</span>
+              <div class="groupAvatar" style="background:#5B4FCF">🔄</div>
+              <div><div class="groupName">${escapeHtml(ag.label)}</div><div class="groupCount">${ag.entries.length} entries — currently under Utilities</div></div>
+            </div>
+          </div>
+          <div class="groupBody" id="agbody-${ai}">
+            <div style="padding:10px 20px;border-top:1px solid var(--border)">
+              <button class="selectAllLink" onclick="toggleAllInAuditGroup(${ai}, true)">Select all</button> ·
+              <button class="selectAllLink" onclick="toggleAllInAuditGroup(${ai}, false)">Select none</button>
+            </div>
+            ${ag.entries.map(e => `
+              <div class="entryRow">
+                <input type="checkbox" checked id="achk-${ai}-${e.id}">
+                <div class="entryDate">${e.entry_date}</div>
+                <div class="entryText"><div class="entryParticulars">${escapeHtml(e.particulars || '')}</div><div class="entryDesc">${escapeHtml(e.description || '—')}</div></div>
+                <div class="entryAmount">${fmt((e.cash_credit||0)+(e.bank_credit||0)-(e.cash_debit||0)-(e.bank_debit||0))}</div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="groupFoot">
+            <span style="font-size:12.5px;color:var(--g3)">Confirming will move the checked entries to <strong>${escapeHtml(ag.label)}</strong>.</span>
+            <span><button class="btn btnAmber" id="auditConfirmBtn-${ai}" onclick="confirmAuditGroup(${ai})">Move Selected Entries</button></span>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  function toggleAuditGroup(ai) {
+    document.getElementById(`agbody-${ai}`).classList.toggle('open');
+    document.getElementById(`achev-${ai}`).classList.toggle('open');
+  }
+
+  function toggleAllInAuditGroup(ai, checked) {
+    auditGroups[ai].entries.forEach(e => { document.getElementById(`achk-${ai}-${e.id}`).checked = checked; });
+  }
+
+  async function confirmAuditGroup(ai) {
+    const ag = auditGroups[ai];
+    const idsToMove = ag.entries.filter(e => document.getElementById(`achk-${ai}-${e.id}`).checked).map(e => e.id);
+    if (!idsToMove.length) return;
+
+    const btn = document.getElementById(`auditConfirmBtn-${ai}`);
+    btn.disabled = true; btn.textContent = 'Moving…';
+
+    // party_type stays 'other' — these were never linked to a specific person, just being
+    // moved from the old merged Utilities code to their correct category.
+    const { error } = await VIPL.sb.from('ledger_entries')
+      .update({ common_code_id: ag.codeId })
+      .in('id', idsToMove);
+
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Move Selected Entries';
+      alert(error.message);
+      return;
+    }
+
+    const movedSet = new Set(idsToMove);
+    ag.entries = ag.entries.filter(e => !movedSet.has(e.id));
+    if (!ag.entries.length) auditGroups.splice(ai, 1);
+    render();
   }
 
   function reassignGroup(gi) {
