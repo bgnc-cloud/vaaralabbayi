@@ -105,6 +105,10 @@
     width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff;
     font-size: 8.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
   }
+  .viewOnlyNote {
+    font-size: 12.5px; color: var(--g3); background: var(--off); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 20px;
+  }
 </style>
 </head>
 <body>
@@ -123,9 +127,13 @@
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
   function initials(s) { return (s||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
-  const ALLOWED_ROLES = ['super_admin','accountant','entry'];
+  const ALLOWED_ROLES = ['super_admin','accountant','entry','auditor_team'];
+  // Roles that can actually add/edit entries. auditor_team is intentionally excluded —
+  // matches the DB: ledger_insert_entry_staff / ledger_update_admin_accountant don't include it either.
+  const CAN_ENTER_ROLES = ['super_admin','accountant','entry'];
   const PARTY_TYPE_LABELS = { investor: 'Investor', employee: 'Employee', lender: 'Lender', subscriber: 'Subscriber', vendor: 'Vendor', other: 'Other' };
   let allProfiles = [];
+  let canEnter = false;
 
   // ── Financial Year helpers (India: Apr 1 – Mar 31) ──
   function fyKeyOf(dateStr) {
@@ -155,6 +163,7 @@
       document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
       return;
     }
+    canEnter = CAN_ENTER_ROLES.includes(role);
 
     document.getElementById('pageContent').innerHTML = `
       <div class="summaryGrid">
@@ -162,6 +171,7 @@
         <div class="summaryBox accent-capital"><div class="icon">🏦</div><div class="val" id="sumBank">₹0</div><div class="lbl">Bank Balance</div></div>
         <div class="summaryBox accent-loan"><div class="icon">📒</div><div class="val" id="sumEntries">0</div><div class="lbl">Total Entries</div></div>
       </div>
+      ${canEnter ? `
       <div class="card">
         <h2>New Entry</h2>
         <div class="cardSub">Add a cash or bank transaction to the ledger.</div>
@@ -201,6 +211,7 @@
         </div>
         <div id="formMsg" style="margin-top:12px;font-size:13px;font-weight:600"></div>
       </div>
+      ` : `<div class="viewOnlyNote">👁️ View-only access — you can browse every entry below, but adding or editing entries is limited to Super Admin, Accountant, and Entry Staff.</div>`}
       <div class="card">
         <h2>Financial Year</h2>
         <div class="cardSub">Browse entries by year, then by month.</div>
@@ -216,9 +227,12 @@
         <div id="monthAccordions"><div style="text-align:center;color:var(--g3);padding:30px">Loading…</div></div>
       </div>
     `;
-    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
-    await loadProfilesForParty();
-    await loadCommonCodesForEntry();
+
+    if (canEnter) {
+      document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+      await loadProfilesForParty();
+      await loadCommonCodesForEntry();
+    }
     loadLedger();
   };
 
@@ -247,6 +261,7 @@
   }
 
   async function addEntry() {
+    if (!canEnter) return;
     const particulars = document.getElementById('fParticulars').value.trim();
     const amount = parseFloat(document.getElementById('fAmount').value);
     const type = document.getElementById('fType').value;
