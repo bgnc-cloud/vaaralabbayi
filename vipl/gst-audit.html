@@ -38,6 +38,7 @@
   .btnPrimary { background: var(--blue); color: #fff; }
   .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
   .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnMuted { background: var(--off); color: var(--g3); }
   .btnSm { padding: 6px 12px; font-size: 12px; }
   .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 
@@ -46,6 +47,7 @@
   .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .summaryBox .lbl { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
   .summaryBox.warn .val { color: #B7791F; }
+  .summaryBox.muted .val { color: #9AA5B1; }
 
   .filterRow { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; font-size: 13px; color: var(--g3); }
   .filterRow input[type=checkbox] { width: auto; accent-color: var(--blue); }
@@ -58,12 +60,18 @@
   }
   table.gstTable td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: middle; }
   table.gstTable tr:hover td { background: #FAFBFD; }
-  .tagBadge { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; }
+  .tagBadge { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
   .tagBadge.tagged { background: #EAF3DE; color: #15803D; }
   .tagBadge.untagged { background: #FFF7ED; color: #9A5B0F; }
+  .tagBadge.na { background: var(--off); color: #9AA5B1; }
+  .catPill {
+    display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 6px;
+    background: #F0F7FF; color: #1565C0; white-space: nowrap;
+  }
   .editInput { width: 90px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; }
   .editInput.wide { width: 130px; }
-  .editActions { display: flex; gap: 6px; }
+  .editSelect { padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; width: 140px; }
+  .editActions { display: flex; gap: 6px; flex-wrap: wrap; }
   .tableWrap { overflow-x: auto; }
   .emptyNote { text-align: center; color: var(--g3); padding: 24px; }
 </style>
@@ -92,9 +100,11 @@
   let canEdit = false;
   let periodType = 'financial_year';
   let profileMap = {};
+  let codeMap = {};
+  let allCodes = [];
   let allRows = [];
   let currentEntries = [];
-  let showUntaggedOnly = false;
+  let showNeedsAttentionOnly = false;
   let editingId = null;
 
   function fyKeyOf(dateStr) {
@@ -106,6 +116,13 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
+  // gstStatus: 'na' | 'tagged' | 'untagged'
+  function gstStatus(r) {
+    if (r.gst_not_applicable) return 'na';
+    if (r.gst_rate !== null && r.gst_rate !== undefined) return 'tagged';
+    return 'untagged';
+  }
+
   window.onVIPLReady = async function() {
     myRole = VIPL.profile.role;
     if (!ALLOWED_ROLES.includes(myRole)) {
@@ -114,7 +131,7 @@
     }
     canEdit = EDIT_ROLES.includes(myRole);
     document.getElementById('pageLead').textContent = canEdit
-      ? 'GST summary and per-entry tagging, for GSTR filing and audit prep.'
+      ? 'GST summary and per-entry tagging, for GSTR and ITR filing prep.'
       : 'GST summary and full ledger detail, for audit and tax filing reference.';
 
     document.getElementById('pageContent').innerHTML = `
@@ -136,7 +153,7 @@
 
       <div class="card">
         <h2>GST Summary</h2>
-        <div class="cardSub">Only entries tagged with a GST rate are counted below.</div>
+        <div class="cardSub">Entries marked "Not Applicable" are excluded from totals and from "needs attention."</div>
         <div class="summaryGrid" id="summaryGrid"></div>
         <div class="actionRow">
           <button class="btn btnGreen" onclick="exportCSV()">⬇️ Export CSV</button>
@@ -146,14 +163,14 @@
 
       <div class="card">
         <h2>Entries</h2>
-        <div class="cardSub">${canEdit ? 'Click Edit to tag an entry with GST details.' : 'View-only.'}</div>
+        <div class="cardSub">${canEdit ? 'Click Edit to tag GST details, set the expense category, or mark an entry Not Applicable.' : 'View-only. Category shown is the same expense head used on the Financial Dashboard.'}</div>
         <div class="filterRow">
-          <input type="checkbox" id="untaggedOnly" onchange="toggleUntaggedFilter()">
-          <label for="untaggedOnly">Show untagged entries only</label>
+          <input type="checkbox" id="needsAttnOnly" onchange="toggleNeedsAttentionFilter()">
+          <label for="needsAttnOnly">Show entries needing attention only (untagged, excluding N/A)</label>
         </div>
         <div class="tableWrap"><table class="gstTable">
           <thead><tr>
-            <th>Date</th><th>Particulars</th><th>Party</th><th>Invoice #</th><th>GSTIN</th><th>HSN/SAC</th>
+            <th>Date</th><th>Particulars</th><th>Category</th><th>Party</th><th>Invoice #</th><th>GSTIN</th><th>HSN/SAC</th>
             <th>Taxable Value</th><th>Rate %</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total GST</th><th>Status</th>${canEdit ? '<th></th>' : ''}
           </tr></thead>
           <tbody id="gstTableBody"></tbody>
@@ -165,6 +182,10 @@
     // Party names — relies on current_user_is_privileged() including auditor_team
     const { data: profiles } = await VIPL.sb.from('profiles').select('id, full_name, email');
     (profiles || []).forEach(p => { profileMap[p.id] = p.full_name || p.email; });
+
+    const { data: codes } = await VIPL.sb.from('common_codes').select('*').order('sort_order');
+    allCodes = codes || [];
+    allCodes.forEach(c => { codeMap[c.id] = c.label; });
 
     await loadData();
   };
@@ -231,34 +252,36 @@
     }
   }
 
-  const GST_COLUMNS = 'id, entry_date, particulars, party_profile_id, cash_credit, cash_debit, bank_credit, bank_debit, gstin, invoice_number, hsn_sac_code, taxable_value, gst_rate, cgst_amount, sgst_amount, igst_amount, gst_notes';
+  const GST_COLUMNS = 'id, entry_date, particulars, party_profile_id, common_code_id, cash_credit, cash_debit, bank_credit, bank_debit, gstin, invoice_number, hsn_sac_code, taxable_value, gst_rate, cgst_amount, sgst_amount, igst_amount, gst_notes, gst_not_applicable';
 
   async function loadData() {
     const tbody = document.getElementById('gstTableBody');
-    tbody.innerHTML = `<tr><td colspan="14" class="emptyNote">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="15" class="emptyNote">Loading…</td></tr>`;
     const range = getPeriodRange();
     let q = VIPL.sb.from('ledger_entries').select(GST_COLUMNS).order('entry_date').order('created_at');
     if (range) q = q.gte('entry_date', range.start).lte('entry_date', range.end);
     const { data, error } = await q;
-    if (error) { tbody.innerHTML = `<tr><td colspan="14" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    if (error) { tbody.innerHTML = `<tr><td colspan="15" style="color:#C0392B">${error.message}</td></tr>`; return; }
     allRows = data || [];
     renderSummary();
     renderTable();
   }
 
   function renderSummary() {
-    const tagged = allRows.filter(r => r.gst_rate !== null && r.gst_rate !== undefined);
+    const tagged = allRows.filter(r => gstStatus(r) === 'tagged');
+    const na = allRows.filter(r => gstStatus(r) === 'na');
+    const needsAttention = allRows.filter(r => gstStatus(r) === 'untagged');
     const taxable = tagged.reduce((s,r) => s + Number(r.taxable_value||0), 0);
     const cgst = tagged.reduce((s,r) => s + Number(r.cgst_amount||0), 0);
     const sgst = tagged.reduce((s,r) => s + Number(r.sgst_amount||0), 0);
     const igst = tagged.reduce((s,r) => s + Number(r.igst_amount||0), 0);
     const totalGst = cgst + sgst + igst;
-    const untaggedCount = allRows.length - tagged.length;
 
     document.getElementById('summaryGrid').innerHTML = `
       <div class="summaryBox"><div class="val">${allRows.length}</div><div class="lbl">Entries in Period</div></div>
       <div class="summaryBox"><div class="val">${tagged.length}</div><div class="lbl">GST-Tagged</div></div>
-      <div class="summaryBox${untaggedCount ? ' warn' : ''}"><div class="val">${untaggedCount}</div><div class="lbl">Untagged</div></div>
+      <div class="summaryBox muted"><div class="val">${na.length}</div><div class="lbl">Not Applicable</div></div>
+      <div class="summaryBox${needsAttention.length ? ' warn' : ''}"><div class="val">${needsAttention.length}</div><div class="lbl">Needs Attention</div></div>
       <div class="summaryBox"><div class="val">${fmt(taxable)}</div><div class="lbl">Taxable Value</div></div>
       <div class="summaryBox"><div class="val">${fmt(cgst)}</div><div class="lbl">Total CGST</div></div>
       <div class="summaryBox"><div class="val">${fmt(sgst)}</div><div class="lbl">Total SGST</div></div>
@@ -267,31 +290,38 @@
     `;
   }
 
-  function toggleUntaggedFilter() {
-    showUntaggedOnly = document.getElementById('untaggedOnly').checked;
+  function toggleNeedsAttentionFilter() {
+    showNeedsAttentionOnly = document.getElementById('needsAttnOnly').checked;
     renderTable();
   }
 
   function renderTable() {
-    currentEntries = showUntaggedOnly
-      ? allRows.filter(r => r.gst_rate === null || r.gst_rate === undefined)
+    currentEntries = showNeedsAttentionOnly
+      ? allRows.filter(r => gstStatus(r) === 'untagged')
       : allRows;
 
     const tbody = document.getElementById('gstTableBody');
     if (!currentEntries.length) {
-      tbody.innerHTML = `<tr><td colspan="${canEdit?14:13}" class="emptyNote">No entries match.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${canEdit?15:14}" class="emptyNote">No entries match.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = currentEntries.map(r => {
       if (editingId === r.id) return renderEditRow(r);
-      const isTagged = r.gst_rate !== null && r.gst_rate !== undefined;
+      const status = gstStatus(r);
       const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
       const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '—') : '—';
+      const catLabel = r.common_code_id ? (codeMap[r.common_code_id] || '—') : '—';
+      const badge = status === 'tagged'
+        ? '<span class="tagBadge tagged">Tagged</span>'
+        : status === 'na'
+          ? '<span class="tagBadge na">N/A</span>'
+          : '<span class="tagBadge untagged">Untagged</span>';
       return `
         <tr>
           <td>${r.entry_date}</td>
           <td>${escapeHtml(r.particulars||'')}</td>
+          <td>${catLabel !== '—' ? `<span class="catPill">${escapeHtml(catLabel)}</span>` : '—'}</td>
           <td>${escapeHtml(partyName)}</td>
           <td>${escapeHtml(r.invoice_number||'—')}</td>
           <td>${escapeHtml(r.gstin||'—')}</td>
@@ -302,17 +332,21 @@
           <td>${r.sgst_amount ? fmt(r.sgst_amount) : '—'}</td>
           <td>${r.igst_amount ? fmt(r.igst_amount) : '—'}</td>
           <td>${fmt(totalGst)}</td>
-          <td><span class="tagBadge ${isTagged?'tagged':'untagged'}">${isTagged?'Tagged':'Untagged'}</span></td>
+          <td>${badge}</td>
           ${canEdit ? `<td><button class="btn btnGhost btnSm" onclick="startEdit('${r.id}')">Edit</button></td>` : ''}
         </tr>`;
     }).join('');
   }
 
   function renderEditRow(r) {
+    const codeOptions = `<option value="">— None —</option>` +
+      allCodes.map(c => `<option value="${c.id}"${c.id===r.common_code_id?' selected':''}>${escapeHtml(c.label)}</option>`).join('');
     return `
       <tr>
         <td>${r.entry_date}</td>
-        <td colspan="2">${escapeHtml(r.particulars||'')}</td>
+        <td>${escapeHtml(r.particulars||'')}</td>
+        <td><select class="editSelect" id="e_code">${codeOptions}</select></td>
+        <td colspan="2"></td>
         <td><input class="editInput wide" id="e_invoice" placeholder="Invoice #" value="${escapeHtml(r.invoice_number||'')}"></td>
         <td><input class="editInput wide" id="e_gstin" placeholder="GSTIN" value="${escapeHtml(r.gstin||'')}"></td>
         <td><input class="editInput" id="e_hsn" placeholder="HSN/SAC" value="${escapeHtml(r.hsn_sac_code||'')}"></td>
@@ -321,13 +355,20 @@
         <td><input class="editInput" id="e_cgst" type="number" step="0.01" value="${r.cgst_amount ?? 0}" style="width:70px"></td>
         <td><input class="editInput" id="e_sgst" type="number" step="0.01" value="${r.sgst_amount ?? 0}" style="width:70px"></td>
         <td><input class="editInput" id="e_igst" type="number" step="0.01" value="${r.igst_amount ?? 0}" style="width:70px"></td>
-        <td colspan="2">
+        <td>
           <div class="editActions">
             <button class="btn btnGhost btnSm" onclick="splitCgstSgst()" title="Split taxable × rate evenly into CGST+SGST">→CGST/SGST</button>
             <button class="btn btnGhost btnSm" onclick="fillIgst()" title="Put taxable × rate entirely into IGST">→IGST</button>
           </div>
         </td>
         <td>
+          <div class="editActions">
+            ${r.gst_not_applicable
+              ? `<button class="btn btnMuted btnSm" onclick="saveEdit('${r.id}', false)">Revert to Pending</button>`
+              : `<button class="btn btnMuted btnSm" onclick="saveEdit('${r.id}', true)">Mark N/A</button>`}
+          </div>
+        </td>
+        <td colspan="2">
           <div class="editActions">
             <button class="btn btnPrimary btnSm" onclick="saveEdit('${r.id}')">Save</button>
             <button class="btn btnGhost btnSm" onclick="cancelEdit()">Cancel</button>
@@ -355,34 +396,50 @@
     document.getElementById('e_sgst').value = 0;
   }
 
-  async function saveEdit(id) {
-    const payload = {
-      invoice_number: document.getElementById('e_invoice').value.trim() || null,
-      gstin: document.getElementById('e_gstin').value.trim() || null,
-      hsn_sac_code: document.getElementById('e_hsn').value.trim() || null,
-      taxable_value: document.getElementById('e_taxable').value !== '' ? parseFloat(document.getElementById('e_taxable').value) : null,
-      gst_rate: document.getElementById('e_rate').value !== '' ? parseFloat(document.getElementById('e_rate').value) : null,
-      cgst_amount: parseFloat(document.getElementById('e_cgst').value) || 0,
-      sgst_amount: parseFloat(document.getElementById('e_sgst').value) || 0,
-      igst_amount: parseFloat(document.getElementById('e_igst').value) || 0,
-    };
+  // markNA: if provided (true/false), sets gst_not_applicable explicitly and saves immediately
+  // without requiring the rest of the form to be filled in. Otherwise saves the full form as a normal tag.
+  async function saveEdit(id, markNA) {
+    let payload;
+    if (markNA === true) {
+      payload = { gst_not_applicable: true };
+    } else if (markNA === false) {
+      payload = { gst_not_applicable: false };
+    } else {
+      payload = {
+        common_code_id: document.getElementById('e_code').value || null,
+        invoice_number: document.getElementById('e_invoice').value.trim() || null,
+        gstin: document.getElementById('e_gstin').value.trim() || null,
+        hsn_sac_code: document.getElementById('e_hsn').value.trim() || null,
+        taxable_value: document.getElementById('e_taxable').value !== '' ? parseFloat(document.getElementById('e_taxable').value) : null,
+        gst_rate: document.getElementById('e_rate').value !== '' ? parseFloat(document.getElementById('e_rate').value) : null,
+        cgst_amount: parseFloat(document.getElementById('e_cgst').value) || 0,
+        sgst_amount: parseFloat(document.getElementById('e_sgst').value) || 0,
+        igst_amount: parseFloat(document.getElementById('e_igst').value) || 0,
+        gst_not_applicable: false
+      };
+    }
     const { error } = await VIPL.sb.from('ledger_entries').update(payload).eq('id', id);
     if (error) { alert(error.message); return; }
     editingId = null;
     await loadData();
   }
 
+  function statusLabel(r) {
+    const s = gstStatus(r);
+    return s === 'tagged' ? 'Tagged' : s === 'na' ? 'Not Applicable' : 'Untagged';
+  }
+
   function exportCSV() {
-    const headers = ['Date','Particulars','Party','Invoice No','GSTIN','HSN/SAC','Taxable Value','GST Rate %','CGST','SGST','IGST','Total GST','Status'];
+    const headers = ['Date','Particulars','Category','Party','Invoice No','GSTIN','HSN/SAC','Taxable Value','GST Rate %','CGST','SGST','IGST','Total GST','Status'];
     const lines = [headers.join(',')];
     currentEntries.forEach(r => {
       const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
+      const catLabel = r.common_code_id ? (codeMap[r.common_code_id] || '') : '';
       const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
-      const isTagged = r.gst_rate !== null && r.gst_rate !== undefined;
       const row = [
-        r.entry_date, r.particulars||'', partyName, r.invoice_number||'', r.gstin||'', r.hsn_sac_code||'',
+        r.entry_date, r.particulars||'', catLabel, partyName, r.invoice_number||'', r.gstin||'', r.hsn_sac_code||'',
         r.taxable_value ?? '', r.gst_rate ?? '', r.cgst_amount ?? 0, r.sgst_amount ?? 0, r.igst_amount ?? 0,
-        totalGst, isTagged ? 'Tagged' : 'Untagged'
+        totalGst, statusLabel(r)
       ].map(v => `"${String(v).replace(/"/g,'""')}"`);
       lines.push(row.join(','));
     });
@@ -403,18 +460,19 @@
     doc.setFontSize(9); doc.setFont('helvetica','normal');
     doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 22);
 
-    const head = [['Date','Particulars','Party','Invoice #','GSTIN','HSN/SAC','Taxable Value','Rate %','CGST','SGST','IGST','Total GST']];
+    const head = [['Date','Particulars','Category','Party','Invoice #','GSTIN','HSN/SAC','Taxable Value','Rate %','CGST','SGST','IGST','Total GST','Status']];
     const body = currentEntries.map(r => {
       const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
+      const catLabel = r.common_code_id ? (codeMap[r.common_code_id] || '') : '—';
       const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
       return [
-        r.entry_date, r.particulars||'', partyName, r.invoice_number||'—', r.gstin||'—', r.hsn_sac_code||'—',
+        r.entry_date, r.particulars||'', catLabel, partyName, r.invoice_number||'—', r.gstin||'—', r.hsn_sac_code||'—',
         r.taxable_value ? fmtPlain(r.taxable_value) : '—', r.gst_rate ?? '—',
         r.cgst_amount ? fmtPlain(r.cgst_amount) : '—', r.sgst_amount ? fmtPlain(r.sgst_amount) : '—',
-        r.igst_amount ? fmtPlain(r.igst_amount) : '—', fmtPlain(totalGst)
+        r.igst_amount ? fmtPlain(r.igst_amount) : '—', fmtPlain(totalGst), statusLabel(r)
       ];
     });
-    doc.autoTable({ head, body, startY: 28, styles: { fontSize: 7 }, headStyles: { fillColor: [11,29,46] } });
+    doc.autoTable({ head, body, startY: 28, styles: { fontSize: 6.5 }, headStyles: { fillColor: [11,29,46] } });
     doc.save(`VIPL-GST-${periodType}-${new Date().toISOString().slice(0,10)}.pdf`);
   }
 
