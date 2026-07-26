@@ -95,7 +95,7 @@
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
   function initials(name) { return (name||'').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
-  const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2'];
+  const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2','auditor_team'];
   const CAN_EDIT_LOANS = ['super_admin','accountant'];
   const SELF_VIEW_ROLES = ['investor','director_1','director_2'];
 
