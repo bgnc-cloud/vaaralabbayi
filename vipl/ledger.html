@@ -194,6 +194,9 @@
             <label>Person</label>
             <select id="fPartyPerson"><option value="">Select…</option></select>
           </div>
+          <div><label>Category Code (optional)</label>
+            <select id="fCommonCode"><option value="">— None —</option></select>
+          </div>
           <div><button onclick="addEntry()">+ Add Entry</button></div>
         </div>
         <div id="formMsg" style="margin-top:12px;font-size:13px;font-weight:600"></div>
@@ -215,8 +218,15 @@
     `;
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
     await loadProfilesForParty();
+    await loadCommonCodesForEntry();
     loadLedger();
   };
+
+  async function loadCommonCodesForEntry() {
+    const { data } = await VIPL.sb.from('common_codes').select('*').order('sort_order');
+    document.getElementById('fCommonCode').innerHTML = '<option value="">— None —</option>' +
+      (data || []).map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
+  }
 
   async function loadProfilesForParty() {
     const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, customer_id, role').neq('role', 'pending');
@@ -254,7 +264,8 @@
       created_by: VIPL.user.id,
       cash_credit: 0, cash_debit: 0, bank_credit: 0, bank_debit: 0,
       party_type: partyType,
-      party_profile_id: partyType ? partyProfileId : null
+      party_profile_id: partyType ? partyProfileId : null,
+      common_code_id: document.getElementById('fCommonCode').value || null
     };
     row[type] = amount;
     const { error } = await VIPL.sb.from('ledger_entries').insert(row);
@@ -265,6 +276,7 @@
     document.getElementById('fAmount').value = '';
     document.getElementById('fCheque').value = '';
     document.getElementById('fPartyType').value = '';
+    document.getElementById('fCommonCode').value = '';
     document.getElementById('fPartyPersonWrap').style.display = 'none';
     loadLedger();
   }
