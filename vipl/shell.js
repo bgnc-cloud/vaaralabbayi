@@ -15,14 +15,15 @@ const NAV_CONFIG = [
     { label: '🏠 Overview', href: 'index.html', roles: 'all' },
   ]},
   { group: 'Finance', items: [
-    { label: '📒 Ledger Entry', href: 'ledger.html', roles: ['super_admin','accountant','entry'] },
-    { label: '📊 Financial Dashboard', href: 'dashboard.html', roles: ['super_admin','accountant'] },
-    { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
-    { label: '🧾 Statements', href: 'statements.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
+    { label: '📒 Ledger Entry', href: 'ledger.html', roles: ['super_admin','accountant','entry','auditor_team'] },
+    { label: '📊 Financial Dashboard', href: 'dashboard.html', roles: ['super_admin','accountant','auditor_team'] },
+    { label: '💳 Loan Portal', href: 'loan-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
+    { label: '🧾 Statements', href: 'statements.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
+    { label: '🧮 GST / Audit', href: 'gst-audit.html', roles: ['super_admin','accountant','auditor_team'] },
   ]},
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
-    { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2'] },
+    { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
     { label: '👥 Subscribers', href: null, roles: ['super_admin','subscriber'], soon: true },
     { label: '🚚 Supply Chain', href: null, roles: ['super_admin','fbc_rm','fbc_bdm','fbc_mm'], soon: true },
   ]},
@@ -40,6 +41,7 @@ const ROLE_LABELS = {
   accountant: 'Accountant', entry: 'Entry Staff',
   store_operator: 'Store Operator', fbc_rm: 'FBC — RM', fbc_bdm: 'FBC — BDM',
   fbc_mm: 'FBC — MM', investor: 'Investor', subscriber: 'Subscriber', viewer: 'Viewer',
+  auditor_team: 'Auditor Team',
   pending: 'Pending Approval'
 };
 
