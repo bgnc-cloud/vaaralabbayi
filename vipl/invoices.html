@@ -32,11 +32,21 @@
   .btnPrimary { background: var(--blue); color: #fff; }
   .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
   .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnAmber { background: #FBF1DE; color: #B7791F; }
   .btnDanger { background: #FEE2E2; color: #C0392B; }
   .btnSm { padding: 6px 12px; font-size: 12px; }
   .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
 
   .collapseToggle { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 0; }
+
+  .paymentChoice { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .paymentChoice label {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+    margin: 0; flex: 1; min-width: 160px; padding: 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .paymentChoice label:has(input:checked) { border-color: var(--blue); background: #F0F7FF; }
+  .paymentChoice input[type=radio] { width: auto; margin: 0; accent-color: var(--blue); }
 
   table.lineItemsTable { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
   table.lineItemsTable th {
@@ -71,6 +81,9 @@
   .emptyNote { text-align: center; color: var(--g3); padding: 24px; }
   .tableWrap { overflow-x: auto; }
   #genMsg { font-size: 13px; margin-top: 10px; font-weight: 600; }
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
+  .pill.received { background: #EAF3DE; color: #15803D; }
+  .pill.unpaid { background: #FFF7ED; color: #9A5B0F; }
 </style>
 </head>
 <body>
@@ -99,6 +112,8 @@
   let lineItems = [];
   let lineItemSeq = 0;
   let allInvoices = [];
+  let allProfiles = [];
+  let revenueCodeId = null;
 
   function isoDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -106,6 +121,13 @@
   function fyKeyOf(dateStr) {
     const d = new Date(dateStr); const m = d.getMonth() + 1, y = d.getFullYear();
     return m >= 4 ? y : y - 1;
+  }
+  // Maps a profile's system role to the party_type vocabulary already used in Ledger Entry / Party Tagging
+  function partyTypeForRole(role) {
+    if (['investor','director_1','director_2','fico_investor'].includes(role)) return 'investor';
+    if (role === 'subscriber') return 'subscriber';
+    if (['super_admin','admin','hr_manager','accountant','entry','auditor_team'].includes(role)) return 'employee';
+    return 'other';
   }
 
   window.onVIPLReady = async function() {
@@ -137,6 +159,16 @@
             <div><label>Invoice Number</label><input type="text" id="fInvoiceNumber"></div>
             <div><label>Invoice Date</label><input type="date" id="fInvoiceDate"></div>
           </div>
+
+          <div class="fieldRow">
+            <div style="grid-column:1/-1">
+              <label>Link to an existing user (optional)</label>
+              <select id="fBuyerProfile" onchange="onBuyerProfileChange()">
+                <option value="">— External buyer, not in the system —</option>
+              </select>
+            </div>
+          </div>
+
           <div class="fieldRow">
             <div><label>Buyer Name *</label><input type="text" id="fBuyerName" placeholder="Customer or company name"></div>
             <div><label>Buyer GSTIN (optional)</label><input type="text" id="fBuyerGstin" placeholder="e.g. 37ABCDE1234F1Z5"></div>
@@ -169,6 +201,16 @@
             </div>
           </div>
 
+          <div style="margin-top:22px">
+            <label style="font-size:11.5px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:8px">Payment</label>
+            <div class="paymentChoice">
+              <label><input type="radio" name="paymentMethod" value="none" checked> 📋 Not received yet — invoice only</label>
+              <label><input type="radio" name="paymentMethod" value="cash"> 💵 Received in Cash</label>
+              <label><input type="radio" name="paymentMethod" value="bank"> 🏦 Received in Bank</label>
+            </div>
+            <div style="font-size:12px;color:var(--g3)">Choosing Cash or Bank adds a matching entry to the ledger automatically, linked to this invoice and to the buyer if selected above.</div>
+          </div>
+
           <div class="actionRow">
             <button class="btn btnPrimary" onclick="saveInvoice()">Save &amp; Generate Invoice</button>
           </div>
@@ -182,8 +224,8 @@
         <h2>Invoice History</h2>
         <div class="cardSub">All invoices issued to date.</div>
         <div class="tableWrap"><table class="historyTable">
-          <thead><tr><th>Invoice #</th><th>Date</th><th>Buyer</th><th>Taxable Value</th><th>Total GST</th><th>Grand Total</th><th></th></tr></thead>
-          <tbody id="historyBody"><tr><td colspan="7" class="emptyNote">Loading…</td></tr></tbody>
+          <thead><tr><th>Invoice #</th><th>Date</th><th>Buyer</th><th>Taxable Value</th><th>Total GST</th><th>Grand Total</th><th>Payment</th><th></th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="8" class="emptyNote">Loading…</td></tr></tbody>
         </table></div>
       </div>
     `;
@@ -193,6 +235,8 @@
     if (canEdit) {
       document.getElementById('fInvoiceDate').value = isoDate(new Date());
       await loadCompanyProfile();
+      await loadProfilesForLinking();
+      await loadRevenueCodeId();
       await suggestNextInvoiceNumber();
       addLineItem();
     }
@@ -254,6 +298,34 @@
     msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved.';
     company = { ...company, ...payload };
     onBuyerStateChange();
+  }
+
+  // ── Linking buyer to an existing profile ──
+  async function loadProfilesForLinking() {
+    const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, customer_id, role').neq('role','pending').order('full_name');
+    allProfiles = data || [];
+    const sel = document.getElementById('fBuyerProfile');
+    sel.innerHTML = '<option value="">— External buyer, not in the system —</option>' +
+      allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)} (${escapeHtml(roleLabel(p.role))}${p.customer_id ? ' · ' + escapeHtml(p.customer_id) : ''})</option>`).join('');
+  }
+
+  function roleLabel(role) {
+    return ({ investor: 'Investor', director_1: 'Director', director_2: 'Director', fico_investor: 'FICO Investor',
+      subscriber: 'Subscriber', accountant: 'Accountant', super_admin: 'Super Admin' })[role] || role;
+  }
+
+  function onBuyerProfileChange() {
+    const id = document.getElementById('fBuyerProfile').value;
+    if (!id) return;
+    const p = allProfiles.find(x => x.id === id);
+    if (p && !document.getElementById('fBuyerName').value.trim()) {
+      document.getElementById('fBuyerName').value = p.full_name || p.email;
+    }
+  }
+
+  async function loadRevenueCodeId() {
+    const { data } = await VIPL.sb.from('common_codes').select('id, label').ilike('label', 'Revenue').limit(1);
+    revenueCodeId = data && data[0] ? data[0].id : null;
   }
 
   // ── Invoice numbering ──
@@ -340,7 +412,7 @@
     document.getElementById('tIgstRow').style.display = interState === true ? 'flex' : 'none';
   }
 
-  // ── Save invoice ──
+  // ── Save invoice (+ optional matching ledger entry) ──
   async function saveInvoice() {
     const msg = document.getElementById('genMsg');
     const buyerName = document.getElementById('fBuyerName').value.trim();
@@ -360,6 +432,8 @@
     const cgst = interState ? 0 : totalTax / 2;
     const sgst = interState ? 0 : totalTax / 2;
     const igst = interState ? totalTax : 0;
+    const buyerProfileId = document.getElementById('fBuyerProfile').value || null;
+    const paymentMethod = document.querySelector('input[name=paymentMethod]:checked').value; // none | cash | bank
 
     const invoicePayload = {
       invoice_number: invoiceNumber,
@@ -369,6 +443,7 @@
       buyer_address: document.getElementById('fBuyerAddress').value.trim() || null,
       buyer_state: document.getElementById('fBuyerState').value.trim() || null,
       place_of_supply: document.getElementById('fBuyerState').value.trim() || null,
+      buyer_profile_id: buyerProfileId,
       subtotal, cgst_amount: cgst, sgst_amount: sgst, igst_amount: igst,
       total_amount: subtotal + cgst + sgst + igst,
       notes: document.getElementById('fNotes').value.trim() || null,
@@ -392,7 +467,14 @@
     const { error: lineErr } = await VIPL.sb.from('invoice_line_items').insert(lineRows);
     if (lineErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice saved but line items failed: ' + lineErr.message; return; }
 
-    msg.style.color = 'var(--green)'; msg.textContent = '✓ Invoice saved.';
+    if (paymentMethod !== 'none') {
+      const { error: payErr } = await recordPaymentForInvoice(inv, buyerProfileId, paymentMethod, validLines);
+      if (payErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice saved, but the ledger entry failed: ' + payErr.message; await loadHistory(); return; }
+    }
+
+    msg.style.color = 'var(--green)'; msg.textContent = paymentMethod !== 'none'
+      ? '✓ Invoice saved and added to the ledger as revenue.'
+      : '✓ Invoice saved. Not yet in the ledger — mark it received once payment comes in.';
     downloadInvoicePDF(inv, lineRows);
 
     // Reset form for the next invoice
@@ -400,11 +482,70 @@
     document.getElementById('fBuyerGstin').value = '';
     document.getElementById('fBuyerAddress').value = '';
     document.getElementById('fBuyerState').value = '';
+    document.getElementById('fBuyerProfile').value = '';
     document.getElementById('fNotes').value = '';
+    document.querySelector('input[name=paymentMethod][value=none]').checked = true;
     lineItems = [];
     addLineItem();
     onBuyerStateChange();
     await suggestNextInvoiceNumber();
+    await loadHistory();
+  }
+
+  // Creates the matching ledger entry for a received payment, links it back to the invoice, and marks the invoice received.
+  // Called both at invoice creation time (if payment already received) and later via "Mark as Received."
+  async function recordPaymentForInvoice(inv, buyerProfileId, paymentMethod, lines) {
+    let partyType = null;
+    if (buyerProfileId) {
+      const p = allProfiles.find(x => x.id === buyerProfileId) || (await VIPL.sb.from('profiles').select('role').eq('id', buyerProfileId).single()).data;
+      if (p) partyType = partyTypeForRole(p.role);
+    }
+    // A single overall GST rate on the ledger row only makes sense if every line shares one rate.
+    const rates = (lines || []).map(l => Number(l.gst_rate ?? l.rate ?? 0));
+    const uniformRate = rates.length && rates.every(r => r === rates[0]) ? rates[0] : null;
+
+    const ledgerRow = {
+      entry_date: inv.invoice_date,
+      particulars: `Invoice ${inv.invoice_number} — ${inv.buyer_name}`,
+      description: 'Invoice revenue',
+      cash_credit: paymentMethod === 'cash' ? inv.total_amount : 0,
+      cash_debit: 0,
+      bank_credit: paymentMethod === 'bank' ? inv.total_amount : 0,
+      bank_debit: 0,
+      party_type: partyType,
+      party_profile_id: buyerProfileId,
+      common_code_id: revenueCodeId,
+      created_by: VIPL.user.id,
+      invoice_number: inv.invoice_number,
+      gstin: inv.buyer_gstin,
+      taxable_value: inv.subtotal,
+      gst_rate: uniformRate,
+      cgst_amount: inv.cgst_amount,
+      sgst_amount: inv.sgst_amount,
+      igst_amount: inv.igst_amount
+    };
+    const { data: entry, error: entryErr } = await VIPL.sb.from('ledger_entries').insert(ledgerRow).select().single();
+    if (entryErr) return { error: entryErr };
+
+    const { error: updErr } = await VIPL.sb.from('invoices').update({
+      linked_ledger_entry_id: entry.id, payment_status: 'received'
+    }).eq('id', inv.id);
+    return { error: updErr };
+  }
+
+  async function markInvoiceReceived(id) {
+    const method = prompt('Received as "cash" or "bank"?', 'bank');
+    if (!method || !['cash','bank'].includes(method.trim().toLowerCase())) {
+      if (method !== null) alert('Please type exactly "cash" or "bank".');
+      return;
+    }
+    const { data: inv, error } = await VIPL.sb.from('invoices').select('*').eq('id', id).single();
+    if (error) { alert(error.message); return; }
+    const { data: lines } = await VIPL.sb.from('invoice_line_items').select('*').eq('invoice_id', id);
+    if (!revenueCodeId) await loadRevenueCodeId();
+    if (!allProfiles.length) await loadProfilesForLinking();
+    const { error: payErr } = await recordPaymentForInvoice(inv, inv.buyer_profile_id, method.trim().toLowerCase(), lines || []);
+    if (payErr) { alert(payErr.message); return; }
     await loadHistory();
   }
 
@@ -520,8 +661,26 @@
     downloadInvoicePDF(inv, lines || []);
   }
 
+  // Cancel: the correct path for a mistaken or void invoice. Keeps the row and invoice_number
+  // (never deleted) so the sequential numbering stays intact for GST audit purposes.
+  async function cancelInvoice(id, invoiceNumber, hasLinkedLedgerEntry, linkedAmount) {
+    const reason = prompt(`Cancel invoice ${invoiceNumber}? Enter a reason (optional):`);
+    if (reason === null) return; // user hit Cancel on the prompt itself
+    const { error } = await VIPL.sb.from('invoices').update({
+      status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_reason: reason || null
+    }).eq('id', id);
+    if (error) { alert(error.message); return; }
+    if (hasLinkedLedgerEntry) {
+      alert(`Invoice ${invoiceNumber} is cancelled. It had a linked ledger entry for ${fmt(linkedAmount)} — go to Ledger Entry and reverse or delete that transaction manually if the money needs to come back out. It was left untouched on purpose.`);
+    }
+    await loadHistory();
+  }
+
+  // Hard delete: only for a genuine duplicate/accidental row with zero real-world consequence
+  // (no one has seen the PDF, no linked ledger entry). Breaks sequential numbering — use Cancel instead
+  // for anything that was actually issued. Restricted to Super Admin.
   async function deleteInvoice(id, invoiceNumber) {
-    if (!confirm(`Delete invoice ${invoiceNumber}? This cannot be undone.`)) return;
+    if (!confirm(`Permanently delete invoice ${invoiceNumber}? This breaks sequential invoice numbering and cannot be undone. Only do this for an accidental duplicate that was never actually issued — use Cancel instead for anything real.`)) return;
     const { error } = await VIPL.sb.from('invoices').delete().eq('id', id);
     if (error) { alert(error.message); return; }
     await loadHistory();
@@ -530,25 +689,44 @@
   async function loadHistory() {
     const tbody = document.getElementById('historyBody');
     const { data, error } = await VIPL.sb.from('invoices').select('*').order('invoice_date', { ascending: false }).order('created_at', { ascending: false });
-    if (error) { tbody.innerHTML = `<tr><td colspan="7" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    if (error) { tbody.innerHTML = `<tr><td colspan="8" style="color:#C0392B">${error.message}</td></tr>`; return; }
     allInvoices = data || [];
-    if (!allInvoices.length) { tbody.innerHTML = `<tr><td colspan="7" class="emptyNote">No invoices issued yet.</td></tr>`; return; }
+    if (!allInvoices.length) { tbody.innerHTML = `<tr><td colspan="8" class="emptyNote">No invoices issued yet.</td></tr>`; return; }
     tbody.innerHTML = allInvoices.map(inv => {
       const totalGst = Number(inv.cgst_amount||0) + Number(inv.sgst_amount||0) + Number(inv.igst_amount||0);
+      const received = inv.payment_status === 'received';
+      const isCancelled = inv.status === 'cancelled';
+      const rowStyle = isCancelled ? ' style="opacity:.55;text-decoration:line-through"' : '';
+
+      let paymentCell;
+      if (isCancelled) {
+        paymentCell = `<span class="pill" style="background:#FEE2E2;color:#C0392B">Cancelled</span>`;
+      } else if (received) {
+        paymentCell = '<span class="pill received">✓ In Ledger</span>';
+      } else if (canEdit) {
+        paymentCell = `<span class="pill unpaid">Unpaid</span> <button class="btn btnAmber btnSm" style="margin-top:4px" onclick="markInvoiceReceived('${inv.id}')">Mark Received</button>`;
+      } else {
+        paymentCell = '<span class="pill unpaid">Unpaid</span>';
+      }
+
+      let actionsCell = `<button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">Download</button>`;
+      if (canEdit && !isCancelled) {
+        actionsCell += ` <button class="btn btnDanger btnSm" onclick="cancelInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}',${received},${inv.total_amount})">Cancel</button>`;
+      }
+      if (myRole === 'super_admin' && !received) {
+        actionsCell += ` <button class="btn btnGhost btnSm" style="color:#C0392B" onclick="deleteInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}')">Delete</button>`;
+      }
+
       return `
-        <tr>
+        <tr${rowStyle}>
           <td><strong>${escapeHtml(inv.invoice_number)}</strong></td>
           <td>${inv.invoice_date}</td>
           <td>${escapeHtml(inv.buyer_name)}</td>
           <td>${fmt(inv.subtotal)}</td>
           <td>${fmt(totalGst)}</td>
           <td><strong>${fmt(inv.total_amount)}</strong></td>
-          <td>
-            <div class="actionRow" style="margin:0">
-              <button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">Download</button>
-              ${canEdit ? `<button class="btn btnDanger btnSm" onclick="deleteInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}')">Delete</button>` : ''}
-            </div>
-          </td>
+          <td>${paymentCell}</td>
+          <td><div class="actionRow" style="margin:0">${actionsCell}</div></td>
         </tr>`;
     }).join('');
   }
