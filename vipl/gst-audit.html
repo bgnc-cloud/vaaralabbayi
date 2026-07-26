@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GST / Audit — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .card .cardSub { font-size: 12.5px; color: var(--g3); margin-bottom: 18px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .periodTabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .periodTab {
+    padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); background: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer; color: var(--ink); transition: all .15s;
+  }
+  .periodTab:hover { border-color: var(--blue); }
+  .periodTab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+  .fieldRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap: 14px; margin-bottom: 16px; }
+  .fieldRow label { font-size: 11.5px; font-weight: 700; color: var(--g3); text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 6px; }
+  .fieldRow select, .fieldRow input {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color .15s;
+  }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnSm { padding: 6px 12px; font-size: 12px; }
+  .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 24px; }
+  .summaryBox { background: var(--off); border-radius: 10px; padding: 14px 16px; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .summaryBox .lbl { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+  .summaryBox.warn .val { color: #B7791F; }
+
+  .filterRow { display: flex; align-items: center; gap: 10px; margin: 4px 0 16px; font-size: 13px; color: var(--g3); }
+  .filterRow input[type=checkbox] { width: auto; accent-color: var(--blue); }
+
+  table.gstTable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.gstTable th {
+    text-align: left; padding: 9px 10px; background: #FAFBFC; color: var(--g3);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  table.gstTable td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: middle; }
+  table.gstTable tr:hover td { background: #FAFBFD; }
+  .tagBadge { display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; }
+  .tagBadge.tagged { background: #EAF3DE; color: #15803D; }
+  .tagBadge.untagged { background: #FFF7ED; color: #9A5B0F; }
+  .editInput { width: 90px; padding: 5px 6px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; font-family: inherit; }
+  .editInput.wide { width: 130px; }
+  .editActions { display: flex; gap: 6px; }
+  .tableWrap { overflow-x: auto; }
+  .emptyNote { text-align: center; color: var(--g3); padding: 24px; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">GST / Audit</h1>
+    <div class="lead" id="pageLead" style="font-size:14px;color:var(--g3);margin-bottom:24px;margin-top:-12px"></div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function fmtPlain(n) { return Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
+  const EDIT_ROLES = ['super_admin','accountant'];
+
+  let myRole = null;
+  let canEdit = false;
+  let periodType = 'financial_year';
+  let profileMap = {};
+  let allRows = [];
+  let currentEntries = [];
+  let showUntaggedOnly = false;
+  let editingId = null;
+
+  function fyKeyOf(dateStr) {
+    const d = new Date(dateStr); const m = d.getMonth() + 1, y = d.getFullYear();
+    return m >= 4 ? y : y - 1;
+  }
+  // Local-date builder — never use toISOString() for calendar dates (UTC shift bites IST users)
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  window.onVIPLReady = async function() {
+    myRole = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(myRole)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+    canEdit = EDIT_ROLES.includes(myRole);
+    document.getElementById('pageLead').textContent = canEdit
+      ? 'GST summary and per-entry tagging, for GSTR filing and audit prep.'
+      : 'GST summary and full ledger detail, for audit and tax filing reference.';
+
+    document.getElementById('pageContent').innerHTML = `
+      <div class="card">
+        <h2>Period</h2>
+        <div class="cardSub">Choose a period to summarize and export.</div>
+        <div class="periodTabs" id="periodTabs">
+          <button class="periodTab" data-type="month" onclick="setPeriodType('month')">Month</button>
+          <button class="periodTab" data-type="quarter" onclick="setPeriodType('quarter')">Quarter</button>
+          <button class="periodTab" data-type="year" onclick="setPeriodType('year')">Calendar Year</button>
+          <button class="periodTab active" data-type="financial_year" onclick="setPeriodType('financial_year')">Financial Year</button>
+          <button class="periodTab" data-type="all" onclick="setPeriodType('all')">All Time</button>
+        </div>
+        <div class="fieldRow" id="periodFields"></div>
+        <div class="actionRow">
+          <button class="btn btnPrimary" onclick="loadData()">Refresh</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>GST Summary</h2>
+        <div class="cardSub">Only entries tagged with a GST rate are counted below.</div>
+        <div class="summaryGrid" id="summaryGrid"></div>
+        <div class="actionRow">
+          <button class="btn btnGreen" onclick="exportCSV()">⬇️ Export CSV</button>
+          <button class="btn btnGhost" onclick="exportPDF()">⬇️ Export PDF</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Entries</h2>
+        <div class="cardSub">${canEdit ? 'Click Edit to tag an entry with GST details.' : 'View-only.'}</div>
+        <div class="filterRow">
+          <input type="checkbox" id="untaggedOnly" onchange="toggleUntaggedFilter()">
+          <label for="untaggedOnly">Show untagged entries only</label>
+        </div>
+        <div class="tableWrap"><table class="gstTable">
+          <thead><tr>
+            <th>Date</th><th>Particulars</th><th>Party</th><th>Invoice #</th><th>GSTIN</th><th>HSN/SAC</th>
+            <th>Taxable Value</th><th>Rate %</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total GST</th><th>Status</th>${canEdit ? '<th></th>' : ''}
+          </tr></thead>
+          <tbody id="gstTableBody"></tbody>
+        </table></div>
+      </div>
+    `;
+    setPeriodType('financial_year');
+
+    // Party names — relies on current_user_is_privileged() including auditor_team
+    const { data: profiles } = await VIPL.sb.from('profiles').select('id, full_name, email');
+    (profiles || []).forEach(p => { profileMap[p.id] = p.full_name || p.email; });
+
+    await loadData();
+  };
+
+  function setPeriodType(type) {
+    periodType = type;
+    document.querySelectorAll('.periodTab').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    renderPeriodFields();
+  }
+
+  function renderPeriodFields() {
+    const now = new Date();
+    const wrap = document.getElementById('periodFields');
+    if (periodType === 'month') {
+      const val = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
+      wrap.innerHTML = `<div><label>Month</label><input type="month" id="pMonth" value="${val}"></div>`;
+    } else if (periodType === 'quarter') {
+      const y = now.getFullYear();
+      const q = Math.floor(now.getMonth()/3) + 1;
+      wrap.innerHTML = `
+        <div><label>Year</label><input type="number" id="pYear" value="${y}" min="2020" max="2100"></div>
+        <div><label>Quarter</label><select id="pQuarter">
+          <option value="1"${q===1?' selected':''}>Q1 (Jan–Mar)</option>
+          <option value="2"${q===2?' selected':''}>Q2 (Apr–Jun)</option>
+          <option value="3"${q===3?' selected':''}>Q3 (Jul–Sep)</option>
+          <option value="4"${q===4?' selected':''}>Q4 (Oct–Dec)</option>
+        </select></div>`;
+    } else if (periodType === 'year') {
+      wrap.innerHTML = `<div><label>Calendar Year</label><input type="number" id="pYear" value="${now.getFullYear()}" min="2020" max="2100"></div>`;
+    } else if (periodType === 'financial_year') {
+      const fy = fyKeyOf(now.toISOString());
+      wrap.innerHTML = `<div><label>Financial Year</label><input type="number" id="pYear" value="${fy}" min="2020" max="2100" oninput="updateFYLabel()"></div>
+        <div style="align-self:end;font-size:12.5px;color:var(--g3);padding-bottom:10px" id="fyLabel">Apr ${fy} – Mar ${fy+1}</div>`;
+    } else {
+      wrap.innerHTML = `<div style="align-self:end;font-size:12.5px;color:var(--g3);padding-bottom:10px">Every entry in the ledger, regardless of date.</div>`;
+    }
+  }
+
+  function updateFYLabel() {
+    const input = document.getElementById('pYear');
+    const el = document.getElementById('fyLabel');
+    if (!input || !el) return;
+    const fy = parseInt(input.value, 10);
+    if (isNaN(fy)) return;
+    el.textContent = `Apr ${fy} – Mar ${fy+1}`;
+  }
+
+  function getPeriodRange() {
+    if (periodType === 'all') return null;
+    if (periodType === 'month') {
+      const [y,m] = document.getElementById('pMonth').value.split('-').map(Number);
+      return { start: isoDate(new Date(y, m-1, 1)), end: isoDate(new Date(y, m, 0)) };
+    } else if (periodType === 'quarter') {
+      const y = parseInt(document.getElementById('pYear').value,10);
+      const q = parseInt(document.getElementById('pQuarter').value,10);
+      const startMonth = (q-1)*3;
+      return { start: isoDate(new Date(y, startMonth, 1)), end: isoDate(new Date(y, startMonth+3, 0)) };
+    } else if (periodType === 'year') {
+      const y = parseInt(document.getElementById('pYear').value,10);
+      return { start: isoDate(new Date(y,0,1)), end: isoDate(new Date(y,11,31)) };
+    } else {
+      const fy = parseInt(document.getElementById('pYear').value,10);
+      return { start: isoDate(new Date(fy,3,1)), end: isoDate(new Date(fy+1,2,31)) };
+    }
+  }
+
+  const GST_COLUMNS = 'id, entry_date, particulars, party_profile_id, cash_credit, cash_debit, bank_credit, bank_debit, gstin, invoice_number, hsn_sac_code, taxable_value, gst_rate, cgst_amount, sgst_amount, igst_amount, gst_notes';
+
+  async function loadData() {
+    const tbody = document.getElementById('gstTableBody');
+    tbody.innerHTML = `<tr><td colspan="14" class="emptyNote">Loading…</td></tr>`;
+    const range = getPeriodRange();
+    let q = VIPL.sb.from('ledger_entries').select(GST_COLUMNS).order('entry_date').order('created_at');
+    if (range) q = q.gte('entry_date', range.start).lte('entry_date', range.end);
+    const { data, error } = await q;
+    if (error) { tbody.innerHTML = `<tr><td colspan="14" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    allRows = data || [];
+    renderSummary();
+    renderTable();
+  }
+
+  function renderSummary() {
+    const tagged = allRows.filter(r => r.gst_rate !== null && r.gst_rate !== undefined);
+    const taxable = tagged.reduce((s,r) => s + Number(r.taxable_value||0), 0);
+    const cgst = tagged.reduce((s,r) => s + Number(r.cgst_amount||0), 0);
+    const sgst = tagged.reduce((s,r) => s + Number(r.sgst_amount||0), 0);
+    const igst = tagged.reduce((s,r) => s + Number(r.igst_amount||0), 0);
+    const totalGst = cgst + sgst + igst;
+    const untaggedCount = allRows.length - tagged.length;
+
+    document.getElementById('summaryGrid').innerHTML = `
+      <div class="summaryBox"><div class="val">${allRows.length}</div><div class="lbl">Entries in Period</div></div>
+      <div class="summaryBox"><div class="val">${tagged.length}</div><div class="lbl">GST-Tagged</div></div>
+      <div class="summaryBox${untaggedCount ? ' warn' : ''}"><div class="val">${untaggedCount}</div><div class="lbl">Untagged</div></div>
+      <div class="summaryBox"><div class="val">${fmt(taxable)}</div><div class="lbl">Taxable Value</div></div>
+      <div class="summaryBox"><div class="val">${fmt(cgst)}</div><div class="lbl">Total CGST</div></div>
+      <div class="summaryBox"><div class="val">${fmt(sgst)}</div><div class="lbl">Total SGST</div></div>
+      <div class="summaryBox"><div class="val">${fmt(igst)}</div><div class="lbl">Total IGST</div></div>
+      <div class="summaryBox"><div class="val">${fmt(totalGst)}</div><div class="lbl">Total GST</div></div>
+    `;
+  }
+
+  function toggleUntaggedFilter() {
+    showUntaggedOnly = document.getElementById('untaggedOnly').checked;
+    renderTable();
+  }
+
+  function renderTable() {
+    currentEntries = showUntaggedOnly
+      ? allRows.filter(r => r.gst_rate === null || r.gst_rate === undefined)
+      : allRows;
+
+    const tbody = document.getElementById('gstTableBody');
+    if (!currentEntries.length) {
+      tbody.innerHTML = `<tr><td colspan="${canEdit?14:13}" class="emptyNote">No entries match.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = currentEntries.map(r => {
+      if (editingId === r.id) return renderEditRow(r);
+      const isTagged = r.gst_rate !== null && r.gst_rate !== undefined;
+      const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
+      const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '—') : '—';
+      return `
+        <tr>
+          <td>${r.entry_date}</td>
+          <td>${escapeHtml(r.particulars||'')}</td>
+          <td>${escapeHtml(partyName)}</td>
+          <td>${escapeHtml(r.invoice_number||'—')}</td>
+          <td>${escapeHtml(r.gstin||'—')}</td>
+          <td>${escapeHtml(r.hsn_sac_code||'—')}</td>
+          <td>${r.taxable_value ? fmt(r.taxable_value) : '—'}</td>
+          <td>${r.gst_rate !== null && r.gst_rate !== undefined ? r.gst_rate + '%' : '—'}</td>
+          <td>${r.cgst_amount ? fmt(r.cgst_amount) : '—'}</td>
+          <td>${r.sgst_amount ? fmt(r.sgst_amount) : '—'}</td>
+          <td>${r.igst_amount ? fmt(r.igst_amount) : '—'}</td>
+          <td>${fmt(totalGst)}</td>
+          <td><span class="tagBadge ${isTagged?'tagged':'untagged'}">${isTagged?'Tagged':'Untagged'}</span></td>
+          ${canEdit ? `<td><button class="btn btnGhost btnSm" onclick="startEdit('${r.id}')">Edit</button></td>` : ''}
+        </tr>`;
+    }).join('');
+  }
+
+  function renderEditRow(r) {
+    return `
+      <tr>
+        <td>${r.entry_date}</td>
+        <td colspan="2">${escapeHtml(r.particulars||'')}</td>
+        <td><input class="editInput wide" id="e_invoice" placeholder="Invoice #" value="${escapeHtml(r.invoice_number||'')}"></td>
+        <td><input class="editInput wide" id="e_gstin" placeholder="GSTIN" value="${escapeHtml(r.gstin||'')}"></td>
+        <td><input class="editInput" id="e_hsn" placeholder="HSN/SAC" value="${escapeHtml(r.hsn_sac_code||'')}"></td>
+        <td><input class="editInput" id="e_taxable" type="number" step="0.01" placeholder="0.00" value="${r.taxable_value ?? ''}"></td>
+        <td><input class="editInput" id="e_rate" type="number" step="0.01" placeholder="%" value="${r.gst_rate ?? ''}" style="width:56px"></td>
+        <td><input class="editInput" id="e_cgst" type="number" step="0.01" value="${r.cgst_amount ?? 0}" style="width:70px"></td>
+        <td><input class="editInput" id="e_sgst" type="number" step="0.01" value="${r.sgst_amount ?? 0}" style="width:70px"></td>
+        <td><input class="editInput" id="e_igst" type="number" step="0.01" value="${r.igst_amount ?? 0}" style="width:70px"></td>
+        <td colspan="2">
+          <div class="editActions">
+            <button class="btn btnGhost btnSm" onclick="splitCgstSgst()" title="Split taxable × rate evenly into CGST+SGST">→CGST/SGST</button>
+            <button class="btn btnGhost btnSm" onclick="fillIgst()" title="Put taxable × rate entirely into IGST">→IGST</button>
+          </div>
+        </td>
+        <td>
+          <div class="editActions">
+            <button class="btn btnPrimary btnSm" onclick="saveEdit('${r.id}')">Save</button>
+            <button class="btn btnGhost btnSm" onclick="cancelEdit()">Cancel</button>
+          </div>
+        </td>
+      </tr>`;
+  }
+
+  function startEdit(id) { editingId = id; renderTable(); }
+  function cancelEdit() { editingId = null; renderTable(); }
+
+  function splitCgstSgst() {
+    const taxable = parseFloat(document.getElementById('e_taxable').value) || 0;
+    const rate = parseFloat(document.getElementById('e_rate').value) || 0;
+    const half = (taxable * rate / 100) / 2;
+    document.getElementById('e_cgst').value = half.toFixed(2);
+    document.getElementById('e_sgst').value = half.toFixed(2);
+    document.getElementById('e_igst').value = 0;
+  }
+  function fillIgst() {
+    const taxable = parseFloat(document.getElementById('e_taxable').value) || 0;
+    const rate = parseFloat(document.getElementById('e_rate').value) || 0;
+    document.getElementById('e_igst').value = (taxable * rate / 100).toFixed(2);
+    document.getElementById('e_cgst').value = 0;
+    document.getElementById('e_sgst').value = 0;
+  }
+
+  async function saveEdit(id) {
+    const payload = {
+      invoice_number: document.getElementById('e_invoice').value.trim() || null,
+      gstin: document.getElementById('e_gstin').value.trim() || null,
+      hsn_sac_code: document.getElementById('e_hsn').value.trim() || null,
+      taxable_value: document.getElementById('e_taxable').value !== '' ? parseFloat(document.getElementById('e_taxable').value) : null,
+      gst_rate: document.getElementById('e_rate').value !== '' ? parseFloat(document.getElementById('e_rate').value) : null,
+      cgst_amount: parseFloat(document.getElementById('e_cgst').value) || 0,
+      sgst_amount: parseFloat(document.getElementById('e_sgst').value) || 0,
+      igst_amount: parseFloat(document.getElementById('e_igst').value) || 0,
+    };
+    const { error } = await VIPL.sb.from('ledger_entries').update(payload).eq('id', id);
+    if (error) { alert(error.message); return; }
+    editingId = null;
+    await loadData();
+  }
+
+  function exportCSV() {
+    const headers = ['Date','Particulars','Party','Invoice No','GSTIN','HSN/SAC','Taxable Value','GST Rate %','CGST','SGST','IGST','Total GST','Status'];
+    const lines = [headers.join(',')];
+    currentEntries.forEach(r => {
+      const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
+      const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
+      const isTagged = r.gst_rate !== null && r.gst_rate !== undefined;
+      const row = [
+        r.entry_date, r.particulars||'', partyName, r.invoice_number||'', r.gstin||'', r.hsn_sac_code||'',
+        r.taxable_value ?? '', r.gst_rate ?? '', r.cgst_amount ?? 0, r.sgst_amount ?? 0, r.igst_amount ?? 0,
+        totalGst, isTagged ? 'Tagged' : 'Untagged'
+      ].map(v => `"${String(v).replace(/"/g,'""')}"`);
+      lines.push(row.join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `VIPL-GST-${periodType}-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function exportPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFont('helvetica','bold'); doc.setFontSize(14);
+    doc.text('VIPL Internal — GST / Audit Export', 14, 16);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 22);
+
+    const head = [['Date','Particulars','Party','Invoice #','GSTIN','HSN/SAC','Taxable Value','Rate %','CGST','SGST','IGST','Total GST']];
+    const body = currentEntries.map(r => {
+      const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
+      const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
+      return [
+        r.entry_date, r.particulars||'', partyName, r.invoice_number||'—', r.gstin||'—', r.hsn_sac_code||'—',
+        r.taxable_value ? fmtPlain(r.taxable_value) : '—', r.gst_rate ?? '—',
+        r.cgst_amount ? fmtPlain(r.cgst_amount) : '—', r.sgst_amount ? fmtPlain(r.sgst_amount) : '—',
+        r.igst_amount ? fmtPlain(r.igst_amount) : '—', fmtPlain(totalGst)
+      ];
+    });
+    doc.autoTable({ head, body, startY: 28, styles: { fontSize: 7 }, headStyles: { fillColor: [11,29,46] } });
+    doc.save(`VIPL-GST-${periodType}-${new Date().toISOString().slice(0,10)}.pdf`);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
