@@ -86,7 +86,7 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
-  const ALLOWED_ROLES = ['super_admin','accountant'];
+  const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
