@@ -757,14 +757,30 @@
 
     const logoDataUrl = await loadLogoDataUrl();
     const logoX = 14, logoY = 7, logoSize = 20;
+    const logoR = logoSize / 2;
+    const logoCx = logoX + logoR, logoCy = logoY + logoR;
     if (logoDataUrl) {
-      try { doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize); } catch (e) { /* fall through with no logo */ }
+      try {
+        doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize);
+        // Fake a circular crop with only rock-solid primitives (no image-clipping API, which isn't
+        // reliable across jsPDF versions). Mask the four square corners into the banner color using
+        // rectangles sized to exactly touch the circle's edge (m = r·(1−1/√2)), then stroke a clean
+        // white ring on top — this is what makes it read as a deliberate medallion, not a stray square.
+        const m = logoR * 0.285;
+        doc.setFillColor(...navy);
+        doc.rect(logoX, logoY, m, m, 'F');
+        doc.rect(logoX + logoSize - m, logoY, m, m, 'F');
+        doc.rect(logoX, logoY + logoSize - m, m, m, 'F');
+        doc.rect(logoX + logoSize - m, logoY + logoSize - m, m, m, 'F');
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.6);
+        doc.circle(logoCx, logoCy, logoR, 'S');
+      } catch (e) { /* fall through with no logo */ }
     } else {
       const initials = (company?.company_name || 'VI').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
       doc.setFillColor(255,255,255);
-      doc.circle(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 'F');
+      doc.circle(logoCx, logoCy, logoR, 'F');
       doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-      doc.text(initials, logoX + logoSize/2, logoY + logoSize/2 + 3, { align: 'center' });
+      doc.text(initials, logoCx, logoCy + 3, { align: 'center' });
     }
 
     const textX = logoX + logoSize + 6;
