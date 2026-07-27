@@ -137,6 +137,7 @@
   let allInvoices = [];
   let allProfiles = [];
   let revenueCodeId = null;
+  let editingInvoiceId = null;
 
   function isoDate(d) {
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -176,8 +177,8 @@
         </div>
 
         <div class="card">
-          <h2>Create Invoice</h2>
-          <div class="cardSub">Fill in buyer details and line items. Tax splits automatically based on buyer's state.</div>
+          <h2 id="createCardTitle">Create Invoice</h2>
+          <div class="cardSub" id="createCardSub">Fill in buyer details and line items. Tax splits automatically based on buyer's state.</div>
           <div class="fieldRow">
             <div><label>Invoice Number</label><input type="text" id="fInvoiceNumber"></div>
             <div><label>Invoice Date</label><input type="date" id="fInvoiceDate"></div>
@@ -240,7 +241,8 @@
           </div>
 
           <div class="actionRow">
-            <button class="btn btnPrimary" onclick="saveInvoice()">Save &amp; Generate Invoice</button>
+            <button class="btn btnPrimary" id="saveInvoiceBtn" onclick="saveInvoice()">Save &amp; Generate Invoice</button>
+            <button class="btn btnGhost" id="cancelEditBtn" style="display:none" onclick="cancelEditInvoice()">Cancel Edit</button>
           </div>
           <div id="genMsg"></div>
         </div>
@@ -515,9 +517,21 @@
       created_by: VIPL.user.id
     };
 
-    msg.style.color = 'var(--g3)'; msg.textContent = 'Saving…';
-    const { data: inv, error: invErr } = await VIPL.sb.from('invoices').insert(invoicePayload).select().single();
-    if (invErr) { msg.style.color = '#C0392B'; msg.textContent = invErr.message; return; }
+    msg.style.color = 'var(--g3)'; msg.textContent = editingInvoiceId ? 'Updating…' : 'Saving…';
+
+    let inv;
+    if (editingInvoiceId) {
+      const { data, error } = await VIPL.sb.from('invoices').update(invoicePayload).eq('id', editingInvoiceId).select().single();
+      if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+      inv = data;
+      // Replace line items wholesale — simplest way to keep them exactly in sync with the edited form
+      const { error: delErr } = await VIPL.sb.from('invoice_line_items').delete().eq('invoice_id', inv.id);
+      if (delErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice updated but old line items failed to clear: ' + delErr.message; return; }
+    } else {
+      const { data, error } = await VIPL.sb.from('invoices').insert(invoicePayload).select().single();
+      if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+      inv = data;
+    }
 
     const lineRows = validLines.map((li, i) => ({
       invoice_id: inv.id,
@@ -532,15 +546,21 @@
     const { error: lineErr } = await VIPL.sb.from('invoice_line_items').insert(lineRows);
     if (lineErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice saved but line items failed: ' + lineErr.message; return; }
 
-    if (paymentMethod !== 'none') {
+    // Editing an existing invoice never touches the ledger here — edit is only allowed while
+    // an invoice is still unpaid, and payment is recorded separately via Mark Received.
+    if (!editingInvoiceId && paymentMethod !== 'none') {
       const { error: payErr } = await recordPaymentForInvoice(inv, buyerProfileId, paymentMethod, validLines);
       if (payErr) { msg.style.color = '#C0392B'; msg.textContent = 'Invoice saved, but the ledger entry failed: ' + payErr.message; await loadHistory(); return; }
     }
 
-    msg.style.color = 'var(--green)'; msg.textContent = paymentMethod !== 'none'
-      ? '✓ Invoice saved and added to the ledger as revenue.'
-      : '✓ Invoice saved. Not yet in the ledger — mark it received once payment comes in.';
+    const wasEditing = !!editingInvoiceId;
+    msg.style.color = 'var(--green)'; msg.textContent = wasEditing
+      ? '✓ Invoice updated.'
+      : (paymentMethod !== 'none'
+        ? '✓ Invoice saved and added to the ledger as revenue.'
+        : '✓ Invoice saved. Not yet in the ledger — mark it received once payment comes in.');
     await openInvoiceActionPanel(inv, lineRows);
+    if (wasEditing) exitEditMode();
 
     // Reset form for the next invoice
     document.getElementById('fBuyerName').value = '';
@@ -615,6 +635,70 @@
     await loadHistory();
   }
 
+  // Editing is only offered for unpaid, active invoices (see loadHistory) — once a payment/ledger
+  // entry exists, changing amounts here would silently desync from what's already been recorded.
+  async function editInvoiceRow(id) {
+    const { data: inv, error } = await VIPL.sb.from('invoices').select('*').eq('id', id).single();
+    if (error) { alert(error.message); return; }
+    const { data: lines, error: lineErr } = await VIPL.sb.from('invoice_line_items').select('*').eq('invoice_id', id).order('sort_order');
+    if (lineErr) { alert(lineErr.message); return; }
+
+    editingInvoiceId = id;
+    document.getElementById('fInvoiceNumber').value = inv.invoice_number;
+    document.getElementById('fInvoiceNumber').disabled = true;
+    document.getElementById('fInvoiceDate').value = inv.invoice_date;
+    document.getElementById('fBuyerProfile').value = inv.buyer_profile_id || '';
+    document.getElementById('fBuyerName').value = inv.buyer_name || '';
+    document.getElementById('fBuyerGstin').value = inv.buyer_gstin || '';
+    document.getElementById('fBuyerState').value = inv.buyer_state || '';
+    document.getElementById('fBuyerAddress').value = inv.buyer_address || '';
+    document.getElementById('fNotes').value = inv.notes || '';
+    document.getElementById('fShowBankDetails').checked = inv.show_bank_details !== false;
+
+    lineItems = (lines || []).map(l => ({
+      key: ++lineItemSeq, description: l.description || '', hsn: l.hsn_sac_code || '',
+      qty: Number(l.quantity) || 1, price: Number(l.unit_price) || 0, rate: Number(l.gst_rate) || 0
+    }));
+    if (!lineItems.length) addLineItem(); else renderLineItems();
+
+    document.querySelectorAll('input[name=paymentMethod]').forEach(r => { r.disabled = true; r.checked = (r.value === 'none'); });
+
+    document.getElementById('createCardTitle').textContent = `Editing Invoice ${inv.invoice_number}`;
+    document.getElementById('createCardSub').textContent = "Payment isn't changed here — use Mark Received in the history table below once you're done.";
+    document.getElementById('saveInvoiceBtn').textContent = 'Update Invoice';
+    document.getElementById('cancelEditBtn').style.display = 'inline-block';
+
+    onBuyerStateChange();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelEditInvoice() {
+    exitEditMode();
+    document.getElementById('fBuyerName').value = '';
+    document.getElementById('fBuyerGstin').value = '';
+    document.getElementById('fBuyerAddress').value = '';
+    document.getElementById('fBuyerState').value = '';
+    document.getElementById('fBuyerProfile').value = '';
+    document.getElementById('fNotes').value = '';
+    document.getElementById('fShowBankDetails').checked = true;
+    lineItems = [];
+    addLineItem();
+    onBuyerStateChange();
+    suggestNextInvoiceNumber();
+    document.getElementById('genMsg').textContent = '';
+  }
+
+  function exitEditMode() {
+    editingInvoiceId = null;
+    document.getElementById('fInvoiceNumber').disabled = false;
+    document.querySelectorAll('input[name=paymentMethod]').forEach(r => { r.disabled = false; });
+    document.querySelector('input[name=paymentMethod][value=none]').checked = true;
+    document.getElementById('createCardTitle').textContent = 'Create Invoice';
+    document.getElementById('createCardSub').textContent = "Fill in buyer details and line items. Tax splits automatically based on buyer's state.";
+    document.getElementById('saveInvoiceBtn').textContent = 'Save & Generate Invoice';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+  }
+
   // ── PDF generation ──
   function numberToWordsINR(num) {
     const a = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
@@ -667,12 +751,12 @@
     const band = [240,247,255];
 
     // ── Header banner ──
-    const bannerH = 32;
+    const bannerH = 36;
     doc.setFillColor(...navy);
     doc.rect(0, 0, pageWidth, bannerH, 'F');
 
     const logoDataUrl = await loadLogoDataUrl();
-    const logoX = 14, logoY = 6, logoSize = 20;
+    const logoX = 14, logoY = 7, logoSize = 20;
     if (logoDataUrl) {
       try { doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize); } catch (e) { /* fall through with no logo */ }
     } else {
@@ -687,12 +771,12 @@
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(15);
     doc.text(company?.company_name || 'Company Name', textX, 14);
-    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
     let hy = 19;
     if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, textX, hy); hy += 4; }
     if (company?.address) {
-      const addrLines = doc.splitTextToSize(company.address, 95);
-      doc.text(addrLines[0] || '', textX, hy);
+      const addrLines = doc.splitTextToSize(company.address, 90).slice(0, 2);
+      doc.text(addrLines, textX, hy);
     }
 
     doc.setFont('helvetica','bold'); doc.setFontSize(13);
@@ -777,6 +861,9 @@
     let finalY = doc.lastAutoTable.finalY + 8;
 
     // ── Totals box ──
+    // jsPDF's built-in standard fonts (helvetica etc.) don't include the ₹ glyph — it silently
+    // renders as a broken "¹" character. Use "Rs." here instead; the on-screen UI still shows ₹ fine.
+    const fmtPdf = (n) => 'Rs. ' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const totalsBoxW = 84;
     const totalsBoxX = pageWidth - 14 - totalsBoxW;
     const totalsRowsCount = isInterStateInv ? 2 : 3;
@@ -786,20 +873,20 @@
     let ty = finalY + 7;
     doc.setFont('helvetica','normal'); doc.setFontSize(9);
     doc.setTextColor(100,110,125); doc.text('Subtotal', totalsBoxX + 6, ty);
-    doc.setTextColor(0,0,0); doc.text(fmt(inv.subtotal), pageWidth - 20, ty, { align: 'right' }); ty += 6;
+    doc.setTextColor(0,0,0); doc.text(fmtPdf(inv.subtotal), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     if (isInterStateInv) {
       doc.setTextColor(100,110,125); doc.text('IGST', totalsBoxX + 6, ty);
-      doc.setTextColor(0,0,0); doc.text(fmt(inv.igst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
+      doc.setTextColor(0,0,0); doc.text(fmtPdf(inv.igst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     } else {
       doc.setTextColor(100,110,125); doc.text('CGST', totalsBoxX + 6, ty);
-      doc.setTextColor(0,0,0); doc.text(fmt(inv.cgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
+      doc.setTextColor(0,0,0); doc.text(fmtPdf(inv.cgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
       doc.setTextColor(100,110,125); doc.text('SGST', totalsBoxX + 6, ty);
-      doc.setTextColor(0,0,0); doc.text(fmt(inv.sgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
+      doc.setTextColor(0,0,0); doc.text(fmtPdf(inv.sgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     }
     doc.setDrawColor(...navy); doc.line(totalsBoxX + 6, ty, pageWidth - 20, ty); ty += 6;
     doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...navy);
     doc.text('Grand Total', totalsBoxX + 6, ty);
-    doc.text(fmt(inv.total_amount), pageWidth - 20, ty, { align: 'right' });
+    doc.text(fmtPdf(inv.total_amount), pageWidth - 20, ty, { align: 'right' });
 
     finalY += totalsBoxH + 8;
     doc.setTextColor(0,0,0);
@@ -952,6 +1039,9 @@
       }
 
       let actionsCell = `<button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">View / Share</button>`;
+      if (canEdit && !isCancelled && !received) {
+        actionsCell += ` <button class="btn btnGhost btnSm" onclick="editInvoiceRow('${inv.id}')">Edit</button>`;
+      }
       if (canEdit && !isCancelled) {
         actionsCell += ` <button class="btn btnDanger btnSm" onclick="cancelInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}',${received},${inv.total_amount})">Cancel</button>`;
       }
