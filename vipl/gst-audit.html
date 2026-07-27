@@ -105,6 +105,7 @@
   let allRows = [];
   let currentEntries = [];
   let showNeedsAttentionOnly = false;
+  let categoryFilter = '';
   let editingId = null;
 
   function fyKeyOf(dateStr) {
@@ -121,6 +122,11 @@
     if (r.gst_not_applicable) return 'na';
     if (r.gst_rate !== null && r.gst_rate !== undefined) return 'tagged';
     return 'untagged';
+  }
+
+  // Only one of these four is ever non-zero on a given entry — this is just "how much did this transaction move"
+  function entryAmount(r) {
+    return Math.max(Number(r.cash_credit||0), Number(r.cash_debit||0), Number(r.bank_credit||0), Number(r.bank_debit||0));
   }
 
   window.onVIPLReady = async function() {
@@ -164,13 +170,18 @@
       <div class="card">
         <h2>Entries</h2>
         <div class="cardSub">${canEdit ? 'Click Edit to tag GST details, set the expense category, or mark an entry Not Applicable.' : 'View-only. Category shown is the same expense head used on the Financial Dashboard.'}</div>
-        <div class="filterRow">
+        <div class="filterRow" style="flex-wrap:wrap">
           <input type="checkbox" id="needsAttnOnly" onchange="toggleNeedsAttentionFilter()">
           <label for="needsAttnOnly">Show entries needing attention only (untagged, excluding N/A)</label>
         </div>
+        <div class="filterRow" style="flex-wrap:wrap">
+          <label style="margin-right:6px">Category:</label>
+          <select id="categoryFilter" onchange="onCategoryFilterChange()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit"></select>
+          <label style="margin-left:16px"><input type="checkbox" id="sortByAmount" onchange="renderTable()" style="width:auto;accent-color:var(--blue)"> Sort by amount (highest first)</label>
+        </div>
         <div class="tableWrap"><table class="gstTable">
           <thead><tr>
-            <th>Date</th><th>Particulars</th><th>Category</th><th>Party</th><th>Invoice #</th><th>GSTIN</th><th>HSN/SAC</th>
+            <th>Date</th><th>Particulars</th><th>Description</th><th>Amount</th><th>Category</th><th>Party</th><th>Invoice #</th><th>GSTIN</th><th>HSN/SAC</th>
             <th>Taxable Value</th><th>Rate %</th><th>CGST</th><th>SGST</th><th>IGST</th><th>Total GST</th><th>Status</th>${canEdit ? '<th></th>' : ''}
           </tr></thead>
           <tbody id="gstTableBody"></tbody>
@@ -186,6 +197,8 @@
     const { data: codes } = await VIPL.sb.from('common_codes').select('*').order('sort_order');
     allCodes = codes || [];
     allCodes.forEach(c => { codeMap[c.id] = c.label; });
+    document.getElementById('categoryFilter').innerHTML = `<option value="">All categories</option><option value="__none__">— No category —</option>` +
+      allCodes.map(c => `<option value="${c.id}">${escapeHtml(c.label)}</option>`).join('');
 
     await loadData();
   };
@@ -252,16 +265,16 @@
     }
   }
 
-  const GST_COLUMNS = 'id, entry_date, particulars, party_profile_id, common_code_id, cash_credit, cash_debit, bank_credit, bank_debit, gstin, invoice_number, hsn_sac_code, taxable_value, gst_rate, cgst_amount, sgst_amount, igst_amount, gst_notes, gst_not_applicable';
+  const GST_COLUMNS = 'id, entry_date, particulars, description, party_profile_id, common_code_id, cash_credit, cash_debit, bank_credit, bank_debit, gstin, invoice_number, hsn_sac_code, taxable_value, gst_rate, cgst_amount, sgst_amount, igst_amount, gst_notes, gst_not_applicable';
 
   async function loadData() {
     const tbody = document.getElementById('gstTableBody');
-    tbody.innerHTML = `<tr><td colspan="15" class="emptyNote">Loading…</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="17" class="emptyNote">Loading…</td></tr>`;
     const range = getPeriodRange();
     let q = VIPL.sb.from('ledger_entries').select(GST_COLUMNS).order('entry_date').order('created_at');
     if (range) q = q.gte('entry_date', range.start).lte('entry_date', range.end);
     const { data, error } = await q;
-    if (error) { tbody.innerHTML = `<tr><td colspan="15" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    if (error) { tbody.innerHTML = `<tr><td colspan="17" style="color:#C0392B">${error.message}</td></tr>`; return; }
     allRows = data || [];
     renderSummary();
     renderTable();
@@ -295,14 +308,29 @@
     renderTable();
   }
 
+  function onCategoryFilterChange() {
+    categoryFilter = document.getElementById('categoryFilter').value;
+    renderTable();
+  }
+
   function renderTable() {
     currentEntries = showNeedsAttentionOnly
       ? allRows.filter(r => gstStatus(r) === 'untagged')
       : allRows;
 
+    if (categoryFilter === '__none__') {
+      currentEntries = currentEntries.filter(r => !r.common_code_id);
+    } else if (categoryFilter) {
+      currentEntries = currentEntries.filter(r => r.common_code_id === categoryFilter);
+    }
+
+    if (document.getElementById('sortByAmount')?.checked) {
+      currentEntries = currentEntries.slice().sort((a,b) => entryAmount(b) - entryAmount(a));
+    }
+
     const tbody = document.getElementById('gstTableBody');
     if (!currentEntries.length) {
-      tbody.innerHTML = `<tr><td colspan="${canEdit?15:14}" class="emptyNote">No entries match.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${canEdit?17:16}" class="emptyNote">No entries match.</td></tr>`;
       return;
     }
 
@@ -321,6 +349,8 @@
         <tr>
           <td>${r.entry_date}</td>
           <td>${escapeHtml(r.particulars||'')}</td>
+          <td style="color:var(--g3)">${escapeHtml(r.description||'—')}</td>
+          <td style="font-weight:700">${fmt(entryAmount(r))}</td>
           <td>${catLabel !== '—' ? `<span class="catPill">${escapeHtml(catLabel)}</span>` : '—'}</td>
           <td>${escapeHtml(partyName)}</td>
           <td>${escapeHtml(r.invoice_number||'—')}</td>
@@ -345,6 +375,8 @@
       <tr>
         <td>${r.entry_date}</td>
         <td>${escapeHtml(r.particulars||'')}</td>
+        <td style="color:var(--g3)">${escapeHtml(r.description||'—')}</td>
+        <td style="font-weight:700">${fmt(entryAmount(r))}</td>
         <td><select class="editSelect" id="e_code">${codeOptions}</select></td>
         <td colspan="2"></td>
         <td><input class="editInput wide" id="e_invoice" placeholder="Invoice #" value="${escapeHtml(r.invoice_number||'')}"></td>
@@ -430,14 +462,14 @@
   }
 
   function exportCSV() {
-    const headers = ['Date','Particulars','Category','Party','Invoice No','GSTIN','HSN/SAC','Taxable Value','GST Rate %','CGST','SGST','IGST','Total GST','Status'];
+    const headers = ['Date','Particulars','Description','Amount','Category','Party','Invoice No','GSTIN','HSN/SAC','Taxable Value','GST Rate %','CGST','SGST','IGST','Total GST','Status'];
     const lines = [headers.join(',')];
     currentEntries.forEach(r => {
       const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
       const catLabel = r.common_code_id ? (codeMap[r.common_code_id] || '') : '';
       const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
       const row = [
-        r.entry_date, r.particulars||'', catLabel, partyName, r.invoice_number||'', r.gstin||'', r.hsn_sac_code||'',
+        r.entry_date, r.particulars||'', r.description||'', entryAmount(r), catLabel, partyName, r.invoice_number||'', r.gstin||'', r.hsn_sac_code||'',
         r.taxable_value ?? '', r.gst_rate ?? '', r.cgst_amount ?? 0, r.sgst_amount ?? 0, r.igst_amount ?? 0,
         totalGst, statusLabel(r)
       ].map(v => `"${String(v).replace(/"/g,'""')}"`);
@@ -460,13 +492,13 @@
     doc.setFontSize(9); doc.setFont('helvetica','normal');
     doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 14, 22);
 
-    const head = [['Date','Particulars','Category','Party','Invoice #','GSTIN','HSN/SAC','Taxable Value','Rate %','CGST','SGST','IGST','Total GST','Status']];
+    const head = [['Date','Particulars','Description','Amount','Category','Party','Invoice #','GSTIN','HSN/SAC','Taxable Value','Rate %','CGST','SGST','IGST','Total GST','Status']];
     const body = currentEntries.map(r => {
       const partyName = r.party_profile_id ? (profileMap[r.party_profile_id] || '') : '';
       const catLabel = r.common_code_id ? (codeMap[r.common_code_id] || '') : '—';
       const totalGst = Number(r.cgst_amount||0) + Number(r.sgst_amount||0) + Number(r.igst_amount||0);
       return [
-        r.entry_date, r.particulars||'', catLabel, partyName, r.invoice_number||'—', r.gstin||'—', r.hsn_sac_code||'—',
+        r.entry_date, r.particulars||'', r.description||'—', fmtPlain(entryAmount(r)), catLabel, partyName, r.invoice_number||'—', r.gstin||'—', r.hsn_sac_code||'—',
         r.taxable_value ? fmtPlain(r.taxable_value) : '—', r.gst_rate ?? '—',
         r.cgst_amount ? fmtPlain(r.cgst_amount) : '—', r.sgst_amount ? fmtPlain(r.sgst_amount) : '—',
         r.igst_amount ? fmtPlain(r.igst_amount) : '—', fmtPlain(totalGst), statusLabel(r)
