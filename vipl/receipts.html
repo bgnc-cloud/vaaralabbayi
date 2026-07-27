@@ -442,31 +442,22 @@
     doc.rect(0, 0, pageWidth, bannerH, 'F');
 
     const logoDataUrl = await loadLogoDataUrl();
-    const logoX = 14, logoY = 7, logoSize = 20;
-    const logoR = logoSize / 2;
-    const logoCx = logoX + logoR, logoCy = logoY + logoR;
+    const logoSize = 20;
+    const cardPad = 2.5, cardRadius = 4.5;
+    const cardX = 14, cardY = 7;
+    const cardSize = logoSize + cardPad * 2;
+    const logoX = cardX + cardPad, logoY = cardY + cardPad;
+    doc.setFillColor(255,255,255);
+    doc.roundedRect(cardX, cardY, cardSize, cardSize, cardRadius, cardRadius, 'F');
     if (logoDataUrl) {
-      try {
-        doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize);
-        // Fake circular crop with rectangles + a stroked ring — see invoices.html for the reasoning.
-        const m = logoR * 0.285;
-        doc.setFillColor(...navy);
-        doc.rect(logoX, logoY, m, m, 'F');
-        doc.rect(logoX + logoSize - m, logoY, m, m, 'F');
-        doc.rect(logoX, logoY + logoSize - m, m, m, 'F');
-        doc.rect(logoX + logoSize - m, logoY + logoSize - m, m, m, 'F');
-        doc.setDrawColor(255,255,255); doc.setLineWidth(0.6);
-        doc.circle(logoCx, logoCy, logoR, 'S');
-      } catch (e) {}
+      try { doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize); } catch (e) { /* card still shows, just empty */ }
     } else {
       const initials = (company?.company_name || 'VI').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
-      doc.setFillColor(255,255,255);
-      doc.circle(logoCx, logoCy, logoR, 'F');
       doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(12);
-      doc.text(initials, logoCx, logoCy + 3, { align: 'center' });
+      doc.text(initials, cardX + cardSize/2, cardY + cardSize/2 + 3, { align: 'center' });
     }
 
-    const textX = logoX + logoSize + 6;
+    const textX = cardX + cardSize + 6;
     doc.setTextColor(255,255,255);
     doc.setFont('helvetica','bold'); doc.setFontSize(15);
     doc.text(company?.company_name || 'Company Name', textX, 14);
