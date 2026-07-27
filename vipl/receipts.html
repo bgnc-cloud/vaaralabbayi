@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Payment Receipts — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .card .cardSub { font-size: 12.5px; color: var(--g3); margin-bottom: 18px; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+
+  .fieldRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 14px; margin-bottom: 16px; }
+  .fieldRow label { font-size: 11.5px; font-weight: 700; color: var(--g3); text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 6px; }
+  .fieldRow select, .fieldRow input, .fieldRow textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;
+    font-family: inherit; transition: border-color .15s; box-sizing: border-box;
+  }
+  .fieldRow textarea { resize: vertical; min-height: 44px; }
+
+  .btn { padding: 10px 18px; border-radius: 8px; border: none; font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit; transition: opacity .15s; }
+  .btn:hover { opacity: .9; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btnPrimary { background: var(--blue); color: #fff; }
+  .btnGhost { background: #fff; border: 1px solid var(--border); color: var(--ink); }
+  .btnGreen { background: #EAF3DE; color: #15803D; }
+  .btnDanger { background: #FEE2E2; color: #C0392B; }
+  .btnSm { padding: 6px 12px; font-size: 12px; }
+  .actionRow { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+  .collapseToggle { font-size: 12.5px; font-weight: 700; color: var(--blue); background: none; border: none; cursor: pointer; padding: 0; }
+
+  .paymentChoice { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+  .paymentChoice label {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink);
+    margin: 0; flex: 1; min-width: 160px; padding: 11px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .paymentChoice label:has(input:checked) { border-color: var(--blue); background: #F0F7FF; }
+  .paymentChoice input[type=radio] { width: auto; margin: 0; accent-color: var(--blue); }
+
+  table.historyTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.historyTable th {
+    text-align: left; padding: 9px 10px; background: #FAFBFC; color: var(--g3);
+    font-size: 10px; text-transform: uppercase; letter-spacing: .4px; font-weight: 800;
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  table.historyTable td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; vertical-align: middle; }
+  table.historyTable tr:hover td { background: #FAFBFD; }
+  .emptyNote { text-align: center; color: var(--g3); padding: 24px; }
+  .tableWrap { overflow-x: auto; }
+  #genMsg { font-size: 13px; margin-top: 10px; font-weight: 600; }
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
+  .pill.purpose { background: #F0F7FF; color: #1565C0; }
+
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modalOverlay.open { display: flex; }
+  .modalBox { background: #fff; border-radius: 16px; padding: 28px; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Payment Receipts</h1>
+    <div class="lead" id="pageLead" style="font-size:14px;color:var(--g3);margin-bottom:24px;margin-top:-12px"></div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="receiptActionModal">
+  <div class="modalBox" style="width:380px">
+    <h3 id="raTitle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px">Receipt ready</h3>
+    <div class="modalSub" id="raSub" style="font-size:12.5px;color:var(--g3);margin-bottom:18px"></div>
+    <div class="actionRow" style="flex-direction:column">
+      <button class="btn btnGhost" onclick="viewGeneratedPDF()" style="width:100%">👁️ View</button>
+      <button class="btn btnGreen" onclick="downloadGeneratedPDF()" style="width:100%">⬇️ Download</button>
+      <button class="btn btnPrimary" onclick="shareGeneratedPDF()" style="width:100%">🔗 Share</button>
+      <div id="raFallbackShare" style="display:none;gap:10px;width:100%">
+        <button class="btn btnGhost btnSm" style="flex:1" onclick="shareViaEmail()">✉️ Email</button>
+        <button class="btn btnGhost btnSm" style="flex:1" onclick="shareViaWhatsApp()">💬 WhatsApp</button>
+      </div>
+    </div>
+    <div class="actionRow" style="margin-top:16px">
+      <button class="btn btnGhost btnSm" onclick="closeReceiptActionModal()" style="width:100%">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  function fmtPlain(n) { return Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:2}); }
+  const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
+  const EDIT_ROLES = ['super_admin','accountant'];
+  const PURPOSE_LABELS = {
+    investment: 'Investment', loan: 'Loan Received', loan_repayment: 'Loan Repayment Received',
+    loan_interest: 'Loan Interest Received', other: 'Other'
+  };
+  // Where each purpose lands on the Financial Dashboard / GST Audit category breakdown
+  const PURPOSE_TO_COMMON_CODE_LABEL = {
+    investment: 'Investment', loan: 'Loan Movement', loan_repayment: 'Loan Movement',
+    loan_interest: 'Interest', other: 'Other'
+  };
+
+  let myRole = null;
+  let canEdit = false;
+  let company = null;
+  let allProfiles = [];
+  let allReceipts = [];
+  let codeIdByLabel = {};
+
+  function isoDate(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function fyKeyOf(dateStr) {
+    const d = new Date(dateStr); const m = d.getMonth() + 1, y = d.getFullYear();
+    return m >= 4 ? y : y - 1;
+  }
+  function partyTypeForRole(role) {
+    if (['investor','director_1','director_2','fico_investor'].includes(role)) return 'investor';
+    if (role === 'subscriber') return 'subscriber';
+    if (['super_admin','admin','hr_manager','accountant','entry','auditor_team'].includes(role)) return 'employee';
+    return 'other';
+  }
+
+  window.onVIPLReady = async function() {
+    myRole = VIPL.profile.role;
+    if (!ALLOWED_ROLES.includes(myRole)) {
+      document.getElementById('pageContent').innerHTML = '<div id="noAccess">🔒 No access to this page.</div>';
+      return;
+    }
+    canEdit = EDIT_ROLES.includes(myRole);
+    document.getElementById('pageLead').textContent = canEdit
+      ? 'Record payment receipts for investments, loans, and interest — no GST involved, just proof of money received.'
+      : 'View and export payment receipts already issued, for audit and tax filing reference.';
+
+    let html = '';
+
+    if (canEdit) {
+      html += `
+        <div class="card">
+          <h2>Record a Payment Receipt</h2>
+          <div class="cardSub">For investments, loans, and interest — not for subscription or franchise fees, which are taxable and belong on the Invoices page.</div>
+          <div class="fieldRow">
+            <div><label>Receipt Number</label><input type="text" id="rReceiptNumber"></div>
+            <div><label>Receipt Date</label><input type="date" id="rReceiptDate"></div>
+          </div>
+
+          <div class="fieldRow">
+            <div style="grid-column:1/-1">
+              <label>Link to an existing user (optional)</label>
+              <select id="rPayerProfile" onchange="onPayerProfileChange()">
+                <option value="">— External payer, not in the system —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="fieldRow">
+            <div><label>Received From *</label><input type="text" id="rPayerName" placeholder="Investor, lender, or payer name"></div>
+            <div><label>Purpose *</label>
+              <select id="rPurpose">
+                <option value="investment">Investment</option>
+                <option value="loan">Loan Received</option>
+                <option value="loan_repayment">Loan Repayment Received</option>
+                <option value="loan_interest">Loan Interest Received</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div><label>Amount (₹) *</label><input type="number" id="rAmount" step="0.01" placeholder="0.00"></div>
+          </div>
+          <div class="fieldRow">
+            <div style="grid-column:1/-1"><label>Address (optional)</label><textarea id="rPayerAddress" rows="2" placeholder="Optional — shown on the receipt if given"></textarea></div>
+          </div>
+          <div class="fieldRow">
+            <div style="grid-column:1/-1"><label>Notes (optional)</label><textarea id="rNotes" rows="2" placeholder="Any additional context — e.g. installment number, related agreement, etc."></textarea></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+            <input type="checkbox" id="rShowBankDetails" checked style="width:auto;accent-color:var(--blue)">
+            <label for="rShowBankDetails" style="margin:0;font-size:13px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:normal">Show bank details on this receipt PDF</label>
+          </div>
+
+          <div style="margin-bottom:6px">
+            <label style="font-size:11.5px;font-weight:700;color:var(--g3);text-transform:uppercase;letter-spacing:.03em;display:block;margin-bottom:8px">Received As *</label>
+            <div class="paymentChoice">
+              <label><input type="radio" name="rPaymentMethod" value="cash" checked> 💵 Cash</label>
+              <label><input type="radio" name="rPaymentMethod" value="bank"> 🏦 Bank</label>
+            </div>
+            <div style="font-size:12px;color:var(--g3)">A receipt always means money already came in — this automatically adds a matching ledger entry, marked as not needing GST tagging.</div>
+          </div>
+
+          <div class="actionRow" style="margin-top:16px">
+            <button class="btn btnPrimary" onclick="saveReceipt()">Save &amp; Generate Receipt</button>
+          </div>
+          <div id="genMsg"></div>
+        </div>
+      `;
+    }
+
+    html += `
+      <div class="card">
+        <h2>Receipt History</h2>
+        <div class="cardSub">All payment receipts issued to date.</div>
+        <div class="tableWrap"><table class="historyTable">
+          <thead><tr><th>Receipt #</th><th>Date</th><th>Received From</th><th>Purpose</th><th>Amount</th><th>Method</th><th></th></tr></thead>
+          <tbody id="historyBody"><tr><td colspan="7" class="emptyNote">Loading…</td></tr></tbody>
+        </table></div>
+      </div>
+    `;
+
+    document.getElementById('pageContent').innerHTML = html;
+
+    if (canEdit) {
+      document.getElementById('rReceiptDate').value = isoDate(new Date());
+      await loadCompanyProfile();
+      await loadProfilesForLinking();
+      await loadCommonCodeIds();
+      await suggestNextReceiptNumber();
+    }
+    await loadHistory();
+  };
+
+  async function loadCompanyProfile() {
+    const { data } = await VIPL.sb.from('company_profile').select('*').single();
+    company = data || {};
+  }
+
+  async function loadProfilesForLinking() {
+    const { data } = await VIPL.sb.from('profiles').select('id, full_name, email, customer_id, role').neq('role','pending').order('full_name');
+    allProfiles = data || [];
+    const sel = document.getElementById('rPayerProfile');
+    sel.innerHTML = '<option value="">— External payer, not in the system —</option>' +
+      allProfiles.map(p => `<option value="${p.id}">${escapeHtml(p.full_name || p.email)} (${escapeHtml(roleLabel(p.role))}${p.customer_id ? ' · ' + escapeHtml(p.customer_id) : ''})</option>`).join('');
+  }
+
+  function roleLabel(role) {
+    return ({ investor: 'Investor', director_1: 'Director', director_2: 'Director', fico_investor: 'FICO Investor',
+      subscriber: 'Subscriber', accountant: 'Accountant', super_admin: 'Super Admin' })[role] || role;
+  }
+
+  function onPayerProfileChange() {
+    const id = document.getElementById('rPayerProfile').value;
+    if (!id) return;
+    const p = allProfiles.find(x => x.id === id);
+    if (p && !document.getElementById('rPayerName').value.trim()) {
+      document.getElementById('rPayerName').value = p.full_name || p.email;
+    }
+  }
+
+  async function loadCommonCodeIds() {
+    const { data } = await VIPL.sb.from('common_codes').select('id, label')
+      .in('label', ['Investment','Loan Movement','Interest','Other']);
+    codeIdByLabel = {};
+    (data || []).forEach(c => { codeIdByLabel[c.label] = c.id; });
+  }
+
+  async function suggestNextReceiptNumber() {
+    const fy = fyKeyOf(new Date().toISOString());
+    const fyLabel = `${fy}-${String(fy+1).slice(2)}`;
+    const { count } = await VIPL.sb.from('payment_receipts').select('*', { count: 'exact', head: true })
+      .gte('receipt_date', isoDate(new Date(fy,3,1))).lte('receipt_date', isoDate(new Date(fy+1,2,31)));
+    const next = (count || 0) + 1;
+    document.getElementById('rReceiptNumber').value = `RCT/${fyLabel}/${String(next).padStart(4,'0')}`;
+  }
+
+  // ── Save receipt (always creates a matching ledger entry — a receipt only exists because money already arrived) ──
+  async function saveReceipt() {
+    const msg = document.getElementById('genMsg');
+    const payerName = document.getElementById('rPayerName').value.trim();
+    const receiptNumber = document.getElementById('rReceiptNumber').value.trim();
+    const receiptDate = document.getElementById('rReceiptDate').value;
+    const amount = parseFloat(document.getElementById('rAmount').value);
+    const purpose = document.getElementById('rPurpose').value;
+    const paymentMethod = document.querySelector('input[name=rPaymentMethod]:checked').value;
+
+    if (!payerName || !receiptNumber || !receiptDate) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Receipt number, date, and payer name are required.'; return;
+    }
+    if (!amount || amount <= 0) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Enter a valid amount.'; return;
+    }
+
+    const payerProfileId = document.getElementById('rPayerProfile').value || null;
+    const receiptPayload = {
+      receipt_number: receiptNumber,
+      receipt_date: receiptDate,
+      payer_name: payerName,
+      payer_profile_id: payerProfileId,
+      payer_address: document.getElementById('rPayerAddress').value.trim() || null,
+      purpose,
+      purpose_notes: document.getElementById('rNotes').value.trim() || null,
+      amount,
+      payment_method: paymentMethod,
+      show_bank_details: document.getElementById('rShowBankDetails').checked,
+      created_by: VIPL.user.id
+    };
+
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Saving…';
+    const { data: rec, error: recErr } = await VIPL.sb.from('payment_receipts').insert(receiptPayload).select().single();
+    if (recErr) { msg.style.color = '#C0392B'; msg.textContent = recErr.message; return; }
+
+    let partyType = null;
+    if (payerProfileId) {
+      const p = allProfiles.find(x => x.id === payerProfileId);
+      if (p) partyType = partyTypeForRole(p.role);
+    }
+    const ledgerRow = {
+      entry_date: receiptDate,
+      particulars: `Receipt ${receiptNumber} — ${payerName} (${PURPOSE_LABELS[purpose]})`,
+      description: 'Payment receipt',
+      cash_credit: paymentMethod === 'cash' ? amount : 0,
+      cash_debit: 0,
+      bank_credit: paymentMethod === 'bank' ? amount : 0,
+      bank_debit: 0,
+      party_type: partyType,
+      party_profile_id: payerProfileId,
+      common_code_id: codeIdByLabel[PURPOSE_TO_COMMON_CODE_LABEL[purpose]] || null,
+      created_by: VIPL.user.id,
+      gst_not_applicable: true // investments/loans/interest are never a GST supply — spare it from showing as "needs attention"
+    };
+    const { data: entry, error: entryErr } = await VIPL.sb.from('ledger_entries').insert(ledgerRow).select().single();
+    if (entryErr) { msg.style.color = '#C0392B'; msg.textContent = 'Receipt saved, but the ledger entry failed: ' + entryErr.message; await loadHistory(); return; }
+
+    await VIPL.sb.from('payment_receipts').update({ linked_ledger_entry_id: entry.id }).eq('id', rec.id);
+    rec.linked_ledger_entry_id = entry.id;
+
+    msg.style.color = 'var(--green)'; msg.textContent = '✓ Receipt saved and added to the ledger.';
+    await openReceiptActionPanel(rec);
+
+    document.getElementById('rPayerName').value = '';
+    document.getElementById('rPayerAddress').value = '';
+    document.getElementById('rPayerProfile').value = '';
+    document.getElementById('rAmount').value = '';
+    document.getElementById('rNotes').value = '';
+    document.getElementById('rShowBankDetails').checked = true;
+    await suggestNextReceiptNumber();
+    await loadHistory();
+  }
+
+  // Cancel: keeps the row and receipt_number (never deleted) to preserve sequential numbering.
+  async function cancelReceipt(id, receiptNumber, linkedAmount) {
+    const reason = prompt(`Cancel receipt ${receiptNumber}? Enter a reason (optional):`);
+    if (reason === null) return;
+    const { error } = await VIPL.sb.from('payment_receipts').update({
+      status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_reason: reason || null
+    }).eq('id', id);
+    if (error) { alert(error.message); return; }
+    alert(`Receipt ${receiptNumber} is cancelled. It had a linked ledger entry for ${fmt(linkedAmount)} — go to Ledger Entry and reverse or delete that transaction manually if the money needs to come back out. It was left untouched on purpose.`);
+    await loadHistory();
+  }
+
+  async function loadHistory() {
+    const tbody = document.getElementById('historyBody');
+    const { data, error } = await VIPL.sb.from('payment_receipts').select('*').order('receipt_date', { ascending: false }).order('created_at', { ascending: false });
+    if (error) { tbody.innerHTML = `<tr><td colspan="7" style="color:#C0392B">${error.message}</td></tr>`; return; }
+    allReceipts = data || [];
+    if (!allReceipts.length) { tbody.innerHTML = `<tr><td colspan="7" class="emptyNote">No receipts issued yet.</td></tr>`; return; }
+    tbody.innerHTML = allReceipts.map(r => {
+      const isCancelled = r.status === 'cancelled';
+      const rowStyle = isCancelled ? ' style="opacity:.55;text-decoration:line-through"' : '';
+      let actionsCell = `<button class="btn btnGhost btnSm" onclick="reprintReceipt('${r.id}')">View / Share</button>`;
+      if (canEdit && !isCancelled) {
+        actionsCell += ` <button class="btn btnDanger btnSm" onclick="cancelReceipt('${r.id}','${escapeAttr(r.receipt_number)}',${r.amount})">Cancel</button>`;
+      }
+      return `
+        <tr${rowStyle}>
+          <td><strong>${escapeHtml(r.receipt_number)}</strong></td>
+          <td>${r.receipt_date}</td>
+          <td>${escapeHtml(r.payer_name)}</td>
+          <td><span class="pill purpose">${escapeHtml(PURPOSE_LABELS[r.purpose] || r.purpose)}</span>${isCancelled ? ' <span class="pill" style="background:#FEE2E2;color:#C0392B">Cancelled</span>' : ''}</td>
+          <td><strong>${fmt(r.amount)}</strong></td>
+          <td style="text-transform:capitalize">${r.payment_method}</td>
+          <td><div class="actionRow" style="margin:0">${actionsCell}</div></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Logo loading — shared pattern with Invoices ──
+  let logoDataUrlCache = null;
+  let logoLoadAttempted = false;
+  function loadLogoDataUrl() {
+    if (logoLoadAttempted) return Promise.resolve(logoDataUrlCache);
+    logoLoadAttempted = true;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          logoDataUrlCache = canvas.toDataURL('image/png');
+        } catch (e) { logoDataUrlCache = null; }
+        resolve(logoDataUrlCache);
+      };
+      img.onerror = () => { logoDataUrlCache = null; resolve(null); };
+      img.src = '../logo.jpg';
+    });
+  }
+
+  function numberToWordsINR(num) {
+    const a = ['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    const b = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+    function inWords(n) {
+      if (n < 20) return a[n];
+      if (n < 100) return b[Math.floor(n/10)] + (n%10 ? ' ' + a[n%10] : '');
+      if (n < 1000) return a[Math.floor(n/100)] + ' hundred' + (n%100 ? ' ' + inWords(n%100) : '');
+      if (n < 100000) return inWords(Math.floor(n/1000)) + ' thousand' + (n%1000 ? ' ' + inWords(n%1000) : '');
+      if (n < 10000000) return inWords(Math.floor(n/100000)) + ' lakh' + (n%100000 ? ' ' + inWords(n%100000) : '');
+      return inWords(Math.floor(n/10000000)) + ' crore' + (n%10000000 ? ' ' + inWords(n%10000000) : '');
+    }
+    const rupees = Math.floor(num);
+    const paise = Math.round((num - rupees) * 100);
+    let words = rupees === 0 ? 'zero' : inWords(rupees);
+    words = words.charAt(0).toUpperCase() + words.slice(1) + ' rupees';
+    if (paise > 0) words += ' and ' + inWords(paise) + ' paise';
+    return words + ' only';
+  }
+
+  // ── PDF generation — A4, same corporate banner style as Invoices, no tax fields at all ──
+  async function generateReceiptPDF(rec) {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = 210;
+    const navy = [11,29,46];
+    const band = [240,247,255];
+    const fmtPdf = (n) => 'Rs. ' + Number(n||0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+    const bannerH = 36;
+    doc.setFillColor(...navy);
+    doc.rect(0, 0, pageWidth, bannerH, 'F');
+
+    const logoDataUrl = await loadLogoDataUrl();
+    const logoX = 14, logoY = 7, logoSize = 20;
+    if (logoDataUrl) {
+      try { doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize); } catch (e) {}
+    } else {
+      const initials = (company?.company_name || 'VI').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+      doc.setFillColor(255,255,255);
+      doc.circle(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 'F');
+      doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+      doc.text(initials, logoX + logoSize/2, logoY + logoSize/2 + 3, { align: 'center' });
+    }
+
+    const textX = logoX + logoSize + 6;
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text(company?.company_name || 'Company Name', textX, 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    let hy = 19;
+    if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, textX, hy); hy += 4; }
+    if (company?.address) {
+      const addrLines = doc.splitTextToSize(company.address, 90).slice(0, 2);
+      doc.text(addrLines, textX, hy);
+    }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('PAYMENT RECEIPT', pageWidth - 14, 13, { align: 'right' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    doc.text(`Receipt #: ${rec.receipt_number}`, pageWidth - 14, 19, { align: 'right' });
+    doc.text(`Date: ${rec.receipt_date}`, pageWidth - 14, 24, { align: 'right' });
+
+    doc.setTextColor(0,0,0);
+    let y = bannerH + 10;
+
+    const boxH = 30;
+    doc.setFillColor(...band);
+    doc.roundedRect(14, y, pageWidth - 28, boxH, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(100,110,125);
+    doc.text('RECEIVED FROM', 20, y + 7);
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+    doc.text(rec.payer_name, 20, y + 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    if (rec.payer_address) {
+      const lines2 = doc.splitTextToSize(rec.payer_address, pageWidth - 95);
+      doc.text(lines2.slice(0,2), 20, y + 19);
+    }
+    doc.setTextColor(100,110,125);
+    doc.text('Purpose', pageWidth - 20, y + 9, { align: 'right' });
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold');
+    doc.text(PURPOSE_LABELS[rec.purpose] || rec.purpose, pageWidth - 20, y + 14, { align: 'right' });
+    doc.setFont('helvetica','normal'); doc.setTextColor(100,110,125);
+    doc.text('Received Via', pageWidth - 20, y + 21, { align: 'right' });
+    doc.setTextColor(0,0,0);
+    doc.text(rec.payment_method === 'cash' ? 'Cash' : 'Bank Transfer', pageWidth - 20, y + 26, { align: 'right' });
+
+    y += boxH + 12;
+
+    doc.setFillColor(...band);
+    const amtBoxH = 22;
+    doc.roundedRect(14, y, pageWidth - 28, amtBoxH, 2, 2, 'F');
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(100,110,125);
+    doc.text('Amount Received', 20, y + 9);
+    doc.setFont('helvetica','bold'); doc.setFontSize(15); doc.setTextColor(...navy);
+    doc.text(fmtPdf(rec.amount), pageWidth - 20, y + 9, { align: 'right' });
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(90,100,115);
+    const words = doc.splitTextToSize(numberToWordsINR(Number(rec.amount)), pageWidth - 48);
+    doc.text(words, 20, y + 16);
+
+    y += amtBoxH + 10;
+    doc.setTextColor(0,0,0);
+
+    const showBank = rec.show_bank_details !== false;
+    if (showBank && (company?.bank_name || company?.bank_account_number)) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...navy);
+      doc.text('Bank Details', 14, y); y += 5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+      if (company.bank_name) { doc.text(`Bank: ${company.bank_name}`, 14, y); y += 4.5; }
+      if (company.bank_account_number) { doc.text(`Account No: ${company.bank_account_number}`, 14, y); y += 4.5; }
+      if (company.bank_ifsc) { doc.text(`IFSC: ${company.bank_ifsc}`, 14, y); y += 4.5; }
+      y += 4;
+    }
+
+    if (rec.purpose_notes) {
+      doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(90,100,115);
+      const noteLines = doc.splitTextToSize(rec.purpose_notes, pageWidth - 28);
+      doc.text(noteLines, 14, y); y += noteLines.length * 4.5 + 4;
+    }
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120,130,140);
+    const legalNote = doc.splitTextToSize(
+      'This receipt acknowledges funds received and does not constitute a GST tax invoice — no GST applies to investments, loans, or loan interest.',
+      pageWidth - 28
+    );
+    doc.text(legalNote, 14, y); y += legalNote.length * 4 + 6;
+
+    doc.setDrawColor(225,230,235); doc.line(14, 280, pageWidth - 14, 280);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(140,150,160);
+    doc.text('This is a computer-generated receipt.', 14, 285);
+
+    const filename = `${rec.receipt_number.replace(/\//g,'-')}.pdf`;
+    const blob = doc.output('blob');
+    return { blob, filename };
+  }
+
+  // ── View / Download / Share panel — same pattern as Invoices ──
+  let currentGenerated = null;
+
+  async function openReceiptActionPanel(rec) {
+    const { blob, filename } = await generateReceiptPDF(rec);
+    const url = URL.createObjectURL(blob);
+    currentGenerated = { rec, blob, url, filename };
+    document.getElementById('raTitle').textContent = `Receipt ${rec.receipt_number}`;
+    document.getElementById('raSub').textContent = `${rec.payer_name} · ${fmt(rec.amount)}`;
+    document.getElementById('raFallbackShare').style.display = 'none';
+    document.getElementById('receiptActionModal').classList.add('open');
+  }
+
+  function closeReceiptActionModal() {
+    document.getElementById('receiptActionModal').classList.remove('open');
+    if (currentGenerated?.url) URL.revokeObjectURL(currentGenerated.url);
+    currentGenerated = null;
+  }
+
+  function viewGeneratedPDF() {
+    if (!currentGenerated) return;
+    window.open(currentGenerated.url, '_blank');
+  }
+
+  function downloadGeneratedPDF() {
+    if (!currentGenerated) return;
+    const a = document.createElement('a');
+    a.href = currentGenerated.url; a.download = currentGenerated.filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  async function shareGeneratedPDF() {
+    if (!currentGenerated) return;
+    const { rec, blob, filename } = currentGenerated;
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    const text = `Receipt ${rec.receipt_number} — ${rec.payer_name}, ${fmt(rec.amount)}`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `Receipt ${rec.receipt_number}`, text }); return; } catch (e) { return; }
+    }
+    document.getElementById('raFallbackShare').style.display = 'flex';
+    downloadGeneratedPDF();
+  }
+
+  function shareViaEmail() {
+    if (!currentGenerated) return;
+    const { rec } = currentGenerated;
+    const subject = encodeURIComponent(`Receipt ${rec.receipt_number}`);
+    const body = encodeURIComponent(`Hi ${rec.payer_name},\n\nPlease find attached Receipt ${rec.receipt_number} dated ${rec.receipt_date} for ${fmt(rec.amount)}.\n\n(Attach the PDF that just downloaded — this window can't attach it automatically.)\n\nThank you.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  }
+
+  function shareViaWhatsApp() {
+    if (!currentGenerated) return;
+    const { rec } = currentGenerated;
+    const text = encodeURIComponent(`Receipt ${rec.receipt_number} dated ${rec.receipt_date} for ${fmt(rec.amount)} — attaching the PDF now.`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+  }
+
+  async function reprintReceipt(id) {
+    const { data: rec, error } = await VIPL.sb.from('payment_receipts').select('*').eq('id', id).single();
+    if (error) { alert(error.message); return; }
+    if (!company) await loadCompanyProfile();
+    await openReceiptActionPanel(rec);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function escapeAttr(s) { return escapeHtml(s); }
+</script>
+</body>
+</html>
