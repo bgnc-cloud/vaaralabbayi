@@ -148,7 +148,7 @@
         <div class="card">
           <h2>Your Company Details</h2>
           <div class="cardSub">Shown on every invoice. Set this up once.</div>
-          <button class="collapseToggle" id="companyToggle" onclick="toggleCompanyCard()">Edit company details ▾</button>
+          <button class="collapseToggle" id="companyToggle" onclick="toggleCompanyCard()">Show company details ▾</button>
           <div id="companyFields" style="display:none;margin-top:16px"></div>
         </div>
 
@@ -244,9 +244,40 @@
   };
 
   // ── Company profile ──
+  let companyEditMode = false;
+
   async function loadCompanyProfile() {
     const { data } = await VIPL.sb.from('company_profile').select('*').single();
     company = data || {};
+    renderCompanySection();
+  }
+
+  function companyHasData() {
+    return !!(company && (company.gstin || company.bank_account_number || company.address || company.pan));
+  }
+
+  function renderCompanySection() {
+    if (companyEditMode || !companyHasData()) renderCompanyFields();
+    else renderCompanySummary();
+  }
+
+  function renderCompanySummary() {
+    document.getElementById('companyFields').innerHTML = `
+      <div style="font-size:13.5px;line-height:1.9">
+        <div style="font-weight:800;font-size:15px;margin-bottom:6px">${escapeHtml(company.company_name||'—')}</div>
+        <div><span style="color:var(--g3)">GSTIN:</span> ${escapeHtml(company.gstin||'—')} &nbsp;·&nbsp; <span style="color:var(--g3)">PAN:</span> ${escapeHtml(company.pan||'—')}</div>
+        <div><span style="color:var(--g3)">State:</span> ${escapeHtml(company.state||'—')}</div>
+        <div>${escapeHtml(company.address||'—')}</div>
+        <div style="margin-top:6px"><span style="color:var(--g3)">Bank:</span> ${escapeHtml(company.bank_name||'—')} &nbsp;·&nbsp; <span style="color:var(--g3)">A/C:</span> ${escapeHtml(company.bank_account_number||'—')} &nbsp;·&nbsp; <span style="color:var(--g3)">IFSC:</span> ${escapeHtml(company.bank_ifsc||'—')}</div>
+      </div>
+      <div class="actionRow" style="margin-top:16px">
+        <button class="btn btnGhost btnSm" onclick="enterCompanyEditMode()">Edit company details</button>
+      </div>
+    `;
+  }
+
+  function enterCompanyEditMode() {
+    companyEditMode = true;
     renderCompanyFields();
   }
 
@@ -277,7 +308,7 @@
     const el = document.getElementById('companyFields');
     const isOpen = el.style.display !== 'none';
     el.style.display = isOpen ? 'none' : 'block';
-    document.getElementById('companyToggle').textContent = isOpen ? 'Edit company details ▾' : 'Hide company details ▴';
+    document.getElementById('companyToggle').textContent = isOpen ? 'Show company details ▾' : 'Hide company details ▴';
   }
 
   async function saveCompanyProfile() {
@@ -295,8 +326,9 @@
     const msg = document.getElementById('companyMsg');
     const { error } = await VIPL.sb.from('company_profile').update(payload).eq('id', '00000000-0000-0000-0000-000000000001');
     if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
-    msg.style.color = 'var(--green)'; msg.textContent = '✓ Saved.';
     company = { ...company, ...payload };
+    companyEditMode = false;
+    renderCompanySummary();
     onBuyerStateChange();
   }
 
@@ -358,7 +390,7 @@
         <td><input class="narrower" type="number" step="1" value="${li.qty}" oninput="updateLineItem(${li.key},'qty',this.value)"></td>
         <td><input class="narrow" type="number" step="0.01" value="${li.price}" oninput="updateLineItem(${li.key},'price',this.value)"></td>
         <td><input class="narrower" type="number" step="0.01" value="${li.rate}" oninput="updateLineItem(${li.key},'rate',this.value)"></td>
-        <td class="lineTotal">${fmt((Number(li.qty)||0) * (Number(li.price)||0))}</td>
+        <td class="lineTotal" id="liTotal-${li.key}">${fmt((Number(li.qty)||0) * (Number(li.price)||0))}</td>
         <td><button class="rmBtn" onclick="removeLineItem(${li.key})" title="Remove line">✕</button></td>
       </tr>`).join('');
     updateTotals();
@@ -368,7 +400,11 @@
     const li = lineItems.find(l => l.key === key);
     if (!li) return;
     li[field] = field === 'description' || field === 'hsn' ? value : parseFloat(value) || 0;
-    renderLineItems();
+    // Update just this row's computed total in place — never rebuild the input DOM while typing,
+    // or every keystroke wipes and recreates the <input>, which drops focus after one character.
+    const totalEl = document.getElementById(`liTotal-${key}`);
+    if (totalEl) totalEl.textContent = fmt((Number(li.qty)||0) * (Number(li.price)||0));
+    updateTotals();
   }
 
   function isInterState() {
