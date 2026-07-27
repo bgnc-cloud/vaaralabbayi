@@ -65,8 +65,13 @@ export default async function handler(req, res) {
     .select('role')
     .eq('id', requesterId)
     .single();
-  if (requesterErr || !requester || !['hr_manager', 'admin', 'super_admin'].includes(requester.role)) {
-    return res.status(403).json({ error: 'Not authorized to reset employee passwords' });
+  if (requesterErr) {
+    console.error('reset-employee-password: requester lookup failed', requesterErr);
+    return res.status(403).json({ error: `Could not verify your account: ${requesterErr.message} (code: ${requesterErr.code || 'unknown'})` });
+  }
+  if (!requester || !['hr_manager', 'admin', 'super_admin'].includes(requester.role)) {
+    console.error('reset-employee-password: requester role not permitted', requesterId, requester);
+    return res.status(403).json({ error: `Not authorized to reset employee passwords (your role: ${requester ? requester.role : 'no profile found'})` });
   }
 
   // Look up the target employee.
