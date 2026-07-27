@@ -93,15 +93,21 @@
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
 
   const CARD_META = {
-    'ledger.html':          { icon:'📒', accent:'#0E9488', bg:'#E3F5F3' },
-    'dashboard.html':       { icon:'📊', accent:'#5B4FCF', bg:'#EDECFC' },
-    'investor-portal.html': { icon:'📈', accent:'#0E9488', bg:'#E3F5F3' },
-    'loan-portal.html':     { icon:'💳', accent:'#B7791F', bg:'#FBF1DE' },
+    'ledger.html':          { icon:'📒', bg:'#E3F5F3' },
+    'dashboard.html':       { icon:'📊', bg:'#EDECFC' },
+    'investor-portal.html': { icon:'📈', bg:'#E3F5F3' },
+    'loan-portal.html':     { icon:'💳', bg:'#FBF1DE' },
+    'statements.html':      { icon:'🧾', bg:'#F0F7FF' },
+    'gst-audit.html':       { icon:'🧮', bg:'#FBF1DE' },
+    'invoices.html':        { icon:'📄', bg:'#F0F7FF' },
+    'receipts.html':        { icon:'💰', bg:'#EAF3DE' },
   };
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
-    const canSeeFinance = ['super_admin','accountant','investor','director_1','director_2'].includes(role);
+    // Matches the roles each page itself actually allows (its own ALLOWED_ROLES) — kept in sync
+    // with shell.js's nav config so the Overview page never falls behind what the sidebar shows.
+    const canSeeFinance = ['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role);
 
     if (canSeeFinance) {
       const [{ data: balances }, { data: totalsRow }, { data: loans }] = await Promise.all([
@@ -126,10 +132,22 @@
     }
 
     const cards = [];
-    if (['super_admin','accountant','entry'].includes(role)) cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
-    if (['super_admin','accountant'].includes(role)) cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
-    if (['super_admin','accountant','investor','director_1','director_2'].includes(role)) cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
-    if (['super_admin','accountant','investor','director_1','director_2'].includes(role)) cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
+    if (['super_admin','accountant','entry','auditor_team'].includes(role))
+      cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
+    if (['super_admin','accountant','auditor_team'].includes(role))
+      cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
+    if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
+      cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
+    if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
+      cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
+    if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
+      cards.push({ href:'statements.html', icon:'🧾', title:'Statements', desc:'Generate a statement for yourself, anyone, or the whole company.' });
+    if (['super_admin','accountant','auditor_team'].includes(role))
+      cards.push({ href:'gst-audit.html', icon:'🧮', title:'GST / Audit', desc:'Tag entries with GST details and export for filing.' });
+    if (['super_admin','accountant','auditor_team'].includes(role))
+      cards.push({ href:'invoices.html', icon:'📄', title:'Invoices', desc:'Create GST tax invoices for customers and buyers.' });
+    if (['super_admin','accountant','auditor_team'].includes(role))
+      cards.push({ href:'receipts.html', icon:'💰', title:'Payment Receipts', desc:'Record investments, loans, and interest received.' });
     if (role === 'super_admin') {
       cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
     }
