@@ -597,6 +597,17 @@ sb.auth.onAuthStateChange((event) => {
 
 document.addEventListener('DOMContentLoaded', async () => {
   injectShellStyles();
+
+  // Detect a password-recovery link directly and synchronously from the URL, rather than
+  // racing the async onAuthStateChange('PASSWORD_RECOVERY') event against getSession() below —
+  // that race is exactly what let recovery links sometimes log someone straight into the app
+  // instead of showing "set a new password", depending on which one happened to resolve first.
+  // Supabase's recovery redirect always includes type=recovery in the URL hash, so this check
+  // is reliable with no timing dependency at all.
+  if (window.location.hash.includes('type=recovery')) {
+    authMode = 'reset';
+  }
+
   renderAuthBox();
   const { data: { session } } = await sb.auth.getSession();
   if (session && authMode !== 'reset') await bootstrap();
