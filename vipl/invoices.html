@@ -84,6 +84,10 @@
   .pill { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 6px; white-space: nowrap; }
   .pill.received { background: #EAF3DE; color: #15803D; }
   .pill.unpaid { background: #FFF7ED; color: #9A5B0F; }
+
+  .modalOverlay { position: fixed; inset: 0; background: rgba(13,35,64,.45); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modalOverlay.open { display: flex; }
+  .modalBox { background: #fff; border-radius: 16px; padding: 28px; max-width: 92vw; max-height: 88vh; overflow-y: auto; }
 </style>
 </head>
 <body>
@@ -96,6 +100,25 @@
     <h1 class="pageTitle">Invoices</h1>
     <div class="lead" id="pageLead" style="font-size:14px;color:var(--g3);margin-bottom:24px;margin-top:-12px"></div>
     <div id="pageContent"></div>
+  </div>
+</div>
+
+<div class="modalOverlay" id="invoiceActionModal">
+  <div class="modalBox" style="width:380px">
+    <h3 id="iaTitle" style="font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px">Invoice ready</h3>
+    <div class="modalSub" id="iaSub" style="font-size:12.5px;color:var(--g3);margin-bottom:18px"></div>
+    <div class="actionRow" style="flex-direction:column">
+      <button class="btn btnGhost" onclick="viewGeneratedPDF()" style="width:100%">👁️ View</button>
+      <button class="btn btnGreen" onclick="downloadGeneratedPDF()" style="width:100%">⬇️ Download</button>
+      <button class="btn btnPrimary" onclick="shareGeneratedPDF()" style="width:100%">🔗 Share</button>
+      <div id="iaFallbackShare" style="display:none;gap:10px;width:100%">
+        <button class="btn btnGhost btnSm" style="flex:1" onclick="shareViaEmail()">✉️ Email</button>
+        <button class="btn btnGhost btnSm" style="flex:1" onclick="shareViaWhatsApp()">💬 WhatsApp</button>
+      </div>
+    </div>
+    <div class="actionRow" style="margin-top:16px">
+      <button class="btn btnGhost btnSm" onclick="closeInvoiceActionModal()" style="width:100%">Close</button>
+    </div>
   </div>
 </div>
 
@@ -189,6 +212,11 @@
 
           <div class="fieldRow" style="margin-top:20px">
             <div style="grid-column:1/-1"><label>Notes (optional)</label><textarea id="fNotes" rows="2" placeholder="Payment terms, thank-you note, etc."></textarea></div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <input type="checkbox" id="fShowBankDetails" checked style="width:auto;accent-color:var(--blue)">
+            <label for="fShowBankDetails" style="margin:0;font-size:13px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:normal">Show bank details on this invoice PDF</label>
           </div>
 
           <div class="totalsBox">
@@ -483,6 +511,7 @@
       subtotal, cgst_amount: cgst, sgst_amount: sgst, igst_amount: igst,
       total_amount: subtotal + cgst + sgst + igst,
       notes: document.getElementById('fNotes').value.trim() || null,
+      show_bank_details: document.getElementById('fShowBankDetails').checked,
       created_by: VIPL.user.id
     };
 
@@ -511,7 +540,7 @@
     msg.style.color = 'var(--green)'; msg.textContent = paymentMethod !== 'none'
       ? '✓ Invoice saved and added to the ledger as revenue.'
       : '✓ Invoice saved. Not yet in the ledger — mark it received once payment comes in.';
-    downloadInvoicePDF(inv, lineRows);
+    await openInvoiceActionPanel(inv, lineRows);
 
     // Reset form for the next invoice
     document.getElementById('fBuyerName').value = '';
@@ -520,6 +549,7 @@
     document.getElementById('fBuyerState').value = '';
     document.getElementById('fBuyerProfile').value = '';
     document.getElementById('fNotes').value = '';
+    document.getElementById('fShowBankDetails').checked = true;
     document.querySelector('input[name=paymentMethod][value=none]').checked = true;
     lineItems = [];
     addLineItem();
@@ -605,72 +635,185 @@
     return words + ' only';
   }
 
-  function downloadInvoicePDF(inv, lines) {
+  // ── Logo loading (for the PDF header) — falls back to a plain initials icon if unavailable ──
+  let logoDataUrlCache = null;
+  let logoLoadAttempted = false;
+  function loadLogoDataUrl() {
+    if (logoLoadAttempted) return Promise.resolve(logoDataUrlCache);
+    logoLoadAttempted = true;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          logoDataUrlCache = canvas.toDataURL('image/png');
+        } catch (e) { logoDataUrlCache = null; }
+        resolve(logoDataUrlCache);
+      };
+      img.onerror = () => { logoDataUrlCache = null; resolve(null); };
+      img.src = '../logo.jpg';
+    });
+  }
+
+  // ── PDF generation — A4, corporate header banner, grouped GST columns. Returns a blob; never auto-downloads. ──
+  async function generateInvoicePDF(inv, lines) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    let y = 18;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = 210;
+    const navy = [11,29,46];
+    const tint = [219,234,254];
+    const band = [240,247,255];
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(16);
-    doc.text(company?.company_name || 'Company Name', 14, y);
-    doc.setFontSize(9); doc.setFont('helvetica','normal');
-    y += 6;
-    if (company?.address) { doc.text(doc.splitTextToSize(company.address, 90), 14, y); y += 10; }
-    if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, 14, y); y += 5; }
-    if (company?.pan) { doc.text(`PAN: ${company.pan}`, 14, y); y += 5; }
+    // ── Header banner ──
+    const bannerH = 32;
+    doc.setFillColor(...navy);
+    doc.rect(0, 0, pageWidth, bannerH, 'F');
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(14);
-    doc.text('TAX INVOICE', 196, 18, { align: 'right' });
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.text(`Invoice #: ${inv.invoice_number}`, 196, 26, { align: 'right' });
-    doc.text(`Date: ${inv.invoice_date}`, 196, 32, { align: 'right' });
-    if (inv.place_of_supply) doc.text(`Place of Supply: ${inv.place_of_supply}`, 196, 38, { align: 'right' });
+    const logoDataUrl = await loadLogoDataUrl();
+    const logoX = 14, logoY = 6, logoSize = 20;
+    if (logoDataUrl) {
+      try { doc.addImage(logoDataUrl, 'PNG', logoX, logoY, logoSize, logoSize); } catch (e) { /* fall through with no logo */ }
+    } else {
+      const initials = (company?.company_name || 'VI').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+      doc.setFillColor(255,255,255);
+      doc.circle(logoX + logoSize/2, logoY + logoSize/2, logoSize/2, 'F');
+      doc.setTextColor(...navy); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+      doc.text(initials, logoX + logoSize/2, logoY + logoSize/2 + 3, { align: 'center' });
+    }
 
-    y = Math.max(y, 45) + 6;
-    doc.setDrawColor(11,29,46); doc.line(14, y, 196, y); y += 8;
+    const textX = logoX + logoSize + 6;
+    doc.setTextColor(255,255,255);
+    doc.setFont('helvetica','bold'); doc.setFontSize(15);
+    doc.text(company?.company_name || 'Company Name', textX, 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    let hy = 19;
+    if (company?.gstin) { doc.text(`GSTIN: ${company.gstin}`, textX, hy); hy += 4; }
+    if (company?.address) {
+      const addrLines = doc.splitTextToSize(company.address, 95);
+      doc.text(addrLines[0] || '', textX, hy);
+    }
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(10);
-    doc.text('Bill To:', 14, y); y += 6;
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5);
-    doc.text(inv.buyer_name, 14, y); y += 5;
-    if (inv.buyer_address) { const lines2 = doc.splitTextToSize(inv.buyer_address, 100); doc.text(lines2, 14, y); y += lines2.length * 5; }
-    if (inv.buyer_gstin) { doc.text(`GSTIN: ${inv.buyer_gstin}`, 14, y); y += 5; }
-    if (inv.buyer_state) { doc.text(`State: ${inv.buyer_state}`, 14, y); y += 5; }
+    doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('TAX INVOICE', pageWidth - 14, 13, { align: 'right' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    doc.text(`Invoice #: ${inv.invoice_number}`, pageWidth - 14, 19, { align: 'right' });
+    doc.text(`Date: ${inv.invoice_date}`, pageWidth - 14, 24, { align: 'right' });
+    if (inv.place_of_supply) doc.text(`Place of Supply: ${inv.place_of_supply}`, pageWidth - 14, 29, { align: 'right' });
 
-    y += 4;
+    doc.setTextColor(0,0,0);
+    let y = bannerH + 10;
+
+    // ── Bill To box ──
+    const billBoxH = 30;
+    doc.setFillColor(...band);
+    doc.roundedRect(14, y, pageWidth - 28, billBoxH, 2, 2, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(100,110,125);
+    doc.text('BILL TO', 20, y + 7);
+    doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(10.5);
+    doc.text(inv.buyer_name, 20, y + 14);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    if (inv.buyer_address) {
+      const lines2 = doc.splitTextToSize(inv.buyer_address, pageWidth - 95);
+      doc.text(lines2.slice(0,2), 20, y + 19);
+    }
+    let rightColY = y + 14;
+    if (inv.buyer_gstin) { doc.text(`GSTIN: ${inv.buyer_gstin}`, pageWidth - 20, rightColY, { align: 'right' }); rightColY += 5; }
+    if (inv.buyer_state) { doc.text(`State: ${inv.buyer_state}`, pageWidth - 20, rightColY, { align: 'right' }); }
+
+    y += billBoxH + 8;
+
+    // ── Line items — grouped GST header so CGST/SGST (or IGST) read as one visual block ──
     const isInterStateInv = Number(inv.igst_amount) > 0;
     const head = isInterStateInv
-      ? [['Description','HSN/SAC','Qty','Unit Price','Taxable Value','IGST %','IGST Amt','Total']]
-      : [['Description','HSN/SAC','Qty','Unit Price','Taxable Value','GST %','CGST Amt','SGST Amt','Total']];
+      ? [
+          [
+            { content: 'Description', rowSpan: 2, styles: { valign: 'middle' } },
+            { content: 'HSN/SAC', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'Qty', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'Unit Price', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+            { content: 'Taxable Value', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+            { content: 'GST %', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'IGST', colSpan: 1, styles: { halign: 'center', fillColor: tint, textColor: navy } },
+            { content: 'Total', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+          ],
+          [{ content: 'Amount', styles: { halign: 'right', fillColor: tint, textColor: navy } }]
+        ]
+      : [
+          [
+            { content: 'Description', rowSpan: 2, styles: { valign: 'middle' } },
+            { content: 'HSN/SAC', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'Qty', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'Unit Price', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+            { content: 'Taxable Value', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+            { content: 'GST %', rowSpan: 2, styles: { valign: 'middle', halign: 'center' } },
+            { content: 'Tax Amount', colSpan: 2, styles: { halign: 'center', fillColor: tint, textColor: navy } },
+            { content: 'Total', rowSpan: 2, styles: { valign: 'middle', halign: 'right' } },
+          ],
+          [
+            { content: 'CGST', styles: { halign: 'right', fillColor: tint, textColor: navy } },
+            { content: 'SGST', styles: { halign: 'right', fillColor: tint, textColor: navy } }
+          ]
+        ];
+
     const body = lines.map(li => {
       const taxable = li.line_taxable;
       const taxAmt = taxable * li.gst_rate / 100;
       const total = taxable + taxAmt;
       return isInterStateInv
-        ? [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate, fmtPlain(taxAmt), fmtPlain(total)]
-        : [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate, fmtPlain(taxAmt/2), fmtPlain(taxAmt/2), fmtPlain(total)];
+        ? [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate + '%', fmtPlain(taxAmt), fmtPlain(total)]
+        : [li.description, li.hsn_sac_code||'—', li.quantity, fmtPlain(li.unit_price), fmtPlain(taxable), li.gst_rate + '%', fmtPlain(taxAmt/2), fmtPlain(taxAmt/2), fmtPlain(total)];
     });
-    doc.autoTable({ head, body, startY: y, styles: { fontSize: 8 }, headStyles: { fillColor: [11,29,46] } });
 
-    let finalY = doc.lastAutoTable.finalY + 10;
-    const totalsX = 140;
-    doc.setFontSize(9.5);
-    doc.text('Subtotal:', totalsX, finalY); doc.text(fmt(inv.subtotal), 196, finalY, { align: 'right' }); finalY += 6;
+    doc.autoTable({
+      head, body, startY: y,
+      styles: { fontSize: 8, cellPadding: 2.3, lineColor: [225,230,235], lineWidth: 0.1 },
+      headStyles: { fillColor: navy, textColor: 255, fontStyle: 'bold', halign: 'center' },
+      alternateRowStyles: { fillColor: [250,251,252] },
+      columnStyles: { 0: { cellWidth: 44 } }
+    });
+
+    let finalY = doc.lastAutoTable.finalY + 8;
+
+    // ── Totals box ──
+    const totalsBoxW = 84;
+    const totalsBoxX = pageWidth - 14 - totalsBoxW;
+    const totalsRowsCount = isInterStateInv ? 2 : 3;
+    const totalsBoxH = 7 + totalsRowsCount * 6 + 11;
+    doc.setFillColor(...band);
+    doc.roundedRect(totalsBoxX, finalY, totalsBoxW, totalsBoxH, 2, 2, 'F');
+    let ty = finalY + 7;
+    doc.setFont('helvetica','normal'); doc.setFontSize(9);
+    doc.setTextColor(100,110,125); doc.text('Subtotal', totalsBoxX + 6, ty);
+    doc.setTextColor(0,0,0); doc.text(fmt(inv.subtotal), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     if (isInterStateInv) {
-      doc.text('IGST:', totalsX, finalY); doc.text(fmt(inv.igst_amount), 196, finalY, { align: 'right' }); finalY += 6;
+      doc.setTextColor(100,110,125); doc.text('IGST', totalsBoxX + 6, ty);
+      doc.setTextColor(0,0,0); doc.text(fmt(inv.igst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     } else {
-      doc.text('CGST:', totalsX, finalY); doc.text(fmt(inv.cgst_amount), 196, finalY, { align: 'right' }); finalY += 6;
-      doc.text('SGST:', totalsX, finalY); doc.text(fmt(inv.sgst_amount), 196, finalY, { align: 'right' }); finalY += 6;
+      doc.setTextColor(100,110,125); doc.text('CGST', totalsBoxX + 6, ty);
+      doc.setTextColor(0,0,0); doc.text(fmt(inv.cgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
+      doc.setTextColor(100,110,125); doc.text('SGST', totalsBoxX + 6, ty);
+      doc.setTextColor(0,0,0); doc.text(fmt(inv.sgst_amount), pageWidth - 20, ty, { align: 'right' }); ty += 6;
     }
-    doc.setFont('helvetica','bold');
-    doc.text('Grand Total:', totalsX, finalY); doc.text(fmt(inv.total_amount), 196, finalY, { align: 'right' }); finalY += 8;
+    doc.setDrawColor(...navy); doc.line(totalsBoxX + 6, ty, pageWidth - 20, ty); ty += 6;
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(...navy);
+    doc.text('Grand Total', totalsBoxX + 6, ty);
+    doc.text(fmt(inv.total_amount), pageWidth - 20, ty, { align: 'right' });
 
-    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-    const words = doc.splitTextToSize(`Amount in words: ${numberToWordsINR(Number(inv.total_amount))}`, 182);
+    finalY += totalsBoxH + 8;
+    doc.setTextColor(0,0,0);
+
+    doc.setFont('helvetica','italic'); doc.setFontSize(8.5);
+    const words = doc.splitTextToSize(`Amount in words: ${numberToWordsINR(Number(inv.total_amount))}`, pageWidth - 28);
     doc.text(words, 14, finalY); finalY += words.length * 4.5 + 6;
+    doc.setFont('helvetica','normal');
 
-    if (company?.bank_name || company?.bank_account_number) {
-      doc.setFont('helvetica','bold'); doc.text('Bank Details:', 14, finalY); finalY += 5;
-      doc.setFont('helvetica','normal');
+    const showBank = inv.show_bank_details !== false;
+    if (showBank && (company?.bank_name || company?.bank_account_number)) {
+      doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(...navy);
+      doc.text('Bank Details', 14, finalY); finalY += 5;
+      doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
       if (company.bank_name) { doc.text(`Bank: ${company.bank_name}`, 14, finalY); finalY += 4.5; }
       if (company.bank_account_number) { doc.text(`Account No: ${company.bank_account_number}`, 14, finalY); finalY += 4.5; }
       if (company.bank_ifsc) { doc.text(`IFSC: ${company.bank_ifsc}`, 14, finalY); finalY += 4.5; }
@@ -678,15 +821,78 @@
     }
 
     if (inv.notes) {
-      doc.setFont('helvetica','italic'); doc.setFontSize(8.5);
-      const noteLines = doc.splitTextToSize(inv.notes, 182);
+      doc.setFont('helvetica','italic'); doc.setFontSize(8.5); doc.setTextColor(90,100,115);
+      const noteLines = doc.splitTextToSize(inv.notes, pageWidth - 28);
       doc.text(noteLines, 14, finalY); finalY += noteLines.length * 4.5 + 4;
     }
 
-    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(120);
+    doc.setDrawColor(225,230,235); doc.line(14, 280, pageWidth - 14, 280);
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(140,150,160);
     doc.text('This is a computer-generated invoice.', 14, 285);
 
-    doc.save(`${inv.invoice_number.replace(/\//g,'-')}.pdf`);
+    const filename = `${inv.invoice_number.replace(/\//g,'-')}.pdf`;
+    const blob = doc.output('blob');
+    return { blob, filename };
+  }
+
+  // ── View / Download / Share panel — replaces the old auto-download behavior ──
+  let currentGenerated = null; // { inv, blob, url, filename }
+
+  async function openInvoiceActionPanel(inv, lines) {
+    const { blob, filename } = await generateInvoicePDF(inv, lines);
+    const url = URL.createObjectURL(blob);
+    currentGenerated = { inv, blob, url, filename };
+    document.getElementById('iaTitle').textContent = `Invoice ${inv.invoice_number}`;
+    document.getElementById('iaSub').textContent = `${inv.buyer_name} · ${fmt(inv.total_amount)}`;
+    document.getElementById('iaFallbackShare').style.display = 'none';
+    document.getElementById('invoiceActionModal').classList.add('open');
+  }
+
+  function closeInvoiceActionModal() {
+    document.getElementById('invoiceActionModal').classList.remove('open');
+    if (currentGenerated?.url) URL.revokeObjectURL(currentGenerated.url);
+    currentGenerated = null;
+  }
+
+  function viewGeneratedPDF() {
+    if (!currentGenerated) return;
+    window.open(currentGenerated.url, '_blank');
+  }
+
+  function downloadGeneratedPDF() {
+    if (!currentGenerated) return;
+    const a = document.createElement('a');
+    a.href = currentGenerated.url; a.download = currentGenerated.filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  async function shareGeneratedPDF() {
+    if (!currentGenerated) return;
+    const { inv, blob, filename } = currentGenerated;
+    const file = new File([blob], filename, { type: 'application/pdf' });
+    const text = `Invoice ${inv.invoice_number} — ${inv.buyer_name}, Total ${fmt(inv.total_amount)}`;
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `Invoice ${inv.invoice_number}`, text }); return; } catch (e) { return; }
+    }
+    // Desktop browsers generally can't attach a file to Email/WhatsApp from a web page —
+    // download it and open the app with a prefilled message so the user just attaches it.
+    document.getElementById('iaFallbackShare').style.display = 'flex';
+    downloadGeneratedPDF();
+  }
+
+  function shareViaEmail() {
+    if (!currentGenerated) return;
+    const { inv } = currentGenerated;
+    const subject = encodeURIComponent(`Invoice ${inv.invoice_number}`);
+    const body = encodeURIComponent(`Hi ${inv.buyer_name},\n\nPlease find attached Invoice ${inv.invoice_number} dated ${inv.invoice_date} for ${fmt(inv.total_amount)}.\n\n(Attach the PDF that just downloaded — this window can't attach it automatically.)\n\nThank you.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`);
+  }
+
+  function shareViaWhatsApp() {
+    if (!currentGenerated) return;
+    const { inv } = currentGenerated;
+    const text = encodeURIComponent(`Invoice ${inv.invoice_number} dated ${inv.invoice_date} for ${fmt(inv.total_amount)} — attaching the PDF now.`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   }
 
   async function reprintInvoice(id) {
@@ -694,7 +900,7 @@
     if (error) { alert(error.message); return; }
     const { data: lines } = await VIPL.sb.from('invoice_line_items').select('*').eq('invoice_id', id).order('sort_order');
     if (!company) await loadCompanyProfile();
-    downloadInvoicePDF(inv, lines || []);
+    await openInvoiceActionPanel(inv, lines || []);
   }
 
   // Cancel: the correct path for a mistaken or void invoice. Keeps the row and invoice_number
@@ -745,7 +951,7 @@
         paymentCell = '<span class="pill unpaid">Unpaid</span>';
       }
 
-      let actionsCell = `<button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">Download</button>`;
+      let actionsCell = `<button class="btn btnGhost btnSm" onclick="reprintInvoice('${inv.id}')">View / Share</button>`;
       if (canEdit && !isCancelled) {
         actionsCell += ` <button class="btn btnDanger btnSm" onclick="cancelInvoice('${inv.id}','${escapeAttr(inv.invoice_number)}',${received},${inv.total_amount})">Cancel</button>`;
       }
