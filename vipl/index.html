@@ -93,6 +93,8 @@
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
 
   const CARD_META = {
+    'command-center.html':  { icon:'🖥️', bg:'#F0F7FF' },
+    'audit-feed.html':      { icon:'📋', bg:'#F0F7FF' },
     'ledger.html':          { icon:'📒', bg:'#E3F5F3' },
     'dashboard.html':       { icon:'📊', bg:'#EDECFC' },
     'investor-portal.html': { icon:'📈', bg:'#E3F5F3' },
@@ -132,6 +134,10 @@
     }
 
     const cards = [];
+    if (role === 'super_admin')
+      cards.push({ href:'command-center.html', icon:'🖥️', title:'Health Monitor', desc:'Status across every domain — VIPL Core, FBC Network, and what\'s next.' });
+    if (role === 'super_admin')
+      cards.push({ href:'audit-feed.html', icon:'📋', title:'Audit Feed', desc:'One unified activity timeline across all domains.' });
     if (['super_admin','accountant','entry','auditor_team'].includes(role))
       cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
     if (['super_admin','accountant','auditor_team'].includes(role))
