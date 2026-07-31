@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — FBC Employees</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
+
+  .fbcFilters { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+  .fbcFilters select, .fbcFilters input {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px;
+    font-family: inherit; background: #fff; color: var(--ink);
+  }
+  .fbcFilters input { flex: 1; min-width: 180px; }
+
+  .positionList { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 24px; }
+  .positionRow {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 18px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background .12s;
+  }
+  .positionRow:last-child { border-bottom: none; }
+  .positionRow:hover { background: var(--off); }
+  .positionRow.selected { background: #E3F5F3; }
+  .positionRow .left { min-width: 0; }
+  .positionRow .code { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 13.5px; color: var(--blue); }
+  .positionRow .meta { font-size: 12px; color: var(--g3); margin-top: 2px; }
+  .positionRow .roleTag {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+    background: var(--off); color: var(--ink); padding: 3px 9px; border-radius: 6px; flex-shrink: 0;
+  }
+  .feedEmpty { padding: 40px; text-align: center; color: var(--g3); font-size: 13.5px; }
+
+  .hireForm {
+    background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px;
+    display: none;
+  }
+  .hireForm.open { display: block; }
+  .hireForm h3 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+  .hireForm .selectedCode { font-size: 12.5px; color: var(--blue); font-weight: 700; margin-bottom: 18px; }
+  .hireForm input {
+    width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 10px; font-size: 14px; font-family: inherit; background: #fff; box-sizing: border-box;
+  }
+  .hireForm label { font-size: 12px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 4px; }
+  .formRow { margin-bottom: 12px; }
+  .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .hireForm button {
+    padding: 11px 20px; border-radius: 8px; background: var(--blue); color: #fff; border: none;
+    font-weight: 700; cursor: pointer; font-size: 14px; margin-top: 6px;
+  }
+  .hireForm button:disabled { opacity: .6; cursor: default; }
+  .hireForm .cancelBtn { background: var(--off); color: var(--ink); margin-left: 8px; }
+  #hireMsg { font-size: 13px; margin-top: 12px; }
+
+  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
+  .accessBox h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+  .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">FBC Employees</h1>
+    <div class="lead">Hire someone into an existing FBC Network position. Positions themselves are fixed and built out separately — this only adds people to already-open seats.</div>
+    <div id="fbcContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const FBC_ALLOWED_ROLES = ['super_admin', 'hr_manager'];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+  const HIRE_ENDPOINT = FBC_URL + '/functions/v1/hire-fbc-employee';
+
+  let ALL_VACANT = [];
+  let SELECTED_POSITION = null;
+
+  function positionLabel(p) {
+    const parts = [];
+    if (p.mandal_name) parts.push(p.mandal_name + ' mandal');
+    else if (p.revenue_division_name) parts.push(p.revenue_division_name + ' division');
+    else if (p.district_name) parts.push(p.district_name + ' district');
+    else if (p.state_name) parts.push(p.state_name);
+    return parts.join(', ') || '—';
+  }
+
+  function renderPositions(filterRole, filterText) {
+    const list = document.getElementById('positionList');
+    const text = (filterText || '').toLowerCase();
+    const filtered = ALL_VACANT.filter(p => {
+      if (filterRole && filterRole !== 'all' && p.role_code !== filterRole) return false;
+      if (text && !(p.position_code.toLowerCase().includes(text) || positionLabel(p).toLowerCase().includes(text))) return false;
+      return true;
+    });
+    if (!filtered.length) {
+      list.innerHTML = `<div class="feedEmpty">No vacant positions match.</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(p => `
+      <div class="positionRow" data-id="${p.id}">
+        <div class="left">
+          <div class="code">${p.position_code}</div>
+          <div class="meta">${positionLabel(p)}</div>
+        </div>
+        <span class="roleTag">${p.role_code}</span>
+      </div>
+    `).join('');
+    list.querySelectorAll('.positionRow').forEach(row => {
+      row.onclick = () => selectPosition(row.dataset.id);
+    });
+  }
+
+  function selectPosition(id) {
+    SELECTED_POSITION = ALL_VACANT.find(p => p.id === id);
+    document.querySelectorAll('.positionRow').forEach(r => r.classList.toggle('selected', r.dataset.id === id));
+    const form = document.getElementById('hireForm');
+    form.classList.add('open');
+    document.getElementById('selectedCodeLbl').textContent =
+      `Hiring for ${SELECTED_POSITION.position_code} — ${SELECTED_POSITION.role_code} · ${positionLabel(SELECTED_POSITION)}`;
+    document.getElementById('hireMsg').textContent = '';
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function cancelHire() {
+    SELECTED_POSITION = null;
+    document.getElementById('hireForm').classList.remove('open');
+    document.querySelectorAll('.positionRow').forEach(r => r.classList.remove('selected'));
+  }
+
+  async function submitHire() {
+    const msg = document.getElementById('hireMsg');
+    const full_name = document.getElementById('hireName').value.trim();
+    const phone = document.getElementById('hirePhone').value.trim();
+    const email = document.getElementById('hireEmail').value.trim();
+    const hire_date = document.getElementById('hireDate').value;
+    const emergency_contact = document.getElementById('hireEmergency').value.trim();
+
+    if (!SELECTED_POSITION) { msg.style.color = '#C0392B'; msg.textContent = 'Select a position first.'; return; }
+    if (!full_name) { msg.style.color = '#C0392B'; msg.textContent = 'Full name is required.'; return; }
+
+    const btn = document.getElementById('hireSubmitBtn');
+    btn.disabled = true;
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Hiring…';
+
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    if (!session) { msg.style.color = '#C0392B'; msg.textContent = 'Session expired — please sign in again.'; btn.disabled = false; return; }
+
+    try {
+      const res = await fetch(HIRE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: session.access_token,
+          full_name, phone: phone || null, email: email || null,
+          hire_date: hire_date || null, emergency_contact: emergency_contact || null,
+          position_id: SELECTED_POSITION.id,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        msg.style.color = '#C0392B'; msg.textContent = result.error || 'Hire failed.'; btn.disabled = false; return;
+      }
+      msg.style.color = 'var(--green)';
+      msg.textContent = `Hired! ${result.employee.employee_code} — ${full_name} — now in ${result.position_code}.`;
+      document.getElementById('hireName').value = '';
+      document.getElementById('hirePhone').value = '';
+      document.getElementById('hireEmail').value = '';
+      document.getElementById('hireEmergency').value = '';
+      await loadVacantPositions();
+      cancelHire();
+    } catch (e) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Network error — please try again.';
+    }
+    btn.disabled = false;
+  }
+
+  async function loadVacantPositions() {
+    const { data, error } = await fbcSb
+      .from('fbc_positions')
+      .select(`
+        id, position_code, status,
+        fbc_roles(code),
+        states(name), districts(name), revenue_divisions(name), mandals(name)
+      `)
+      .eq('status', 'vacant')
+      .order('position_code');
+
+    if (error) {
+      document.getElementById('positionList').innerHTML = `<div class="feedEmpty">Couldn't load positions: ${error.message}</div>`;
+      return;
+    }
+    ALL_VACANT = (data || []).map(p => ({
+      id: p.id, position_code: p.position_code,
+      role_code: p.fbc_roles ? p.fbc_roles.code : '',
+      state_name: p.states ? p.states.name : '',
+      district_name: p.districts ? p.districts.name : '',
+      revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
+      mandal_name: p.mandals ? p.mandals.name : '',
+    }));
+    renderPositions(document.getElementById('roleFilter').value, document.getElementById('searchFilter').value);
+  }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('fbcContent');
+
+    if (!FBC_ALLOWED_ROLES.includes(role)) {
+      el.innerHTML = `
+        <div class="accessBox">
+          <div class="emoji">🔒</div>
+          <h2>Restricted to HR Manager / Super Admin</h2>
+          <p>Only HR Manager or Super Admin can hire FBC Network employees.</p>
+        </div>
+      `;
+      return;
+    }
+
+    el.innerHTML = `
+      <div class="fbcFilters">
+        <select id="roleFilter">
+          <option value="all">All Roles</option>
+          <option value="CEO">CEO</option>
+          <option value="BD">BD</option>
+          <option value="ZM">ZM</option>
+          <option value="RM">RM</option>
+          <option value="BDM">BDM</option>
+          <option value="MM">MM</option>
+          <option value="FO">FO</option>
+        </select>
+        <input type="text" id="searchFilter" placeholder="Search by code or place name…">
+      </div>
+      <div class="positionList" id="positionList">Loading vacant positions…</div>
+
+      <div class="hireForm" id="hireForm">
+        <h3>Hire into this position</h3>
+        <div class="selectedCode" id="selectedCodeLbl"></div>
+        <div class="formRow"><label>Full name *</label><input type="text" id="hireName" placeholder="Full name"></div>
+        <div class="formGrid">
+          <div class="formRow"><label>Phone</label><input type="tel" id="hirePhone" placeholder="Phone number"></div>
+          <div class="formRow"><label>Email</label><input type="email" id="hireEmail" placeholder="Email address"></div>
+        </div>
+        <div class="formGrid">
+          <div class="formRow"><label>Hire date</label><input type="date" id="hireDate"></div>
+          <div class="formRow"><label>Emergency contact</label><input type="text" id="hireEmergency" placeholder="Name & phone"></div>
+        </div>
+        <button id="hireSubmitBtn">Hire</button>
+        <button class="cancelBtn" id="hireCancelBtn">Cancel</button>
+        <div id="hireMsg"></div>
+      </div>
+    `;
+
+    document.getElementById('roleFilter').onchange = () =>
+      renderPositions(document.getElementById('roleFilter').value, document.getElementById('searchFilter').value);
+    document.getElementById('searchFilter').oninput = () =>
+      renderPositions(document.getElementById('roleFilter').value, document.getElementById('searchFilter').value);
+    document.getElementById('hireSubmitBtn').onclick = submitHire;
+    document.getElementById('hireCancelBtn').onclick = cancelHire;
+    document.getElementById('hireDate').value = new Date().toISOString().slice(0, 10);
+
+    await loadVacantPositions();
+  };
+</script>
+</body>
+</html>
