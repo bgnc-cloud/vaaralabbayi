@@ -12,7 +12,11 @@
   #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
   .scopeNote {
     font-size: 12.5px; color: #B7791F; background: #FBF1DE; border-radius: 8px;
-    padding: 10px 14px; margin-bottom: 24px; display: inline-block;
+    padding: 10px 14px; margin-bottom: 16px; display: inline-block;
+  }
+  .viewOnlyNote {
+    font-size: 12.5px; color: var(--g3); background: var(--off); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 16px; display: inline-block;
   }
 
   .statsGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 20px; }
@@ -41,6 +45,7 @@
     display: grid; grid-template-columns: 1.4fr 0.55fr 1.3fr 0.7fr 1.6fr 1.3fr;
     align-items: flex-start; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px;
   }
+  .statusRow.noActions { grid-template-columns: 1.5fr 0.6fr 1.5fr 0.8fr 1.8fr; }
   .statusRow:last-child { border-bottom: none; }
   .statusRow.headerRow { background: var(--off); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--g3); letter-spacing: .03em; align-items: center; }
   .statusRow .code { font-weight: 700; color: var(--ink); }
@@ -110,7 +115,11 @@
 
 <script src="shell.js"></script>
 <script>
-  const FBC_DASH_ALLOWED_ROLES = ['super_admin', 'hr_manager'];
+  // Everyone in VIEW_ROLES can see this page. Only EDIT_ROLES get Transfer/Terminate
+  // buttons — matches how the rest of VIPL Internal already treats investors/directors:
+  // full visibility into company operations, no ability to change anything.
+  const FBC_DASH_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager', 'investor', 'director_1', 'director_2'];
+  const FBC_DASH_EDIT_ROLES = ['super_admin', 'admin', 'hr_manager'];
 
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
   const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
@@ -126,11 +135,12 @@
   const STEP_LABELS = { district: 'District', division: 'Revenue Division', mandal: 'Mandal', village: 'Village' };
   const ROLE_ORDER = ['CEO','BD','ZM','RM','BDM','MM','FO'];
 
+  let CAN_EDIT = false;
   let ALL_POSITIONS = [];
   let ALL_VACANT = [];
   let ROSTER_BY_POSITION = {};
   let SELECTED_ROLE = 'all';
-  let OPEN_PANEL = null; // { positionId, type: 'terminate'|'transfer' }
+  let OPEN_PANEL = null;
   let TRANSFER_SELECTION = {};
   let TRANSFER_MATCH = null;
 
@@ -158,6 +168,7 @@
   }
 
   function actionsHtml(p) {
+    if (!CAN_EDIT) return '';
     const o = ROSTER_BY_POSITION[p.id];
     if (!o) return '';
     return `
@@ -277,6 +288,7 @@
   }
 
   window.openPanel = function(positionId, type) {
+    if (!CAN_EDIT) return;
     OPEN_PANEL = { positionId, type };
     renderTables();
   };
@@ -341,20 +353,21 @@
       groups[key].push(p);
     });
 
+    const rowClass = CAN_EDIT ? 'statusRow' : 'statusRow noActions';
     let html = '';
     Object.keys(groups).sort().forEach(district => {
       const rows = groups[district];
       html += `<div class="districtGroup"><h3>${district}</h3><div class="statusTable">`;
-      html += `<div class="statusRow headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div><div>Actions</div></div>`;
+      html += `<div class="${rowClass} headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div>${CAN_EDIT ? '<div>Actions</div>' : ''}</div>`;
       rows.forEach(p => {
         html += `
-          <div class="statusRow">
+          <div class="${rowClass}">
             <div class="code">${p.position_code}</div>
             <div><span class="roleTag">${p.role_code}</span></div>
             <div>${geoLabel(p)}</div>
             <div><span class="statusPill2 ${p.status}">${p.status === 'active' ? 'Filled' : 'Vacant'}</span></div>
             <div>${occupantHtml(p)}</div>
-            <div>${actionsHtml(p)}</div>
+            ${CAN_EDIT ? `<div>${actionsHtml(p)}</div>` : ''}
             ${OPEN_PANEL && OPEN_PANEL.positionId === p.id
               ? (OPEN_PANEL.type === 'terminate' ? terminatePanelHtml(p) : transferPanelHtml(p))
               : ''}
@@ -391,6 +404,9 @@
     if (posErr) throw posErr;
 
     let roster = [];
+    // Roster (who's appointed where) requires the edit-tier auth check server-side —
+    // view-only roles (investor/director) still see full occupant details here since
+    // that's the whole point of transparency, but they can't call terminate/transfer.
     try {
       const res = await fetch(ROSTER_ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -418,12 +434,17 @@
     const role = VIPL.profile.role;
     const el = document.getElementById('fbcDashContent');
 
-    if (!FBC_DASH_ALLOWED_ROLES.includes(role)) {
-      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted to HR Manager / Super Admin</h2><p>Only HR Manager or Super Admin can view the FBC dashboard.</p></div>`;
+    if (!FBC_DASH_VIEW_ROLES.includes(role)) {
+      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted</h2><p>This dashboard is visible to Super Admin, Admin, HR Manager, Investors, and Directors.</p></div>`;
       return;
     }
+    CAN_EDIT = FBC_DASH_EDIT_ROLES.includes(role);
 
-    el.innerHTML = `<div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div><div id="dashBody">Loading…</div>`;
+    el.innerHTML = `
+      <div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div>
+      ${!CAN_EDIT ? `<div class="viewOnlyNote">👁️ View-only — Transfer and Terminate are restricted to Super Admin, Admin, and HR Manager.</div>` : ''}
+      <div id="dashBody">Loading…</div>
+    `;
 
     try {
       await loadEverything();
