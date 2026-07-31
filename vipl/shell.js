@@ -36,8 +36,8 @@ const NAV_CONFIG = [
   { group: 'Admin', items: [
     { label: '🧩 Role Management', href: 'roles.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '👤 Employee Management', href: 'employees.html', roles: ['super_admin','admin','hr_manager'] },
-   { label: '📊 FBC Dashboard', href: 'fbc-dashboard.html', roles: ['super_admin','hr_manager'] },
-    { label: '🚜 FBC Employees', href: 'fbc-employees.html', roles: ['super_admin','hr_manager'] },
+    { label: '📊 FBC Dashboard', href: 'fbc-dashboard.html', roles: ['super_admin','admin','hr_manager','investor','director_1','director_2'] },
+    { label: '🚜 FBC Employees', href: 'fbc-employees.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '🔗 Party Tagging', href: 'party-tagging.html', roles: ['super_admin','accountant'] },
     { label: '👥 People & Roles', href: 'people-overview.html', roles: ['super_admin','accountant'] },
   ]},
