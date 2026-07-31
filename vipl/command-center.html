@@ -136,8 +136,20 @@
       }
     },
     {
-      key: 'warehouse', name: 'Warehouse & Supply Chain', kind: 'planned',
-      note: 'Not started — sequenced after FBC Network, since FBC\'s Dark Stores depend on it.',
+      key: 'warehouse', name: 'Warehouse & Supply Chain', kind: 'live',
+      note: 'Master Warehouse and Dark Store setup layer live (repo, domain, tables, atomic codes). Village Stores, transport routes, and orders not built yet — waiting on village geography and further build-out.',
+      async load() {
+        const [warehouses, darkStores, lastStore] = await Promise.all([
+          fbcSb.from('master_warehouses').select('id', { count: 'exact', head: true }),
+          fbcSb.from('dark_stores').select('id', { count: 'exact', head: true }),
+          fbcSb.from('dark_stores').select('created_at').order('created_at', { ascending: false }).limit(1),
+        ]);
+        return {
+          stat1: { value: warehouses.count || 0, label: 'Master Warehouses', warn: false },
+          stat2: { value: darkStores.count || 0, label: 'Dark Stores (of 28)', warn: false },
+          lastActivity: lastStore.data && lastStore.data[0] ? lastStore.data[0].created_at : null,
+        };
+      }
     },
     {
       key: 'subscriber-emi', name: 'Subscriber & EMI Platform', kind: 'planned',
