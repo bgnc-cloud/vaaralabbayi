@@ -11,8 +11,12 @@
 <style>
   #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
   .scopeNote {
+    font-size: 12.5px; color: #0E9488; background: #E3F5F3; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 10px; display: inline-block;
+  }
+  .draftNote {
     font-size: 12.5px; color: #B7791F; background: #FBF1DE; border-radius: 8px;
-    padding: 10px 14px; margin-bottom: 16px; display: inline-block;
+    padding: 10px 14px; margin-bottom: 16px; display: block;
   }
   .viewOnlyNote {
     font-size: 12.5px; color: var(--g3); background: var(--off); border-radius: 8px;
@@ -26,7 +30,12 @@
   .statBox.vacant .v { color: #B7791F; }
   .statBox.active .v { color: #0E9488; }
 
-  .roleBreakdown { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .filterBar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; align-items: center; }
+  .filterBar select {
+    padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; font-family: inherit; background: #fff; color: var(--ink);
+  }
+  .roleBreakdown { display: flex; gap: 10px; flex-wrap: wrap; }
   .roleChip {
     background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 7px 16px;
     font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px;
@@ -37,10 +46,10 @@
   .roleChip.selected { background: var(--blue); border-color: var(--blue); color: #fff; }
   .roleChip.selected .n { color: #fff; }
   .filterHint { font-size: 12px; color: var(--g3); margin-bottom: 24px; }
-  .filterHint a { color: var(--blue); font-weight: 700; text-decoration: none; }
 
   .districtGroup { margin-bottom: 24px; }
-  .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+  .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+  .districtGroup .regionTag { font-size: 11px; color: var(--g3); font-weight: 600; margin-bottom: 10px; display: block; }
   .statusTable { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   .statusRow {
     display: grid; grid-template-columns: 1.4fr 0.55fr 1.3fr 0.7fr 1.6fr 1.3fr;
@@ -116,9 +125,6 @@
 
 <script src="shell.js"></script>
 <script>
-  // Everyone in VIEW_ROLES can see this page. Only EDIT_ROLES get Transfer/Terminate
-  // buttons — matches how the rest of VIPL Internal already treats investors/directors:
-  // full visibility into company operations, no ability to change anything.
   const FBC_DASH_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager', 'investor', 'director_1', 'director_2'];
   const FBC_DASH_EDIT_ROLES = ['super_admin', 'admin', 'hr_manager'];
 
@@ -135,12 +141,15 @@
   };
   const STEP_LABELS = { district: 'District', division: 'Revenue Division', mandal: 'Mandal', village: 'Village' };
   const ROLE_ORDER = ['CEO','BD','ZM','RM','BDM','MM','FO'];
+  const REGION_ORDER = ['Uttarandhra', 'Coastal Andhra', 'Rayalaseema'];
 
   let CAN_EDIT = false;
   let ALL_POSITIONS = [];
   let ALL_VACANT = [];
   let ROSTER_BY_POSITION = {};
   let SELECTED_ROLE = 'all';
+  let SELECTED_REGION = 'all';
+  let SELECTED_DISTRICT = 'all';
   let OPEN_PANEL = null;
   let TRANSFER_SELECTION = {};
   let TRANSFER_MATCH = null;
@@ -345,20 +354,29 @@
     } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
   };
 
+  function currentFiltered() {
+    return ALL_POSITIONS.filter(p => {
+      if (SELECTED_ROLE !== 'all' && p.role_code !== SELECTED_ROLE) return false;
+      if (SELECTED_REGION !== 'all' && p.region !== SELECTED_REGION) return false;
+      if (SELECTED_DISTRICT !== 'all' && districtLabel(p) !== SELECTED_DISTRICT) return false;
+      return true;
+    });
+  }
+
   function renderTables() {
-    const filtered = SELECTED_ROLE === 'all' ? ALL_POSITIONS : ALL_POSITIONS.filter(p => p.role_code === SELECTED_ROLE);
+    const filtered = currentFiltered();
     const groups = {};
     filtered.forEach(p => {
       const key = districtLabel(p);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(p);
+      if (!groups[key]) groups[key] = { region: p.region, rows: [] };
+      groups[key].rows.push(p);
     });
 
     const rowClass = CAN_EDIT ? 'statusRow' : 'statusRow noActions';
     let html = '';
     Object.keys(groups).sort().forEach(district => {
-      const rows = groups[district];
-      html += `<div class="districtGroup"><h3>${district}</h3><div class="statusTable">`;
+      const { region, rows } = groups[district];
+      html += `<div class="districtGroup"><h3>${district}</h3><span class="regionTag">${region || ''}</span><div class="statusTable">`;
       html += `<div class="${rowClass} headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div>${CAN_EDIT ? '<div>Actions</div>' : ''}</div>`;
       rows.forEach(p => {
         html += `
@@ -389,8 +407,24 @@
     SELECTED_ROLE = roleCode;
     OPEN_PANEL = null;
     document.querySelectorAll('.roleChip').forEach(c => c.classList.toggle('selected', c.dataset.role === roleCode));
-    document.getElementById('filterLabel').textContent = roleCode === 'all' ? 'all roles' : roleCode + ' only';
+    updateFilterHint();
     renderTables();
+  }
+
+  function updateFilterHint() {
+    const parts = [];
+    parts.push(SELECTED_ROLE === 'all' ? 'all roles' : SELECTED_ROLE + ' only');
+    if (SELECTED_REGION !== 'all') parts.push(SELECTED_REGION);
+    if (SELECTED_DISTRICT !== 'all') parts.push(SELECTED_DISTRICT);
+    document.getElementById('filterLabel').textContent = parts.join(' · ');
+  }
+
+  function populateDistrictSelect() {
+    const sel = document.getElementById('districtSelect');
+    const inRegion = SELECTED_REGION === 'all' ? ALL_POSITIONS : ALL_POSITIONS.filter(p => p.region === SELECTED_REGION);
+    const districts = [...new Set(inRegion.map(p => districtLabel(p)))].sort();
+    sel.innerHTML = `<option value="all">All Districts</option>` + districts.map(d => `<option value="${d}">${d}</option>`).join('');
+    sel.value = SELECTED_DISTRICT;
   }
 
   async function loadEverything() {
@@ -398,21 +432,13 @@
       fbcSb.from('fbc_positions').select(`
         id, position_code, status,
         fbc_roles(code),
-        states(code, name), districts(name), revenue_divisions(name), mandals(name)
+        states(name), districts(name, region), revenue_divisions(name), mandals(name)
       `).order('position_code'),
       VIPL.sb.auth.getSession(),
     ]);
     if (posErr) throw posErr;
 
-    // Optional ?state=AP filter, for when this is reached from the All States overview.
-    // Harmless no-op today with a single state; scopes correctly once more exist.
-    const params = new URLSearchParams(window.location.search);
-    const stateFilter = params.get('state');
-
     let roster = [];
-    // Roster (who's appointed where) requires the edit-tier auth check server-side —
-    // view-only roles (investor/director) still see full occupant details here since
-    // that's the whole point of transparency, but they can't call terminate/transfer.
     try {
       const res = await fetch(ROSTER_ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -425,17 +451,15 @@
     ROSTER_BY_POSITION = {};
     roster.forEach(r => { ROSTER_BY_POSITION[r.position_id] = r; });
 
-    let mapped = (positions || []).map(p => ({
+    ALL_POSITIONS = (positions || []).map(p => ({
       id: p.id, position_code: p.position_code, status: p.status,
       role_code: p.fbc_roles ? p.fbc_roles.code : '',
-      state_code: p.states ? p.states.code : '',
       state_name: p.states ? p.states.name : '',
       district_name: p.districts ? p.districts.name : '',
+      region: p.districts ? p.districts.region : null,
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
     }));
-    if (stateFilter) mapped = mapped.filter(p => p.state_code === stateFilter);
-    ALL_POSITIONS = mapped;
     ALL_VACANT = ALL_POSITIONS.filter(p => p.status === 'vacant');
   }
 
@@ -449,12 +473,9 @@
     }
     CAN_EDIT = FBC_DASH_EDIT_ROLES.includes(role);
 
-    const params = new URLSearchParams(window.location.search);
-    const stateFilter = params.get('state');
-
     el.innerHTML = `
-      ${stateFilter ? `<div class="filterHint"><a href="fbc-states.html">← All States</a></div>` : ''}
-      <div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div>
+      <div class="scopeNote">✅ Statewide — all 28 Andhra Pradesh districts.</div>
+      <div class="draftNote">⚠️ BD district clusters (7 seats, up to 6 districts each) are draft geographic defaults, not a confirmed business decision — reassignable anytime since no one's appointed to most yet.</div>
       ${!CAN_EDIT ? `<div class="viewOnlyNote">👁️ View-only — Transfer and Terminate are restricted to Super Admin, Admin, and HR Manager.</div>` : ''}
       <div id="dashBody">Loading…</div>
     `;
@@ -478,14 +499,36 @@
         <div class="statBox vacant"><div class="v">${vacant}</div><div class="l">Vacant</div></div>
         <div class="statBox active"><div class="v">${active}</div><div class="l">Filled</div></div>
       </div>
+      <div class="filterBar">
+        <select id="regionSelect">
+          <option value="all">All Regions</option>
+          ${REGION_ORDER.map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+        <select id="districtSelect"></select>
+      </div>
       <div class="roleBreakdown" id="roleChips">
         <div class="roleChip selected" data-role="all">All <span class="n">${total}</span></div>
         ${ROLE_ORDER.filter(r => byRole[r]).map(r => `<div class="roleChip" data-role="${r}">${r} <span class="n">${byRole[r]}</span></div>`).join('')}
       </div>
-      <div class="filterHint">Click a role to filter — showing <span id="filterLabel">all roles</span>.</div>
+      <div class="filterHint">Showing: <span id="filterLabel">all roles</span></div>
       <div id="tablesArea"></div>
     `;
     document.querySelectorAll('.roleChip').forEach(chip => { chip.onclick = () => selectRole(chip.dataset.role); });
+
+    populateDistrictSelect();
+    document.getElementById('regionSelect').onchange = (e) => {
+      SELECTED_REGION = e.target.value;
+      SELECTED_DISTRICT = 'all';
+      populateDistrictSelect();
+      updateFilterHint();
+      renderTables();
+    };
+    document.getElementById('districtSelect').onchange = (e) => {
+      SELECTED_DISTRICT = e.target.value;
+      updateFilterHint();
+      renderTables();
+    };
+
     renderTables();
   };
 </script>
