@@ -13,7 +13,6 @@
 
   .hireCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 26px; max-width: 640px; }
   .stepBlock { margin-bottom: 20px; }
-  .stepBlock.hidden { display: none; }
   .stepLabel { font-size: 12.5px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 6px; }
   .stepBlock select {
     width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px;
@@ -52,6 +51,34 @@
   .resetBtn { background: var(--off); color: var(--ink); margin-left: 8px; }
   #hireMsg { font-size: 13px; margin-top: 12px; }
 
+  .modeToggle { display: flex; gap: 8px; margin-bottom: 18px; }
+  .modeBtn {
+    flex: 1; text-align: center; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 13px; font-weight: 700; cursor: pointer; background: #fff; color: var(--g3);
+  }
+  .modeBtn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+  .searchBox {
+    width: 100%; padding: 11px 13px; border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 12px; font-size: 14px; font-family: inherit; box-sizing: border-box;
+  }
+  .empRow {
+    display: flex; align-items: center; justify-content: space-between; padding: 12px 14px;
+    border: 1px solid var(--border); border-radius: 8px; cursor: pointer; margin-bottom: 8px; transition: background .12s;
+  }
+  .empRow:hover { background: var(--off); }
+  .empRow.selected { background: #E3F5F3; border-color: #0E9488; }
+  .empRow .name { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+  .empRow .code2 { color: var(--blue); font-weight: 600; font-size: 12px; }
+  .empRow .meta { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+  .empRow .lastPos { font-size: 11px; color: #B7791F; margin-top: 2px; }
+
+  .crossWarning {
+    background: #FBF1DE; border: 1px solid #F0D9A8; border-radius: 8px; padding: 10px 12px;
+    font-size: 12.5px; color: #92620F; margin-bottom: 12px; line-height: 1.5;
+  }
+  .crossWarning b { font-weight: 800; }
+
   .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
   .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
   .accessBox h2 { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
@@ -79,22 +106,46 @@
   const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
   const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const HIRE_ENDPOINT = FBC_URL + '/functions/v1/hire-fbc-employee';
+  const AVAILABLE_EMPLOYEES_ENDPOINT = FBC_URL + '/functions/v1/get-available-fbc-employees';
 
-  // Which geography levels each role needs, in order.
   const ROLE_GEO_STEPS = {
-    CEO: [],
-    BD:  [],
-    ZM:  ['district'],
-    RM:  ['district', 'division'],
-    BDM: ['district', 'division', 'mandal'],
-    MM:  ['district', 'division', 'mandal', 'village'],
-    FO:  ['district', 'division', 'mandal', 'village'],
+    CEO: [], BD: [], ZM: ['district'], RM: ['district', 'division'], BDM: ['district', 'division', 'mandal'],
+    MM: ['district', 'division', 'mandal', 'village'], FO: ['district', 'division', 'mandal', 'village'],
   };
   const STEP_LABELS = { district: 'District', division: 'Revenue Division', mandal: 'Mandal', village: 'Village' };
+  const VIPL_ROLE_LABELS = {
+    super_admin: 'Super Admin', admin: 'Admin', hr_manager: 'HR Manager',
+    director_1: 'Director', director_2: 'Director', accountant: 'Accountant',
+    entry: 'Entry Staff', store_operator: 'Store Operator', investor: 'Investor',
+    subscriber: 'Subscriber', viewer: 'Viewer', auditor_team: 'Auditor Team', pending: 'Pending Approval',
+  };
 
   let ALL_VACANT = [];
   let SELECTION = { role: '', district: '', division: '', mandal: '', village: '' };
   let MATCHED_POSITION = null;
+  let HIRE_MODE = 'new';
+  let AVAILABLE_EMPLOYEES = [];
+  let SELECTED_EXISTING_EMPLOYEE = null;
+
+  // Cross-system check: does this email/phone already belong to a real VIPL Core login
+  // account (super_admin, director, accountant, etc.)? Not blocking — dual roles can be
+  // legitimate — just surfaced so HR sees it before confirming.
+  async function checkViplCoreDuplicate(email, phone) {
+    if (!email && !phone) return null;
+    const orParts = [];
+    if (email) orParts.push(`email.eq.${email}`);
+    if (phone) orParts.push(`phone.eq.${phone}`);
+    const { data, error } = await VIPL.sb.from('profiles').select('full_name, role, customer_id').or(orParts.join(','));
+    if (error || !data || !data.length) return null;
+    return data[0];
+  }
+
+  function renderCrossWarning(containerId, match) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    if (!match) { el.innerHTML = ''; return; }
+    el.innerHTML = `<div class="crossWarning">⚠️ This email/phone already belongs to a VIPL Core login account: <b>${match.full_name}</b> — ${VIPL_ROLE_LABELS[match.role] || match.role} (${match.customer_id}). This is fine if it's the same person intentionally holding both roles — just confirming before you proceed.</div>`;
+  }
 
   function uniqueValues(list, key) {
     return [...new Set(list.map(p => p[key]).filter(Boolean))].sort();
@@ -115,8 +166,6 @@
     const container = document.getElementById('flowSteps');
     const steps = ROLE_GEO_STEPS[SELECTION.role] || [];
     let html = '';
-
-    // Geography dropdowns, one at a time, each populated from positions matching everything selected so far.
     let runningFilter = { role: SELECTION.role };
     for (const step of steps) {
       const candidatePositions = ALL_VACANT.filter(p => {
@@ -128,7 +177,6 @@
       });
       const key = step === 'district' ? 'district_name' : step === 'division' ? 'revenue_division_name' : step === 'mandal' ? 'mandal_name' : 'village_name';
       const options = uniqueValues(candidatePositions, key);
-
       html += `
         <div class="stepBlock">
           <label class="stepLabel">${STEP_LABELS[step]}</label>
@@ -139,18 +187,15 @@
         </div>
       `;
       runningFilter[step] = SELECTION[step];
-      if (!SELECTION[step]) break; // don't reveal the next dropdown until this one's chosen
+      if (!SELECTION[step]) break;
     }
-
     container.innerHTML = html;
     container.querySelectorAll('select').forEach(sel => {
       sel.onchange = () => {
         const step = sel.dataset.step;
         SELECTION[step] = sel.value;
-        // Clear anything deeper than this step since its options are now stale.
         const order = ['district', 'division', 'mandal', 'village'];
-        const idx = order.indexOf(step);
-        order.slice(idx + 1).forEach(k => SELECTION[k] = '');
+        order.slice(order.indexOf(step) + 1).forEach(k => SELECTION[k] = '');
         MATCHED_POSITION = null;
         renderFlow();
         renderMatch();
@@ -160,8 +205,7 @@
 
   function renderMatch() {
     const box = document.getElementById('matchArea');
-    if (!SELECTION.role) { box.innerHTML = ''; return; }
-
+    if (!SELECTION.role) { box.innerHTML = ''; document.getElementById('hireFormArea').innerHTML = ''; return; }
     const steps = ROLE_GEO_STEPS[SELECTION.role] || [];
     const allStepsChosen = steps.every(s => SELECTION[s]);
     if (!allStepsChosen) { box.innerHTML = ''; document.getElementById('hireFormArea').innerHTML = ''; return; }
@@ -172,24 +216,14 @@
       document.getElementById('hireFormArea').innerHTML = '';
       return;
     }
-
     if (matches.length === 1) {
       MATCHED_POSITION = matches[0];
-      box.innerHTML = `
-        <div class="matchBox">
-          <div class="code">${MATCHED_POSITION.position_code}</div>
-          <div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div>
-        </div>
-      `;
+      box.innerHTML = `<div class="matchBox"><div class="code">${MATCHED_POSITION.position_code}</div><div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div></div>`;
       renderHireForm();
     } else {
       box.innerHTML = `<label class="stepLabel">Multiple open seats here — pick one</label><div class="pickList" id="pickList"></div>`;
       const pickList = document.getElementById('pickList');
-      pickList.innerHTML = matches.map(p => `
-        <div class="pickRow" data-id="${p.id}">
-          <div><div class="code">${p.position_code}</div><div class="meta">${geoLabel(p)}</div></div>
-        </div>
-      `).join('');
+      pickList.innerHTML = matches.map(p => `<div class="pickRow" data-id="${p.id}"><div><div class="code">${p.position_code}</div><div class="meta">${geoLabel(p)}</div></div></div>`).join('');
       pickList.querySelectorAll('.pickRow').forEach(row => {
         row.onclick = () => {
           MATCHED_POSITION = matches.find(m => m.id === row.dataset.id);
@@ -211,51 +245,151 @@
     return parts.join(', ') || '—';
   }
 
-  function renderHireForm() {
+  async function renderHireForm() {
     const area = document.getElementById('hireFormArea');
     if (!MATCHED_POSITION) { area.innerHTML = ''; return; }
+
     area.innerHTML = `
       <div class="hireFormFields">
-        <div class="formRow"><label>Full name *</label><input type="text" id="hireName" placeholder="Full name"></div>
-        <div class="formGrid">
-          <div class="formRow"><label>Phone</label><input type="tel" id="hirePhone" placeholder="Phone number"></div>
-          <div class="formRow"><label>Email</label><input type="email" id="hireEmail" placeholder="Email address"></div>
+        <div class="modeToggle">
+          <div class="modeBtn ${HIRE_MODE === 'new' ? 'active' : ''}" id="modeNewBtn">New employee</div>
+          <div class="modeBtn ${HIRE_MODE === 'existing' ? 'active' : ''}" id="modeExistingBtn">Existing employee (rehire / reassign)</div>
         </div>
-        <div class="formGrid">
-          <div class="formRow"><label>Hire date</label><input type="date" id="hireDate" value="${new Date().toISOString().slice(0,10)}"></div>
-          <div class="formRow"><label>Emergency contact</label><input type="text" id="hireEmergency" placeholder="Name & phone"></div>
-        </div>
-        <button id="hireSubmitBtn">Hire into ${MATCHED_POSITION.position_code}</button>
+        <div id="modeBody"></div>
+        <button id="hireSubmitBtn" disabled>Hire into ${MATCHED_POSITION.position_code}</button>
         <button class="resetBtn" id="resetBtn">Start over</button>
         <div id="hireMsg"></div>
       </div>
     `;
-    document.getElementById('hireSubmitBtn').onclick = submitHire;
+    document.getElementById('modeNewBtn').onclick = () => { HIRE_MODE = 'new'; renderHireForm(); };
+    document.getElementById('modeExistingBtn').onclick = () => { HIRE_MODE = 'existing'; renderHireForm(); };
     document.getElementById('resetBtn').onclick = resetFlow;
+
+    if (HIRE_MODE === 'new') {
+      renderNewEmployeeBody();
+    } else {
+      await renderExistingEmployeeBody();
+    }
+  }
+
+  function renderNewEmployeeBody() {
+    document.getElementById('modeBody').innerHTML = `
+      <div id="newEmpCrossWarning"></div>
+      <div class="formRow"><label>Full name *</label><input type="text" id="hireName" placeholder="Full name"></div>
+      <div class="formGrid">
+        <div class="formRow"><label>Phone</label><input type="tel" id="hirePhone" placeholder="Phone number"></div>
+        <div class="formRow"><label>Email</label><input type="email" id="hireEmail" placeholder="Email address"></div>
+      </div>
+      <div class="formGrid">
+        <div class="formRow"><label>Hire date</label><input type="date" id="hireDate" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="formRow"><label>Emergency contact</label><input type="text" id="hireEmergency" placeholder="Name & phone"></div>
+      </div>
+    `;
+    document.getElementById('hireSubmitBtn').disabled = false;
+    document.getElementById('hireSubmitBtn').onclick = submitHireNew;
+
+    const checkNow = async () => {
+      const email = document.getElementById('hireEmail').value.trim();
+      const phone = document.getElementById('hirePhone').value.trim();
+      const match = await checkViplCoreDuplicate(email, phone);
+      renderCrossWarning('newEmpCrossWarning', match);
+    };
+    document.getElementById('hireEmail').onblur = checkNow;
+    document.getElementById('hirePhone').onblur = checkNow;
+  }
+
+  async function renderExistingEmployeeBody() {
+    const body = document.getElementById('modeBody');
+    body.innerHTML = `<div class="noneMsg">Loading available employees…</div>`;
+    document.getElementById('hireSubmitBtn').disabled = true;
+
+    if (!AVAILABLE_EMPLOYEES.length) {
+      const { data: { session } } = await VIPL.sb.auth.getSession();
+      try {
+        const res = await fetch(AVAILABLE_EMPLOYEES_ENDPOINT, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: session.access_token }),
+        });
+        const result = await res.json();
+        if (res.ok) AVAILABLE_EMPLOYEES = result.employees || [];
+      } catch (e) {}
+    }
+
+    if (!AVAILABLE_EMPLOYEES.length) {
+      body.innerHTML = `<div class="noneMsg">No available employees right now — everyone is currently appointed somewhere. Use "New employee" instead.</div>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <input type="text" class="searchBox" id="empSearch" placeholder="Search by name or employee code…">
+      <div id="empList"></div>
+      <div id="existingEmpCrossWarning"></div>
+    `;
+    document.getElementById('empSearch').oninput = (e) => renderEmpList(e.target.value);
+    renderEmpList('');
+  }
+
+  function renderEmpList(query) {
+    const q = query.toLowerCase();
+    const filtered = AVAILABLE_EMPLOYEES.filter(e =>
+      !q || e.full_name.toLowerCase().includes(q) || e.employee_code.toLowerCase().includes(q)
+    );
+    const list = document.getElementById('empList');
+    if (!filtered.length) { list.innerHTML = `<div class="noneMsg">No match.</div>`; return; }
+    list.innerHTML = filtered.map(e => `
+      <div class="empRow" data-id="${e.id}">
+        <div>
+          <div class="name">${e.full_name} <span class="code2">(${e.employee_code})</span></div>
+          <div class="meta">${[e.phone, e.email].filter(Boolean).join(' · ') || 'No contact info'}</div>
+          ${e.last_position ? `<div class="lastPos">Last held ${e.last_position.position_code} — until ${e.last_position.end_date}</div>` : `<div class="lastPos">Never appointed yet</div>`}
+        </div>
+      </div>
+    `).join('');
+    list.querySelectorAll('.empRow').forEach(row => {
+      row.onclick = async () => {
+        SELECTED_EXISTING_EMPLOYEE = AVAILABLE_EMPLOYEES.find(e => e.id === row.dataset.id);
+        list.querySelectorAll('.empRow').forEach(r => r.classList.toggle('selected', r === row));
+        document.getElementById('hireSubmitBtn').disabled = false;
+        document.getElementById('hireSubmitBtn').onclick = submitHireExisting;
+        const match = await checkViplCoreDuplicate(SELECTED_EXISTING_EMPLOYEE.email, SELECTED_EXISTING_EMPLOYEE.phone);
+        renderCrossWarning('existingEmpCrossWarning', match);
+      };
+    });
   }
 
   function resetFlow() {
     SELECTION = { role: '', district: '', division: '', mandal: '', village: '' };
     MATCHED_POSITION = null;
+    HIRE_MODE = 'new';
+    SELECTED_EXISTING_EMPLOYEE = null;
     document.getElementById('roleSelect').value = '';
     document.getElementById('flowSteps').innerHTML = '';
     document.getElementById('matchArea').innerHTML = '';
     document.getElementById('hireFormArea').innerHTML = '';
   }
 
-  async function submitHire() {
+  async function submitHireNew() {
     const msg = document.getElementById('hireMsg');
     const full_name = document.getElementById('hireName').value.trim();
     const phone = document.getElementById('hirePhone').value.trim();
     const email = document.getElementById('hireEmail').value.trim();
     const hire_date = document.getElementById('hireDate').value;
     const emergency_contact = document.getElementById('hireEmergency').value.trim();
-
     if (!full_name) { msg.style.color = '#C0392B'; msg.textContent = 'Full name is required.'; return; }
+    await doSubmit({ full_name, phone: phone || null, email: email || null, hire_date: hire_date || null, emergency_contact: emergency_contact || null });
+  }
 
+  async function submitHireExisting() {
+    const msg = document.getElementById('hireMsg');
+    if (!SELECTED_EXISTING_EMPLOYEE) { msg.style.color = '#C0392B'; msg.textContent = 'Select an employee first.'; return; }
+    await doSubmit({ existing_employee_id: SELECTED_EXISTING_EMPLOYEE.id });
+  }
+
+  async function doSubmit(extraFields) {
+    const msg = document.getElementById('hireMsg');
     const btn = document.getElementById('hireSubmitBtn');
     btn.disabled = true;
-    msg.style.color = 'var(--g3)'; msg.textContent = 'Hiring…';
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Submitting…';
 
     const { data: { session } } = await VIPL.sb.auth.getSession();
     if (!session) { msg.style.color = '#C0392B'; msg.textContent = 'Session expired — please sign in again.'; btn.disabled = false; return; }
@@ -264,19 +398,13 @@
       const res = await fetch(HIRE_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          access_token: session.access_token,
-          full_name, phone: phone || null, email: email || null,
-          hire_date: hire_date || null, emergency_contact: emergency_contact || null,
-          position_id: MATCHED_POSITION.id,
-        }),
+        body: JSON.stringify({ access_token: session.access_token, position_id: MATCHED_POSITION.id, ...extraFields }),
       });
       const result = await res.json();
-      if (!res.ok) {
-        msg.style.color = '#C0392B'; msg.textContent = result.error || 'Hire failed.'; btn.disabled = false; return;
-      }
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Hire failed.'; btn.disabled = false; return; }
       msg.style.color = 'var(--green)';
-      msg.textContent = `Hired! ${result.employee.employee_code} — ${full_name} — now in ${result.position_code}.`;
+      msg.textContent = `Done! ${result.employee.employee_code} — ${result.employee.full_name} — now in ${result.position_code}.`;
+      AVAILABLE_EMPLOYEES = [];
       await loadVacantPositions();
       setTimeout(resetFlow, 1800);
     } catch (e) {
@@ -288,14 +416,9 @@
   async function loadVacantPositions() {
     const { data, error } = await fbcSb
       .from('fbc_positions')
-      .select(`
-        id, position_code, status,
-        fbc_roles(code),
-        states(name), districts(name), revenue_divisions(name), mandals(name)
-      `)
+      .select(`id, position_code, status, fbc_roles(code), states(name), districts(name), revenue_divisions(name), mandals(name)`)
       .eq('status', 'vacant')
       .order('position_code');
-
     if (error) {
       document.getElementById('fbcContent').innerHTML = `<div class="accessBox"><p>Couldn't load positions: ${error.message}</p></div>`;
       return;
@@ -307,27 +430,19 @@
       district_name: p.districts ? p.districts.name : '',
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
-      village_name: null, // villages not seeded yet
+      village_name: null,
     }));
   }
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
     const el = document.getElementById('fbcContent');
-
     if (!FBC_ALLOWED_ROLES.includes(role)) {
-      el.innerHTML = `
-        <div class="accessBox">
-          <div class="emoji">🔒</div>
-          <h2>Restricted to HR Manager / Super Admin</h2>
-          <p>Only HR Manager or Super Admin can hire FBC Network employees.</p>
-        </div>
-      `;
+      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted to HR Manager / Super Admin</h2><p>Only HR Manager or Super Admin can hire FBC Network employees.</p></div>`;
       return;
     }
 
     await loadVacantPositions();
-
     const roleCounts = {};
     ALL_VACANT.forEach(p => { roleCounts[p.role_code] = (roleCounts[p.role_code] || 0) + 1; });
     const roleOrder = ['CEO','BD','ZM','RM','BDM','MM','FO'];
@@ -346,10 +461,11 @@
         <div id="hireFormArea"></div>
       </div>
     `;
-
     document.getElementById('roleSelect').onchange = (e) => {
       SELECTION = { role: e.target.value, district: '', division: '', mandal: '', village: '' };
       MATCHED_POSITION = null;
+      HIRE_MODE = 'new';
+      SELECTED_EXISTING_EMPLOYEE = null;
       renderFlow();
       renderMatch();
     };
