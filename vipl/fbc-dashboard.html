@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — FBC Dashboard</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
+  .scopeNote {
+    font-size: 12.5px; color: #B7791F; background: #FBF1DE; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 24px; display: inline-block;
+  }
+
+  .statsGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(150px,1fr)); gap: 12px; margin-bottom: 28px; }
+  .statBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .statBox .v { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; }
+  .statBox .l { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+  .statBox.vacant .v { color: #B7791F; }
+  .statBox.active .v { color: #0E9488; }
+
+  .roleBreakdown { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 28px; }
+  .roleChip {
+    background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px;
+    font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 6px;
+  }
+  .roleChip .n { color: var(--blue); }
+
+  .districtGroup { margin-bottom: 24px; }
+  .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
+  .statusTable { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .statusRow {
+    display: grid; grid-template-columns: 1.6fr 0.7fr 1.6fr 0.9fr 1.4fr;
+    align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .statusRow:last-child { border-bottom: none; }
+  .statusRow.headerRow { background: var(--off); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--g3); letter-spacing: .03em; }
+  .statusRow .code { font-weight: 700; color: var(--ink); }
+  .statusRow .roleTag {
+    font-size: 10.5px; font-weight: 800; background: var(--off); color: var(--ink);
+    padding: 2px 8px; border-radius: 6px; width: fit-content;
+  }
+  .statusPill2 { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; width: fit-content; }
+  .statusPill2.vacant { background: #FBF1DE; color: #B7791F; }
+  .statusPill2.active { background: #E3F5F3; color: #0E9488; }
+  .occupant { color: var(--g3); }
+  .occupant .empCode { color: var(--blue); font-weight: 600; }
+
+  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
+  .accessBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+  .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+
+  @media (max-width: 700px) {
+    .statusRow { grid-template-columns: 1fr; gap: 4px; }
+    .statusRow.headerRow { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">FBC Dashboard</h1>
+    <div class="lead">Every FBC Network position, who (if anyone) currently holds it, grouped by district.</div>
+    <div id="fbcDashContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const FBC_DASH_ALLOWED_ROLES = ['super_admin', 'hr_manager'];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+  const ROSTER_ENDPOINT = FBC_URL + '/functions/v1/get-fbc-roster';
+
+  function geoLabel(p) {
+    if (p.mandal_name) return p.mandal_name + ' mandal';
+    if (p.revenue_division_name) return p.revenue_division_name + ' division';
+    if (p.district_name) return p.district_name + ' district';
+    if (p.state_name) return p.state_name;
+    return '—';
+  }
+
+  function districtLabel(p) {
+    return p.district_name || p.state_name || 'Other';
+  }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('fbcDashContent');
+
+    if (!FBC_DASH_ALLOWED_ROLES.includes(role)) {
+      el.innerHTML = `
+        <div class="accessBox">
+          <div class="emoji">🔒</div>
+          <h2>Restricted to HR Manager / Super Admin</h2>
+          <p>Only HR Manager or Super Admin can view the FBC dashboard.</p>
+        </div>
+      `;
+      return;
+    }
+
+    el.innerHTML = `<div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div>
+      <div id="dashBody">Loading…</div>`;
+
+    const [{ data: positions, error: posErr }, { data: { session } }] = await Promise.all([
+      fbcSb.from('fbc_positions').select(`
+        id, position_code, status,
+        fbc_roles(code),
+        states(name), districts(name), revenue_divisions(name), mandals(name)
+      `).order('position_code'),
+      VIPL.sb.auth.getSession(),
+    ]);
+
+    if (posErr) {
+      document.getElementById('dashBody').innerHTML = `<div class="accessBox"><p>Couldn't load positions: ${posErr.message}</p></div>`;
+      return;
+    }
+
+    let roster = [];
+    try {
+      const res = await fetch(ROSTER_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token }),
+      });
+      const result = await res.json();
+      if (res.ok) roster = result.roster || [];
+    } catch (e) { /* dashboard still works without the overlay, just shows vacant/active */ }
+
+    const rosterByPosition = {};
+    roster.forEach(r => { rosterByPosition[r.position_id] = r; });
+
+    const flat = (positions || []).map(p => ({
+      id: p.id, position_code: p.position_code, status: p.status,
+      role_code: p.fbc_roles ? p.fbc_roles.code : '',
+      state_name: p.states ? p.states.name : '',
+      district_name: p.districts ? p.districts.name : '',
+      revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
+      mandal_name: p.mandals ? p.mandals.name : '',
+    }));
+
+    // ── Stats ──
+    const total = flat.length;
+    const vacant = flat.filter(p => p.status === 'vacant').length;
+    const active = flat.filter(p => p.status === 'active').length;
+
+    const byRole = {};
+    flat.forEach(p => { byRole[p.role_code] = (byRole[p.role_code] || 0) + 1; });
+    const roleOrder = ['CEO','BD','ZM','RM','BDM','MM','FO'];
+
+    let html = `
+      <div class="statsGrid">
+        <div class="statBox"><div class="v">${total}</div><div class="l">Total Positions</div></div>
+        <div class="statBox vacant"><div class="v">${vacant}</div><div class="l">Vacant</div></div>
+        <div class="statBox active"><div class="v">${active}</div><div class="l">Filled</div></div>
+      </div>
+      <div class="roleBreakdown">
+        ${roleOrder.filter(r => byRole[r]).map(r => `<div class="roleChip">${r} <span class="n">${byRole[r]}</span></div>`).join('')}
+      </div>
+    `;
+
+    // ── Grouped status table ──
+    const groups = {};
+    flat.forEach(p => {
+      const key = districtLabel(p);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(p);
+    });
+
+    Object.keys(groups).sort().forEach(district => {
+      const rows = groups[district];
+      html += `<div class="districtGroup"><h3>${district}</h3><div class="statusTable">`;
+      html += `<div class="statusRow headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div></div>`;
+      rows.forEach(p => {
+        const occupant = rosterByPosition[p.id];
+        const occupantHtml = occupant
+          ? `<span class="occupant">${occupant.full_name} <span class="empCode">(${occupant.employee_code})</span></span>`
+          : `<span class="occupant">—</span>`;
+        html += `
+          <div class="statusRow">
+            <div class="code">${p.position_code}</div>
+            <div><span class="roleTag">${p.role_code}</span></div>
+            <div>${geoLabel(p)}</div>
+            <div><span class="statusPill2 ${p.status}">${p.status === 'active' ? 'Filled' : 'Vacant'}</span></div>
+            <div>${occupantHtml}</div>
+          </div>
+        `;
+      });
+      html += `</div></div>`;
+    });
+
+    document.getElementById('dashBody').innerHTML = html;
+  };
+</script>
+</body>
+</html>
