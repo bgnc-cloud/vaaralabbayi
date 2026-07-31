@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — FBC States</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 24px; margin-top: -12px; }
+
+  .stateGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 16px; }
+  .stateCard {
+    background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px;
+    display: flex; flex-direction: column; gap: 14px; text-decoration: none; color: inherit;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .stateCard:hover { border-color: var(--blue); box-shadow: 0 6px 18px rgba(37,99,235,.1); }
+  .stateCard .top { display: flex; align-items: center; justify-content: space-between; }
+  .stateCard .stateName { font-family:'Plus Jakarta Sans',sans-serif; font-weight: 800; font-size: 17px; }
+  .stateCard .stateCode { font-size: 11px; color: var(--g3); font-weight: 600; }
+
+  .ceoBox { background: var(--off); border-radius: 10px; padding: 12px 14px; }
+  .ceoBox .lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--g3); margin-bottom: 4px; }
+  .ceoBox .val { font-weight: 700; font-size: 13.5px; }
+  .ceoBox .val.vacant { color: #B7791F; }
+  .ceoBox .val.filled { color: #0E9488; }
+  .ceoBox .sub { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+
+  .stateStats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .stateStat { text-align: center; }
+  .stateStat .v { font-family:'Plus Jakarta Sans',sans-serif; font-weight: 800; font-size: 18px; }
+  .stateStat .l { font-size: 10.5px; color: var(--g3); }
+  .stateStat.vacant .v { color: #B7791F; }
+  .stateStat.filled .v { color: #0E9488; }
+
+  .viewLink { font-size: 12.5px; font-weight: 700; color: var(--blue); text-align: right; }
+
+  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
+  .accessBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+  .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">FBC — All States</h1>
+    <div class="lead">Every state's FBC hierarchy, rooted at its CEO. As more states come online, they'll appear here automatically.</div>
+    <div id="statesContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const STATES_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager', 'investor', 'director_1', 'director_2'];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+  const ROSTER_ENDPOINT = FBC_URL + '/functions/v1/get-fbc-roster';
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('statesContent');
+
+    if (!STATES_VIEW_ROLES.includes(role)) {
+      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted</h2><p>Visible to Super Admin, Admin, HR Manager, Investors, and Directors.</p></div>`;
+      return;
+    }
+
+    el.innerHTML = `<div class="stateGrid" id="stateGrid">Loading…</div>`;
+
+    const [{ data: states, error: stateErr }, { data: positions, error: posErr }, { data: { session } }] = await Promise.all([
+      fbcSb.from('states').select('id, code, name').order('name'),
+      fbcSb.from('fbc_positions').select('id, state_id, status, fbc_roles(code)'),
+      VIPL.sb.auth.getSession(),
+    ]);
+
+    if (stateErr || posErr) {
+      document.getElementById('stateGrid').innerHTML = `<div class="accessBox"><p>Couldn't load: ${(stateErr||posErr).message}</p></div>`;
+      return;
+    }
+
+    let roster = [];
+    try {
+      const res = await fetch(ROSTER_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token }),
+      });
+      const result = await res.json();
+      if (res.ok) roster = result.roster || [];
+    } catch (e) {}
+    const rosterByPosition = {};
+    roster.forEach(r => { rosterByPosition[r.position_id] = r; });
+
+    const grid = document.getElementById('stateGrid');
+    if (!states.length) {
+      grid.innerHTML = `<div class="accessBox"><p>No states seeded yet.</p></div>`;
+      return;
+    }
+
+    grid.innerHTML = states.map(state => {
+      const statePositions = (positions || []).filter(p => p.state_id === state.id);
+      const total = statePositions.length;
+      const vacant = statePositions.filter(p => p.status === 'vacant').length;
+      const active = statePositions.filter(p => p.status === 'active').length;
+      const ceoPosition = statePositions.find(p => p.fbc_roles && p.fbc_roles.code === 'CEO');
+      const ceoOccupant = ceoPosition ? rosterByPosition[ceoPosition.id] : null;
+
+      let ceoHtml;
+      if (!ceoPosition) {
+        ceoHtml = `<div class="ceoBox"><div class="lbl">CEO</div><div class="val vacant">No CEO position yet</div></div>`;
+      } else if (ceoOccupant) {
+        ceoHtml = `<div class="ceoBox"><div class="lbl">CEO</div><div class="val filled">${ceoOccupant.full_name}</div><div class="sub">${ceoOccupant.employee_code}</div></div>`;
+      } else {
+        ceoHtml = `<div class="ceoBox"><div class="lbl">CEO</div><div class="val vacant">Vacant</div><div class="sub">${ceoPosition.id ? '' : ''}Seat exists, not yet filled</div></div>`;
+      }
+
+      return `
+        <a class="stateCard" href="fbc-dashboard.html?state=${state.code}">
+          <div class="top">
+            <div class="stateName">${state.name}</div>
+            <div class="stateCode">${state.code}</div>
+          </div>
+          ${ceoHtml}
+          <div class="stateStats">
+            <div class="stateStat"><div class="v">${total}</div><div class="l">Total</div></div>
+            <div class="stateStat vacant"><div class="v">${vacant}</div><div class="l">Vacant</div></div>
+            <div class="stateStat filled"><div class="v">${active}</div><div class="l">Filled</div></div>
+          </div>
+          <div class="viewLink">View state detail →</div>
+        </a>
+      `;
+    }).join('');
+  };
+</script>
+</body>
+</html>
