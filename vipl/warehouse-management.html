@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — Warehouse & Supply Chain</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
+  .draftNote {
+    font-size: 12.5px; color: #B7791F; background: #FBF1DE; border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 24px; display: inline-block;
+  }
+  .viewOnlyNote {
+    font-size: 12.5px; color: var(--g3); background: var(--off); border-radius: 8px;
+    padding: 10px 14px; margin-bottom: 24px; display: inline-block;
+  }
+
+  .sectionHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; margin-top: 8px; }
+  .sectionHead h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 17px; font-weight: 800; }
+  .sectionHead .count { font-size: 12.5px; color: var(--g3); }
+  .addBtn {
+    padding: 8px 16px; border-radius: 8px; background: var(--blue); color: #fff; border: none;
+    font-weight: 700; cursor: pointer; font-size: 13px;
+  }
+
+  .cardGrid { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 12px; margin-bottom: 32px; }
+  .infraCard { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+  .infraCard .top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 6px; }
+  .infraCard .name { font-weight: 800; font-size: 14px; }
+  .infraCard .meta { font-size: 12px; color: var(--g3); margin-bottom: 10px; }
+  .statusPill { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; }
+  .statusPill.active { background: #E3F5F3; color: #0E9488; }
+  .statusPill.inactive { background: var(--off); color: var(--g3); }
+  .toggleBtn {
+    font-size: 11.5px; font-weight: 700; padding: 5px 11px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: #fff; color: var(--ink);
+  }
+  .toggleBtn:hover { border-color: var(--blue); color: var(--blue); }
+
+  .emptyState { font-size: 13px; color: var(--g3); background: var(--off); border-radius: 10px; padding: 20px; text-align: center; margin-bottom: 32px; }
+
+  .modalBackdrop { display: none; position: fixed; inset: 0; background: rgba(11,29,46,.42); z-index: 50; align-items: center; justify-content: center; }
+  .modalBackdrop.open { display: flex; }
+  .modalBox { background: #fff; border-radius: 14px; padding: 26px; width: 90%; max-width: 420px; }
+  .modalBox h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; margin-bottom: 16px; }
+  .modalBox label { font-size: 12px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 4px; margin-top: 10px; }
+  .modalBox input, .modalBox select {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13.5px; font-family: inherit; box-sizing: border-box;
+  }
+  .modalBtns { display: flex; gap: 8px; margin-top: 18px; }
+  .modalBtns button { padding: 10px 16px; border-radius: 8px; border: none; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .modalBtns .confirmBtn { background: var(--blue); color: #fff; }
+  .modalBtns .cancelBtn { background: var(--off); color: var(--ink); }
+  .modalMsg { font-size: 12.5px; margin-top: 10px; }
+
+  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+  .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
+  .accessBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
+  .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Warehouse & Supply Chain</h1>
+    <div class="lead">Master Warehouses (per region) and Dark Stores (one per district). Village Stores come later, once village geography exists.</div>
+    <div id="whContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const WH_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager', 'investor', 'director_1', 'director_2'];
+  const WH_EDIT_ROLES = ['super_admin', 'admin', 'hr_manager'];
+  const REGION_ORDER = ['Uttarandhra', 'Coastal Andhra', 'Rayalaseema'];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+  const MANAGE_ENDPOINT = FBC_URL + '/functions/v1/manage-warehouse-infra';
+
+  let CAN_EDIT = false;
+  let WAREHOUSES = [];
+  let DARK_STORES = [];
+  let DISTRICTS = [];
+
+  async function getToken() {
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    return session ? session.access_token : null;
+  }
+
+  function warehouseCardHtml(w) {
+    return `
+      <div class="infraCard">
+        <div class="top">
+          <div class="name">${w.name}</div>
+          <span class="statusPill ${w.status}">${w.status === 'active' ? 'Active' : 'Inactive'}</span>
+        </div>
+        <div class="meta">${w.region}${w.district_name ? ' · ' + w.district_name : ''}</div>
+        ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('master_warehouses','${w.id}','${w.status === 'active' ? 'inactive' : 'active'}')">Mark ${w.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
+      </div>
+    `;
+  }
+
+  function darkStoreCardHtml(s) {
+    return `
+      <div class="infraCard">
+        <div class="top">
+          <div class="name">${s.name}</div>
+          <span class="statusPill ${s.status}">${s.status === 'active' ? 'Active' : 'Inactive'}</span>
+        </div>
+        <div class="meta">${s.district_name}${s.warehouse_name ? ' · supplied by ' + s.warehouse_name : ' · no warehouse linked'}</div>
+        ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('dark_stores','${s.id}','${s.status === 'active' ? 'inactive' : 'active'}')">Mark ${s.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
+      </div>
+    `;
+  }
+
+  function renderSections() {
+    const el = document.getElementById('sectionsArea');
+    let html = `
+      <div class="sectionHead">
+        <h2>Master Warehouses</h2>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="count">${WAREHOUSES.length} total</span>
+          ${CAN_EDIT ? `<button class="addBtn" onclick="openWarehouseModal()">+ Add Warehouse</button>` : ''}
+        </div>
+      </div>
+    `;
+    html += WAREHOUSES.length
+      ? `<div class="cardGrid">${WAREHOUSES.map(warehouseCardHtml).join('')}</div>`
+      : `<div class="emptyState">No Master Warehouses yet. ${CAN_EDIT ? 'Add the first one above.' : ''}</div>`;
+
+    html += `
+      <div class="sectionHead">
+        <h2>Dark Stores</h2>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span class="count">${DARK_STORES.length} of 28 districts</span>
+          ${CAN_EDIT ? `<button class="addBtn" onclick="openDarkStoreModal()">+ Add Dark Store</button>` : ''}
+        </div>
+      </div>
+    `;
+    html += DARK_STORES.length
+      ? `<div class="cardGrid">${DARK_STORES.map(darkStoreCardHtml).join('')}</div>`
+      : `<div class="emptyState">No Dark Stores yet. ${CAN_EDIT ? 'Add the first one above.' : ''}</div>`;
+
+    el.innerHTML = html;
+  }
+
+  window.openWarehouseModal = function() {
+    document.getElementById('modalArea').innerHTML = `
+      <div class="modalBackdrop open" id="modalBackdrop">
+        <div class="modalBox">
+          <h3>Add Master Warehouse</h3>
+          <label>Name *</label>
+          <input type="text" id="whName" placeholder="e.g. Vizag Master Warehouse">
+          <label>Region *</label>
+          <select id="whRegion">
+            <option value="">Select region…</option>
+            ${REGION_ORDER.map(r => `<option value="${r}">${r}</option>`).join('')}
+          </select>
+          <label>Physical district (optional)</label>
+          <select id="whDistrict">
+            <option value="">Select district…</option>
+            ${DISTRICTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+          </select>
+          <div class="modalBtns">
+            <button class="confirmBtn" onclick="submitWarehouse()">Add Warehouse</button>
+            <button class="cancelBtn" onclick="closeModal()">Cancel</button>
+          </div>
+          <div class="modalMsg" id="modalMsg"></div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.openDarkStoreModal = function() {
+    const coveredDistrictIds = new Set(DARK_STORES.map(s => s.district_id));
+    const availableDistricts = DISTRICTS.filter(d => !coveredDistrictIds.has(d.id));
+    document.getElementById('modalArea').innerHTML = `
+      <div class="modalBackdrop open" id="modalBackdrop">
+        <div class="modalBox">
+          <h3>Add Dark Store</h3>
+          <label>Name *</label>
+          <input type="text" id="dsName" placeholder="e.g. Krishna Dark Store">
+          <label>District * (one Dark Store per district)</label>
+          <select id="dsDistrict">
+            <option value="">Select district…</option>
+            ${availableDistricts.map(d => `<option value="${d.id}">${d.name} (${d.region})</option>`).join('')}
+          </select>
+          <label>Supplied by (optional)</label>
+          <select id="dsWarehouse">
+            <option value="">No warehouse linked yet…</option>
+            ${WAREHOUSES.map(w => `<option value="${w.id}">${w.name} (${w.region})</option>`).join('')}
+          </select>
+          <div class="modalBtns">
+            <button class="confirmBtn" onclick="submitDarkStore()">Add Dark Store</button>
+            <button class="cancelBtn" onclick="closeModal()">Cancel</button>
+          </div>
+          <div class="modalMsg" id="modalMsg"></div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.closeModal = function() {
+    document.getElementById('modalArea').innerHTML = '';
+  };
+
+  window.submitWarehouse = async function() {
+    const msg = document.getElementById('modalMsg');
+    const name = document.getElementById('whName').value.trim();
+    const region = document.getElementById('whRegion').value;
+    const district_id = document.getElementById('whDistrict').value || null;
+    if (!name || !region) { msg.style.color = '#C0392B'; msg.textContent = 'Name and region are required.'; return; }
+
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Adding…';
+    const token = await getToken();
+    try {
+      const res = await fetch(MANAGE_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token, action: 'create_warehouse', name, region, district_id }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Failed.'; return; }
+      await loadEverything();
+      closeModal();
+      renderSections();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
+  };
+
+  window.submitDarkStore = async function() {
+    const msg = document.getElementById('modalMsg');
+    const name = document.getElementById('dsName').value.trim();
+    const district_id = document.getElementById('dsDistrict').value;
+    const master_warehouse_id = document.getElementById('dsWarehouse').value || null;
+    if (!name || !district_id) { msg.style.color = '#C0392B'; msg.textContent = 'Name and district are required.'; return; }
+
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Adding…';
+    const token = await getToken();
+    try {
+      const res = await fetch(MANAGE_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token, action: 'create_dark_store', name, district_id, master_warehouse_id }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Failed.'; return; }
+      await loadEverything();
+      closeModal();
+      renderSections();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
+  };
+
+  window.toggleStatus = async function(table, id, newStatus) {
+    if (!CAN_EDIT) return;
+    const token = await getToken();
+    try {
+      const res = await fetch(MANAGE_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token, action: 'toggle_status', table, id, status: newStatus }),
+      });
+      if (res.ok) { await loadEverything(); renderSections(); }
+    } catch (e) {}
+  };
+
+  async function loadEverything() {
+    const [{ data: districts }, { data: warehouses }, { data: darkStores }] = await Promise.all([
+      fbcSb.from('districts').select('id, name, region').order('name'),
+      fbcSb.from('master_warehouses').select('id, name, region, status, district_id, districts(name)').order('name'),
+      fbcSb.from('dark_stores').select('id, name, status, district_id, master_warehouse_id, districts(name), master_warehouses(name)').order('name'),
+    ]);
+    DISTRICTS = districts || [];
+    WAREHOUSES = (warehouses || []).map(w => ({
+      id: w.id, name: w.name, region: w.region, status: w.status,
+      district_name: w.districts ? w.districts.name : null,
+    }));
+    DARK_STORES = (darkStores || []).map(s => ({
+      id: s.id, name: s.name, status: s.status, district_id: s.district_id,
+      district_name: s.districts ? s.districts.name : '',
+      warehouse_name: s.master_warehouses ? s.master_warehouses.name : null,
+    }));
+  }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('whContent');
+
+    if (!WH_VIEW_ROLES.includes(role)) {
+      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted</h2><p>Visible to Super Admin, Admin, HR Manager, Investors, and Directors.</p></div>`;
+      return;
+    }
+    CAN_EDIT = WH_EDIT_ROLES.includes(role);
+
+    el.innerHTML = `
+      <div class="draftNote">⚠️ Setup stage — tracking which warehouses and dark stores exist and whether they're active. Transport routes, orders, and Village Stores come later.</div>
+      ${!CAN_EDIT ? `<div class="viewOnlyNote">👁️ View-only — adding and toggling status is restricted to Super Admin, Admin, and HR Manager.</div>` : ''}
+      <div id="sectionsArea">Loading…</div>
+      <div id="modalArea"></div>
+    `;
+
+    await loadEverything();
+    renderSections();
+  };
+</script>
+</body>
+</html>
