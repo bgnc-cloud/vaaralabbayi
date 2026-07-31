@@ -105,7 +105,7 @@
           <div class="name">${w.name}</div>
           <span class="statusPill ${w.status}">${w.status === 'active' ? 'Active' : 'Inactive'}</span>
         </div>
-        <div class="meta">${w.region}${w.district_name ? ' · ' + w.district_name : ''}</div>
+        <div class="meta"><span style="color:var(--blue); font-weight:700;">${w.code}</span> · ${w.region}${w.district_name ? ' · ' + w.district_name : ''}</div>
         ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('master_warehouses','${w.id}','${w.status === 'active' ? 'inactive' : 'active'}')">Mark ${w.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
       </div>
     `;
@@ -118,7 +118,7 @@
           <div class="name">${s.name}</div>
           <span class="statusPill ${s.status}">${s.status === 'active' ? 'Active' : 'Inactive'}</span>
         </div>
-        <div class="meta">${s.district_name}${s.warehouse_name ? ' · supplied by ' + s.warehouse_name : ' · no warehouse linked'}</div>
+        <div class="meta"><span style="color:var(--blue); font-weight:700;">${s.code}</span> · ${s.district_name}${s.warehouse_name ? ' · supplied by ' + s.warehouse_name : ' · no warehouse linked'}</div>
         ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('dark_stores','${s.id}','${s.status === 'active' ? 'inactive' : 'active'}')">Mark ${s.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
       </div>
     `;
@@ -170,7 +170,7 @@
           <label>Physical district (optional)</label>
           <select id="whDistrict">
             <option value="">Select district…</option>
-            ${DISTRICTS.map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+            ${DISTRICTS.map(d => `<option value="${d.code}">${d.name}</option>`).join('')}
           </select>
           <div class="modalBtns">
             <button class="confirmBtn" onclick="submitWarehouse()">Add Warehouse</button>
@@ -194,7 +194,7 @@
           <label>District * (one Dark Store per district)</label>
           <select id="dsDistrict">
             <option value="">Select district…</option>
-            ${availableDistricts.map(d => `<option value="${d.id}">${d.name} (${d.region})</option>`).join('')}
+            ${availableDistricts.map(d => `<option value="${d.code}">${d.name} (${d.region})</option>`).join('')}
           </select>
           <label>Supplied by (optional)</label>
           <select id="dsWarehouse">
@@ -219,7 +219,7 @@
     const msg = document.getElementById('modalMsg');
     const name = document.getElementById('whName').value.trim();
     const region = document.getElementById('whRegion').value;
-    const district_id = document.getElementById('whDistrict').value || null;
+    const district_code = document.getElementById('whDistrict').value || null;
     if (!name || !region) { msg.style.color = '#C0392B'; msg.textContent = 'Name and region are required.'; return; }
 
     msg.style.color = 'var(--g3)'; msg.textContent = 'Adding…';
@@ -227,7 +227,7 @@
     try {
       const res = await fetch(MANAGE_ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: token, action: 'create_warehouse', name, region, district_id }),
+        body: JSON.stringify({ access_token: token, action: 'create_warehouse', name, region, district_code }),
       });
       const result = await res.json();
       if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Failed.'; return; }
@@ -240,16 +240,16 @@
   window.submitDarkStore = async function() {
     const msg = document.getElementById('modalMsg');
     const name = document.getElementById('dsName').value.trim();
-    const district_id = document.getElementById('dsDistrict').value;
+    const district_code = document.getElementById('dsDistrict').value;
     const master_warehouse_id = document.getElementById('dsWarehouse').value || null;
-    if (!name || !district_id) { msg.style.color = '#C0392B'; msg.textContent = 'Name and district are required.'; return; }
+    if (!name || !district_code) { msg.style.color = '#C0392B'; msg.textContent = 'Name and district are required.'; return; }
 
     msg.style.color = 'var(--g3)'; msg.textContent = 'Adding…';
     const token = await getToken();
     try {
       const res = await fetch(MANAGE_ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: token, action: 'create_dark_store', name, district_id, master_warehouse_id }),
+        body: JSON.stringify({ access_token: token, action: 'create_dark_store', name, district_code, master_warehouse_id }),
       });
       const result = await res.json();
       if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Failed.'; return; }
@@ -273,17 +273,17 @@
 
   async function loadEverything() {
     const [{ data: districts }, { data: warehouses }, { data: darkStores }] = await Promise.all([
-      fbcSb.from('districts').select('id, name, region').order('name'),
-      fbcSb.from('master_warehouses').select('id, name, region, status, district_id, districts(name)').order('name'),
-      fbcSb.from('dark_stores').select('id, name, status, district_id, master_warehouse_id, districts(name), master_warehouses(name)').order('name'),
+      fbcSb.from('districts').select('id, code, name, region').order('name'),
+      fbcSb.from('master_warehouses').select('id, code, name, region, status, district_id, districts(name)').order('name'),
+      fbcSb.from('dark_stores').select('id, code, name, status, district_id, master_warehouse_id, districts(name), master_warehouses(name)').order('name'),
     ]);
     DISTRICTS = districts || [];
     WAREHOUSES = (warehouses || []).map(w => ({
-      id: w.id, name: w.name, region: w.region, status: w.status,
+      id: w.id, code: w.code, name: w.name, region: w.region, status: w.status,
       district_name: w.districts ? w.districts.name : null,
     }));
     DARK_STORES = (darkStores || []).map(s => ({
-      id: s.id, name: s.name, status: s.status, district_id: s.district_id,
+      id: s.id, code: s.code, name: s.name, status: s.status, district_id: s.district_id,
       district_name: s.districts ? s.districts.name : '',
       warehouse_name: s.master_warehouses ? s.master_warehouses.name : null,
     }));
