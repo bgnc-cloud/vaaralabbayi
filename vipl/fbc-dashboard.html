@@ -37,6 +37,7 @@
   .roleChip.selected { background: var(--blue); border-color: var(--blue); color: #fff; }
   .roleChip.selected .n { color: #fff; }
   .filterHint { font-size: 12px; color: var(--g3); margin-bottom: 24px; }
+  .filterHint a { color: var(--blue); font-weight: 700; text-decoration: none; }
 
   .districtGroup { margin-bottom: 24px; }
   .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
@@ -397,11 +398,16 @@
       fbcSb.from('fbc_positions').select(`
         id, position_code, status,
         fbc_roles(code),
-        states(name), districts(name), revenue_divisions(name), mandals(name)
+        states(code, name), districts(name), revenue_divisions(name), mandals(name)
       `).order('position_code'),
       VIPL.sb.auth.getSession(),
     ]);
     if (posErr) throw posErr;
+
+    // Optional ?state=AP filter, for when this is reached from the All States overview.
+    // Harmless no-op today with a single state; scopes correctly once more exist.
+    const params = new URLSearchParams(window.location.search);
+    const stateFilter = params.get('state');
 
     let roster = [];
     // Roster (who's appointed where) requires the edit-tier auth check server-side —
@@ -419,14 +425,17 @@
     ROSTER_BY_POSITION = {};
     roster.forEach(r => { ROSTER_BY_POSITION[r.position_id] = r; });
 
-    ALL_POSITIONS = (positions || []).map(p => ({
+    let mapped = (positions || []).map(p => ({
       id: p.id, position_code: p.position_code, status: p.status,
       role_code: p.fbc_roles ? p.fbc_roles.code : '',
+      state_code: p.states ? p.states.code : '',
       state_name: p.states ? p.states.name : '',
       district_name: p.districts ? p.districts.name : '',
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
     }));
+    if (stateFilter) mapped = mapped.filter(p => p.state_code === stateFilter);
+    ALL_POSITIONS = mapped;
     ALL_VACANT = ALL_POSITIONS.filter(p => p.status === 'vacant');
   }
 
@@ -440,7 +449,11 @@
     }
     CAN_EDIT = FBC_DASH_EDIT_ROLES.includes(role);
 
+    const params = new URLSearchParams(window.location.search);
+    const stateFilter = params.get('state');
+
     el.innerHTML = `
+      ${stateFilter ? `<div class="filterHint"><a href="fbc-states.html">← All States</a></div>` : ''}
       <div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div>
       ${!CAN_EDIT ? `<div class="viewOnlyNote">👁️ View-only — Transfer and Terminate are restricted to Super Admin, Admin, and HR Manager.</div>` : ''}
       <div id="dashBody">Loading…</div>
