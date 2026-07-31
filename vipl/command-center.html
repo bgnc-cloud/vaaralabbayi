@@ -65,6 +65,15 @@
   // auditor_team was added per-page in earlier sessions, if other roles should get visibility.
   const CC_ALLOWED_ROLES = ['super_admin'];
 
+  // ── FBC Network's own Supabase project (separate from VIPL Core's) ──
+  // Read-only anon key, scoped to geography reference tables only (states/districts/
+  // revenue_divisions/mandals) via public SELECT policies — non-sensitive administrative
+  // boundary data. fbc_users, activity_logs, and assignment tables stay locked to
+  // service_role, unreachable from this key.
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+
   function timeAgo(iso) {
     if (!iso) return '—';
     const diffMs = Date.now() - new Date(iso).getTime();
@@ -82,8 +91,9 @@
   //   kind: 'live'     → has its own Supabase project wired in, `load()` fetches real stats
   //   kind: 'awaiting'  → domain decided/named, infra not created yet
   //   kind: 'planned'   → not started
-  // When FBC (or Warehouse, Subscriber/EMI) gets its own Supabase project + bridge,
-  // flip its entry to kind:'live' and give it a load() function — same shape as VIPL Core's below.
+  // When Warehouse or Subscriber/EMI get their own Supabase project + bridge, flip their
+  // entry to kind:'live' and give them a load() function — same shape as VIPL Core's and
+  // FBC Network's below.
   const DOMAINS = [
     {
       key: 'vipl-core', name: 'VIPL Core', kind: 'live',
@@ -102,15 +112,28 @@
           .filter(Boolean);
         const lastActivity = timestamps.length ? new Date(Math.max(...timestamps)).toISOString() : null;
         return {
-          pendingApprovals: (pendingProfiles.count || 0) + (pendingRoleReqs.count || 0),
-          needsAttention: gstAttention.count || 0,
+          stat1: { value: (pendingProfiles.count || 0) + (pendingRoleReqs.count || 0), label: 'Pending Approvals', warn: true },
+          stat2: { value: gstAttention.count || 0, label: 'GST Needs Attention', warn: true },
           lastActivity,
         };
       }
     },
     {
-      key: 'fbc-network', name: 'FBC Network', kind: 'awaiting',
-      note: 'Repo, Vercel project, and fbc.vaaralabbayi.com domain are live. Supabase project pending — organization is on the free-tier project limit, upgrade scheduled.',
+      key: 'fbc-network', name: 'FBC Network', kind: 'live',
+      note: 'Repo, Vercel project, fbc.vaaralabbayi.com domain, and Supabase project are all live. State geography (Andhra Pradesh) seeded: districts → revenue divisions → mandals. Field app and real people/onboarding not built yet.',
+      async load() {
+        const [districts, divisions, mandals, lastMandal] = await Promise.all([
+          fbcSb.from('districts').select('id', { count: 'exact', head: true }),
+          fbcSb.from('revenue_divisions').select('id', { count: 'exact', head: true }),
+          fbcSb.from('mandals').select('id', { count: 'exact', head: true }),
+          fbcSb.from('mandals').select('created_at').order('created_at', { ascending: false }).limit(1),
+        ]);
+        return {
+          stat1: { value: districts.count || 0, label: 'Districts Seeded', warn: false },
+          stat2: { value: mandals.count || 0, label: 'Mandals Seeded', warn: false },
+          lastActivity: lastMandal.data && lastMandal.data[0] ? lastMandal.data[0].created_at : null,
+        };
+      }
     },
     {
       key: 'warehouse', name: 'Warehouse & Supply Chain', kind: 'planned',
@@ -138,8 +161,8 @@
     if (domain.kind === 'live' && stats) {
       statsHtml = `
         <div class="domainStats">
-          <div class="domainStat ${stats.pendingApprovals ? 'warn' : ''}"><div class="v">${stats.pendingApprovals}</div><div class="l">Pending Approvals</div></div>
-          <div class="domainStat ${stats.needsAttention ? 'warn' : ''}"><div class="v">${stats.needsAttention}</div><div class="l">GST Needs Attention</div></div>
+          <div class="domainStat ${stats.stat1.warn && stats.stat1.value ? 'warn' : ''}"><div class="v">${stats.stat1.value}</div><div class="l">${stats.stat1.label}</div></div>
+          <div class="domainStat ${stats.stat2.warn && stats.stat2.value ? 'warn' : ''}"><div class="v">${stats.stat2.value}</div><div class="l">${stats.stat2.label}</div></div>
         </div>
         <div class="lastActivity">Last activity: ${timeAgo(stats.lastActivity)}</div>
       `;
