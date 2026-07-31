@@ -33,14 +33,13 @@
   .roleChip.selected { background: var(--blue); border-color: var(--blue); color: #fff; }
   .roleChip.selected .n { color: #fff; }
   .filterHint { font-size: 12px; color: var(--g3); margin-bottom: 24px; }
-  .filterHint a { color: var(--blue); cursor: pointer; font-weight: 600; }
 
   .districtGroup { margin-bottom: 24px; }
   .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 10px; }
   .statusTable { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   .statusRow {
-    display: grid; grid-template-columns: 1.5fr 0.6fr 1.4fr 0.8fr 1.8fr;
-    align-items: flex-start; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px;
+    display: grid; grid-template-columns: 1.4fr 0.55fr 1.3fr 0.7fr 1.6fr 1.3fr;
+    align-items: flex-start; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px;
   }
   .statusRow:last-child { border-bottom: none; }
   .statusRow.headerRow { background: var(--off); font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--g3); letter-spacing: .03em; align-items: center; }
@@ -57,13 +56,40 @@
   .occupant .empCode { color: var(--blue); font-weight: 600; }
   .occupant .empMeta { font-size: 12px; color: var(--g3); }
   .occupant .none { color: var(--g3); }
+  .rowActions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .actionBtn {
+    font-size: 11px; font-weight: 700; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--border); background: #fff; color: var(--ink);
+  }
+  .actionBtn:hover { border-color: var(--blue); color: var(--blue); }
+  .actionBtn.danger:hover { border-color: #C0392B; color: #C0392B; }
+
+  .inlinePanel {
+    grid-column: 1 / -1; background: var(--off); border-radius: 10px; padding: 16px; margin-top: 8px;
+  }
+  .inlinePanel .panelTitle { font-size: 12.5px; font-weight: 700; margin-bottom: 10px; }
+  .inlinePanel select, .inlinePanel input {
+    width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px;
+    font-size: 13px; font-family: inherit; background: #fff; margin-bottom: 8px; box-sizing: border-box;
+  }
+  .inlinePanel label { font-size: 11px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 3px; }
+  .panelMatch { background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; font-size: 12.5px; }
+  .panelMatch .code { font-weight: 700; color: var(--blue); }
+  .panelBtns { display: flex; gap: 8px; margin-top: 4px; }
+  .panelBtns button {
+    padding: 8px 14px; border-radius: 7px; border: none; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  }
+  .panelBtns .confirmBtn { background: var(--blue); color: #fff; }
+  .panelBtns .confirmBtn.danger { background: #C0392B; }
+  .panelBtns .cancelBtn { background: #fff; border: 1px solid var(--border) !important; color: var(--ink); }
+  .panelMsg { font-size: 12px; margin-top: 8px; }
 
   .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
   .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
   .accessBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
   .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
 
-  @media (max-width: 700px) {
+  @media (max-width: 800px) {
     .statusRow { grid-template-columns: 1fr; gap: 4px; }
     .statusRow.headerRow { display: none; }
   }
@@ -90,11 +116,23 @@
   const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
   const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const ROSTER_ENDPOINT = FBC_URL + '/functions/v1/get-fbc-roster';
+  const TERMINATE_ENDPOINT = FBC_URL + '/functions/v1/terminate-fbc-appointment';
+  const TRANSFER_ENDPOINT = FBC_URL + '/functions/v1/transfer-fbc-employee';
+
+  const ROLE_GEO_STEPS = {
+    CEO: [], BD: [], ZM: ['district'], RM: ['district','division'], BDM: ['district','division','mandal'],
+    MM: ['district','division','mandal','village'], FO: ['district','division','mandal','village'],
+  };
+  const STEP_LABELS = { district: 'District', division: 'Revenue Division', mandal: 'Mandal', village: 'Village' };
+  const ROLE_ORDER = ['CEO','BD','ZM','RM','BDM','MM','FO'];
 
   let ALL_POSITIONS = [];
+  let ALL_VACANT = [];
   let ROSTER_BY_POSITION = {};
   let SELECTED_ROLE = 'all';
-  const ROLE_ORDER = ['CEO','BD','ZM','RM','BDM','MM','FO'];
+  let OPEN_PANEL = null; // { positionId, type: 'terminate'|'transfer' }
+  let TRANSFER_SELECTION = {};
+  let TRANSFER_MATCH = null;
 
   function geoLabel(p) {
     if (p.mandal_name) return p.mandal_name + ' mandal';
@@ -119,6 +157,181 @@
     `;
   }
 
+  function actionsHtml(p) {
+    const o = ROSTER_BY_POSITION[p.id];
+    if (!o) return '';
+    return `
+      <div class="rowActions">
+        <span class="actionBtn" onclick="openPanel('${p.id}','transfer')">Transfer</span>
+        <span class="actionBtn danger" onclick="openPanel('${p.id}','terminate')">Terminate</span>
+      </div>
+    `;
+  }
+
+  function terminatePanelHtml(p) {
+    return `
+      <div class="inlinePanel">
+        <div class="panelTitle">Terminate appointment — ${p.position_code}</div>
+        <label>End date</label>
+        <input type="date" id="termEndDate" value="${new Date().toISOString().slice(0,10)}">
+        <label>Notes (optional)</label>
+        <input type="text" id="termNotes" placeholder="Reason, if any">
+        <div class="panelBtns">
+          <button class="confirmBtn danger" onclick="submitTerminate('${p.id}')">Confirm Termination</button>
+          <button class="cancelBtn" onclick="closePanel()">Cancel</button>
+        </div>
+        <div class="panelMsg" id="panelMsg"></div>
+      </div>
+    `;
+  }
+
+  function transferPanelHtml(p) {
+    TRANSFER_SELECTION = { role: '', district: '', division: '', mandal: '' };
+    TRANSFER_MATCH = null;
+    return `
+      <div class="inlinePanel" id="transferPanel">
+        <div class="panelTitle">Transfer ${ROSTER_BY_POSITION[p.id].full_name} out of ${p.position_code}</div>
+        <label>New role</label>
+        <select id="tRole" onchange="tRoleChanged()">
+          <option value="">Select role…</option>
+          ${ROLE_ORDER.filter(r => ALL_VACANT.some(v => v.role_code === r)).map(r => `<option value="${r}">${r}</option>`).join('')}
+        </select>
+        <div id="tGeoSteps"></div>
+        <div id="tMatchArea"></div>
+        <div class="panelBtns">
+          <button class="confirmBtn" id="tConfirmBtn" onclick="submitTransfer('${p.id}')" disabled>Confirm Transfer</button>
+          <button class="cancelBtn" onclick="closePanel()">Cancel</button>
+        </div>
+        <div class="panelMsg" id="panelMsg"></div>
+      </div>
+    `;
+  }
+
+  function tRoleChanged() {
+    TRANSFER_SELECTION = { role: document.getElementById('tRole').value, district: '', division: '', mandal: '' };
+    TRANSFER_MATCH = null;
+    renderTransferGeoSteps();
+    renderTransferMatch();
+  }
+
+  function renderTransferGeoSteps() {
+    const container = document.getElementById('tGeoSteps');
+    const steps = ROLE_GEO_STEPS[TRANSFER_SELECTION.role] || [];
+    let html = '';
+    let runningFilter = { role: TRANSFER_SELECTION.role };
+    for (const step of steps) {
+      const candidates = ALL_VACANT.filter(v => {
+        if (runningFilter.role && v.role_code !== runningFilter.role) return false;
+        if (runningFilter.district && v.district_name !== runningFilter.district) return false;
+        if (runningFilter.division && v.revenue_division_name !== runningFilter.division) return false;
+        if (runningFilter.mandal && v.mandal_name !== runningFilter.mandal) return false;
+        return true;
+      });
+      const key = step === 'district' ? 'district_name' : step === 'division' ? 'revenue_division_name' : 'mandal_name';
+      const options = [...new Set(candidates.map(c => c[key]).filter(Boolean))].sort();
+      html += `
+        <label>${STEP_LABELS[step]}</label>
+        <select data-tstep="${step}" onchange="tStepChanged(this)">
+          <option value="">Select ${STEP_LABELS[step].toLowerCase()}…</option>
+          ${options.map(o => `<option value="${o}">${o}</option>`).join('')}
+        </select>
+      `;
+      runningFilter[step] = TRANSFER_SELECTION[step];
+      if (!TRANSFER_SELECTION[step]) break;
+    }
+    container.innerHTML = html;
+  }
+
+  function tStepChanged(sel) {
+    const step = sel.dataset.tstep;
+    TRANSFER_SELECTION[step] = sel.value;
+    const order = ['district','division','mandal'];
+    order.slice(order.indexOf(step) + 1).forEach(k => TRANSFER_SELECTION[k] = '');
+    TRANSFER_MATCH = null;
+    renderTransferGeoSteps();
+    renderTransferMatch();
+  }
+
+  function renderTransferMatch() {
+    const box = document.getElementById('tMatchArea');
+    const btn = document.getElementById('tConfirmBtn');
+    if (!TRANSFER_SELECTION.role) { box.innerHTML = ''; btn.disabled = true; return; }
+    const steps = ROLE_GEO_STEPS[TRANSFER_SELECTION.role] || [];
+    if (!steps.every(s => TRANSFER_SELECTION[s])) { box.innerHTML = ''; btn.disabled = true; return; }
+
+    const matches = ALL_VACANT.filter(v => {
+      if (v.role_code !== TRANSFER_SELECTION.role) return false;
+      if (TRANSFER_SELECTION.district && v.district_name !== TRANSFER_SELECTION.district) return false;
+      if (TRANSFER_SELECTION.division && v.revenue_division_name !== TRANSFER_SELECTION.division) return false;
+      if (TRANSFER_SELECTION.mandal && v.mandal_name !== TRANSFER_SELECTION.mandal) return false;
+      return true;
+    });
+    if (!matches.length) {
+      box.innerHTML = `<div class="panelMatch">No vacant seat here.</div>`;
+      btn.disabled = true;
+      return;
+    }
+    TRANSFER_MATCH = matches[0];
+    box.innerHTML = `<div class="panelMatch">Moving to <span class="code">${TRANSFER_MATCH.position_code}</span> — ${geoLabel(TRANSFER_MATCH)}</div>`;
+    btn.disabled = false;
+  }
+
+  window.openPanel = function(positionId, type) {
+    OPEN_PANEL = { positionId, type };
+    renderTables();
+  };
+  window.closePanel = function() {
+    OPEN_PANEL = null;
+    renderTables();
+  };
+
+  window.submitTerminate = async function(positionId) {
+    const o = ROSTER_BY_POSITION[positionId];
+    const msg = document.getElementById('panelMsg');
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Terminating…';
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    try {
+      const res = await fetch(TERMINATE_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: session.access_token,
+          appointment_id: o.appointment_id,
+          end_date: document.getElementById('termEndDate').value,
+          notes: document.getElementById('termNotes').value || null,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Termination failed.'; return; }
+      msg.style.color = 'var(--green)'; msg.textContent = 'Terminated.';
+      await loadEverything();
+      closePanel();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
+  };
+
+  window.submitTransfer = async function(positionId) {
+    const o = ROSTER_BY_POSITION[positionId];
+    const msg = document.getElementById('panelMsg');
+    if (!TRANSFER_MATCH) return;
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Transferring…';
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    try {
+      const res = await fetch(TRANSFER_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: session.access_token,
+          employee_id: o.employee_id,
+          new_position_id: TRANSFER_MATCH.id,
+          appointment_type: 'transfer',
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Transfer failed.'; return; }
+      msg.style.color = 'var(--green)'; msg.textContent = `Moved to ${result.position_code}.`;
+      await loadEverything();
+      closePanel();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
+  };
+
   function renderTables() {
     const filtered = SELECTED_ROLE === 'all' ? ALL_POSITIONS : ALL_POSITIONS.filter(p => p.role_code === SELECTED_ROLE);
     const groups = {};
@@ -129,54 +342,44 @@
     });
 
     let html = '';
-    if (!filtered.length) {
-      html = `<div class="statusTable"><div class="statusRow"><div>No positions match this filter.</div></div></div>`;
-    } else {
-      Object.keys(groups).sort().forEach(district => {
-        const rows = groups[district];
-        html += `<div class="districtGroup"><h3>${district}</h3><div class="statusTable">`;
-        html += `<div class="statusRow headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div></div>`;
-        rows.forEach(p => {
-          html += `
-            <div class="statusRow">
-              <div class="code">${p.position_code}</div>
-              <div><span class="roleTag">${p.role_code}</span></div>
-              <div>${geoLabel(p)}</div>
-              <div><span class="statusPill2 ${p.status}">${p.status === 'active' ? 'Filled' : 'Vacant'}</span></div>
-              <div>${occupantHtml(p)}</div>
-            </div>
-          `;
-        });
-        html += `</div></div>`;
+    Object.keys(groups).sort().forEach(district => {
+      const rows = groups[district];
+      html += `<div class="districtGroup"><h3>${district}</h3><div class="statusTable">`;
+      html += `<div class="statusRow headerRow"><div>Position Code</div><div>Role</div><div>Geography</div><div>Status</div><div>Occupant</div><div>Actions</div></div>`;
+      rows.forEach(p => {
+        html += `
+          <div class="statusRow">
+            <div class="code">${p.position_code}</div>
+            <div><span class="roleTag">${p.role_code}</span></div>
+            <div>${geoLabel(p)}</div>
+            <div><span class="statusPill2 ${p.status}">${p.status === 'active' ? 'Filled' : 'Vacant'}</span></div>
+            <div>${occupantHtml(p)}</div>
+            <div>${actionsHtml(p)}</div>
+            ${OPEN_PANEL && OPEN_PANEL.positionId === p.id
+              ? (OPEN_PANEL.type === 'terminate' ? terminatePanelHtml(p) : transferPanelHtml(p))
+              : ''}
+          </div>
+        `;
       });
+      html += `</div></div>`;
+    });
+    document.getElementById('tablesArea').innerHTML = html || `<div class="statusTable"><div class="statusRow"><div>No positions match this filter.</div></div></div>`;
+
+    if (OPEN_PANEL && OPEN_PANEL.type === 'transfer') {
+      renderTransferGeoSteps();
+      renderTransferMatch();
     }
-    document.getElementById('tablesArea').innerHTML = html;
   }
 
   function selectRole(roleCode) {
     SELECTED_ROLE = roleCode;
+    OPEN_PANEL = null;
     document.querySelectorAll('.roleChip').forEach(c => c.classList.toggle('selected', c.dataset.role === roleCode));
+    document.getElementById('filterLabel').textContent = roleCode === 'all' ? 'all roles' : roleCode + ' only';
     renderTables();
   }
 
-  window.onVIPLReady = async function() {
-    const role = VIPL.profile.role;
-    const el = document.getElementById('fbcDashContent');
-
-    if (!FBC_DASH_ALLOWED_ROLES.includes(role)) {
-      el.innerHTML = `
-        <div class="accessBox">
-          <div class="emoji">🔒</div>
-          <h2>Restricted to HR Manager / Super Admin</h2>
-          <p>Only HR Manager or Super Admin can view the FBC dashboard.</p>
-        </div>
-      `;
-      return;
-    }
-
-    el.innerHTML = `<div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div>
-      <div id="dashBody">Loading…</div>`;
-
+  async function loadEverything() {
     const [{ data: positions, error: posErr }, { data: { session } }] = await Promise.all([
       fbcSb.from('fbc_positions').select(`
         id, position_code, status,
@@ -185,22 +388,17 @@
       `).order('position_code'),
       VIPL.sb.auth.getSession(),
     ]);
-
-    if (posErr) {
-      document.getElementById('dashBody').innerHTML = `<div class="accessBox"><p>Couldn't load positions: ${posErr.message}</p></div>`;
-      return;
-    }
+    if (posErr) throw posErr;
 
     let roster = [];
     try {
       const res = await fetch(ROSTER_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token: session.access_token }),
       });
       const result = await res.json();
       if (res.ok) roster = result.roster || [];
-    } catch (e) { /* dashboard still works without the overlay, just shows vacant/active */ }
+    } catch (e) {}
 
     ROSTER_BY_POSITION = {};
     roster.forEach(r => { ROSTER_BY_POSITION[r.position_id] = r; });
@@ -213,11 +411,30 @@
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
     }));
+    ALL_VACANT = ALL_POSITIONS.filter(p => p.status === 'vacant');
+  }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('fbcDashContent');
+
+    if (!FBC_DASH_ALLOWED_ROLES.includes(role)) {
+      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted to HR Manager / Super Admin</h2><p>Only HR Manager or Super Admin can view the FBC dashboard.</p></div>`;
+      return;
+    }
+
+    el.innerHTML = `<div class="scopeNote">⚠️ Built out for Krishna &amp; NTR districts only — not yet statewide.</div><div id="dashBody">Loading…</div>`;
+
+    try {
+      await loadEverything();
+    } catch (e) {
+      document.getElementById('dashBody').innerHTML = `<div class="accessBox"><p>Couldn't load dashboard: ${e.message}</p></div>`;
+      return;
+    }
 
     const total = ALL_POSITIONS.length;
     const vacant = ALL_POSITIONS.filter(p => p.status === 'vacant').length;
     const active = ALL_POSITIONS.filter(p => p.status === 'active').length;
-
     const byRole = {};
     ALL_POSITIONS.forEach(p => { byRole[p.role_code] = (byRole[p.role_code] || 0) + 1; });
 
@@ -234,14 +451,7 @@
       <div class="filterHint">Click a role to filter — showing <span id="filterLabel">all roles</span>.</div>
       <div id="tablesArea"></div>
     `;
-
-    document.querySelectorAll('.roleChip').forEach(chip => {
-      chip.onclick = () => {
-        selectRole(chip.dataset.role);
-        document.getElementById('filterLabel').textContent = chip.dataset.role === 'all' ? 'all roles' : chip.dataset.role + ' only';
-      };
-    });
-
+    document.querySelectorAll('.roleChip').forEach(chip => { chip.onclick = () => selectRole(chip.dataset.role); });
     renderTables();
   };
 </script>
