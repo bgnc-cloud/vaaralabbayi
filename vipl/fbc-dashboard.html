@@ -185,9 +185,32 @@
       <div class="rowActions">
         <span class="actionBtn" onclick="openPanel('${p.id}','transfer')">Transfer</span>
         <span class="actionBtn danger" onclick="openPanel('${p.id}','terminate')">Terminate</span>
+        <span class="actionBtn" onclick="setupLogin('${p.id}')">${o.has_login ? 'Reset PIN' : 'Set Up Login'}</span>
       </div>
     `;
   }
+
+  const SETUP_LOGIN_ENDPOINT = 'https://uwoptohruurhbhatwkiz.supabase.co/functions/v1/setup-fbc-login';
+
+  window.setupLogin = async function(positionId) {
+    const o = ROSTER_BY_POSITION[positionId];
+    if (!o) return;
+    const label = o.has_login ? 'Reset PIN for' : 'Set up login for';
+    if (!confirm(`${label} ${o.full_name} (${o.employee_code})?`)) return;
+
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    try {
+      const res = await fetch(SETUP_LOGIN_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token, employee_id: o.employee_id }),
+      });
+      const result = await res.json();
+      if (!res.ok) { alert('Failed: ' + (result.error || 'unknown error')); return; }
+      alert(`Login ${result.action === 'created' ? 'created' : 'reset'} for ${result.email}.\n\nPIN: ${result.pin}\n\nShare this PIN securely with ${o.full_name} — it won't be shown again.`);
+      await loadEverything();
+      renderTables();
+    } catch (e) { alert('Network error.'); }
+  };
 
   function terminatePanelHtml(p) {
     return `
