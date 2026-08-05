@@ -111,6 +111,9 @@
     `;
   }
 
+  const WH_REASSIGN_ROLES = ['super_admin', 'admin'];
+  let CAN_REASSIGN = false;
+
   function darkStoreCardHtml(s) {
     return `
       <div class="infraCard">
@@ -119,10 +122,52 @@
           <span class="statusPill ${s.status}">${s.status === 'active' ? 'Active' : 'Inactive'}</span>
         </div>
         <div class="meta"><span style="color:var(--blue); font-weight:700;">${s.code}</span> · ${s.district_name}${s.warehouse_name ? ' · supplied by ' + s.warehouse_name : ' · no warehouse linked'}</div>
-        ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('dark_stores','${s.id}','${s.status === 'active' ? 'inactive' : 'active'}')">Mark ${s.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:6px;">
+          ${CAN_EDIT ? `<span class="toggleBtn" onclick="toggleStatus('dark_stores','${s.id}','${s.status === 'active' ? 'inactive' : 'active'}')">Mark ${s.status === 'active' ? 'Inactive' : 'Active'}</span>` : ''}
+          ${CAN_REASSIGN ? `<span class="toggleBtn" onclick="openReassignModal('${s.id}')">Change Warehouse</span>` : ''}
+        </div>
       </div>
     `;
   }
+
+  window.openReassignModal = function(darkStoreId) {
+    const store = DARK_STORES.find(s => s.id === darkStoreId);
+    document.getElementById('modalArea').innerHTML = `
+      <div class="modalBackdrop open" id="modalBackdrop">
+        <div class="modalBox">
+          <h3>Change warehouse for ${store.name}</h3>
+          <label>Supplied by</label>
+          <select id="reassignWarehouse">
+            <option value="">No warehouse linked</option>
+            ${WAREHOUSES.map(w => `<option value="${w.id}" ${store.warehouse_id === w.id ? 'selected' : ''}>${w.name} (${w.region})</option>`).join('')}
+          </select>
+          <div class="modalBtns">
+            <button class="confirmBtn" onclick="submitReassign('${darkStoreId}')">Save</button>
+            <button class="cancelBtn" onclick="closeModal()">Cancel</button>
+          </div>
+          <div class="modalMsg" id="modalMsg"></div>
+        </div>
+      </div>
+    `;
+  };
+
+  window.submitReassign = async function(darkStoreId) {
+    const msg = document.getElementById('modalMsg');
+    const master_warehouse_id = document.getElementById('reassignWarehouse').value || null;
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Saving…';
+    const token = await getToken();
+    try {
+      const res = await fetch(MANAGE_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: token, action: 'reassign_dark_store_warehouse', dark_store_id: darkStoreId, master_warehouse_id }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Failed.'; return; }
+      await loadEverything();
+      closeModal();
+      renderSections();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = 'Network error.'; }
+  };
 
   function renderSections() {
     const el = document.getElementById('sectionsArea');
@@ -284,6 +329,7 @@
     }));
     DARK_STORES = (darkStores || []).map(s => ({
       id: s.id, code: s.code, name: s.name, status: s.status, district_id: s.district_id,
+      warehouse_id: s.master_warehouse_id,
       district_name: s.districts ? s.districts.name : '',
       warehouse_name: s.master_warehouses ? s.master_warehouses.name : null,
     }));
@@ -298,6 +344,7 @@
       return;
     }
     CAN_EDIT = WH_EDIT_ROLES.includes(role);
+    CAN_REASSIGN = WH_REASSIGN_ROLES.includes(role);
 
     el.innerHTML = `
       <div class="draftNote">⚠️ Setup stage — tracking which warehouses and dark stores exist and whether they're active. Transport routes, orders, and Village Stores come later.</div>
