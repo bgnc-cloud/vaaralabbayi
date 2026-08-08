@@ -66,6 +66,25 @@
   const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const ROSTER_ENDPOINT = FBC_URL + '/functions/v1/get-fbc-roster';
 
+  // ---------------------------------------------------------------------
+  // Same PostgREST 1000-row cap as the other FBC pages — with 7,000+ FO
+  // seats now live, a plain .select() on fbc_positions truncates. Page
+  // through with .range() until a short page comes back.
+  // ---------------------------------------------------------------------
+  const FETCH_PAGE_SIZE = 1000;
+  async function fetchAllRows(buildQuery) {
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await buildQuery().range(from, from + FETCH_PAGE_SIZE - 1);
+      if (error) throw error;
+      allRows = allRows.concat(data || []);
+      if (!data || data.length < FETCH_PAGE_SIZE) break;
+      from += FETCH_PAGE_SIZE;
+    }
+    return allRows;
+  }
+
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
     const el = document.getElementById('statesContent');
@@ -77,14 +96,15 @@
 
     el.innerHTML = `<div class="stateGrid" id="stateGrid">Loading…</div>`;
 
-    const [{ data: states, error: stateErr }, { data: positions, error: posErr }, { data: { session } }] = await Promise.all([
-      fbcSb.from('states').select('id, code, name').order('name'),
-      fbcSb.from('fbc_positions').select('id, state_id, status, fbc_roles(code)'),
-      VIPL.sb.auth.getSession(),
-    ]);
-
-    if (stateErr || posErr) {
-      document.getElementById('stateGrid').innerHTML = `<div class="accessBox"><p>Couldn't load: ${(stateErr||posErr).message}</p></div>`;
+    let states, positions;
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    try {
+      [states, positions] = await Promise.all([
+        fetchAllRows(() => fbcSb.from('states').select('id, code, name').order('name')),
+        fetchAllRows(() => fbcSb.from('fbc_positions').select('id, state_id, status, fbc_roles(code)')),
+      ]);
+    } catch (e) {
+      document.getElementById('stateGrid').innerHTML = `<div class="accessBox"><p>Couldn't load: ${e.message}</p></div>`;
       return;
     }
 
