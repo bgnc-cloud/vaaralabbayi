@@ -135,6 +135,27 @@
   const TERMINATE_ENDPOINT = FBC_URL + '/functions/v1/terminate-fbc-appointment';
   const TRANSFER_ENDPOINT = FBC_URL + '/functions/v1/transfer-fbc-employee';
 
+  // ---------------------------------------------------------------------
+  // Supabase's PostgREST layer caps any single request at 1000 rows by
+  // default. With 7,000+ FO positions now in play, a plain .select() call
+  // silently truncates. This helper re-issues the query with .range()
+  // until a page comes back shorter than PAGE_SIZE, so callers always get
+  // every row regardless of table size.
+  // ---------------------------------------------------------------------
+  const FETCH_PAGE_SIZE = 1000;
+  async function fetchAllRows(buildQuery) {
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await buildQuery().range(from, from + FETCH_PAGE_SIZE - 1);
+      if (error) throw error;
+      allRows = allRows.concat(data || []);
+      if (!data || data.length < FETCH_PAGE_SIZE) break;
+      from += FETCH_PAGE_SIZE;
+    }
+    return allRows;
+  }
+
   const ROLE_GEO_STEPS = {
     CEO: [], BD: [], ZM: ['district'], RM: ['district','division'], BDM: ['district','division','mandal'],
     MM: ['district','division','mandal','village'], FO: ['district','division','mandal','village'],
@@ -155,6 +176,7 @@
   let TRANSFER_MATCH = null;
 
   function geoLabel(p) {
+    if (p.village_name) return p.village_name + ' village';
     if (p.mandal_name) return p.mandal_name + ' mandal';
     if (p.revenue_division_name) return p.revenue_division_name + ' division';
     if (p.district_name) return p.district_name + ' district';
@@ -230,7 +252,7 @@
   }
 
   function transferPanelHtml(p) {
-    TRANSFER_SELECTION = { role: '', district: '', division: '', mandal: '' };
+    TRANSFER_SELECTION = { role: '', district: '', division: '', mandal: '', village: '' };
     TRANSFER_MATCH = null;
     return `
       <div class="inlinePanel" id="transferPanel">
@@ -252,10 +274,29 @@
   }
 
   function tRoleChanged() {
-    TRANSFER_SELECTION = { role: document.getElementById('tRole').value, district: '', division: '', mandal: '' };
+    TRANSFER_SELECTION = { role: document.getElementById('tRole').value, district: '', division: '', mandal: '', village: '' };
     TRANSFER_MATCH = null;
     renderTransferGeoSteps();
     renderTransferMatch();
+  }
+
+  // Geography step -> ALL_VACANT field name. Used both to build dropdown
+  // options and to filter candidates as each step is picked.
+  function geoFieldForStep(step) {
+    if (step === 'district') return 'district_name';
+    if (step === 'division') return 'revenue_division_name';
+    if (step === 'mandal') return 'mandal_name';
+    if (step === 'village') return 'village_name';
+    return null;
+  }
+
+  function matchesRunningFilter(v, runningFilter) {
+    if (runningFilter.role && v.role_code !== runningFilter.role) return false;
+    if (runningFilter.district && v.district_name !== runningFilter.district) return false;
+    if (runningFilter.division && v.revenue_division_name !== runningFilter.division) return false;
+    if (runningFilter.mandal && v.mandal_name !== runningFilter.mandal) return false;
+    if (runningFilter.village && v.village_name !== runningFilter.village) return false;
+    return true;
   }
 
   function renderTransferGeoSteps() {
@@ -264,14 +305,8 @@
     let html = '';
     let runningFilter = { role: TRANSFER_SELECTION.role };
     for (const step of steps) {
-      const candidates = ALL_VACANT.filter(v => {
-        if (runningFilter.role && v.role_code !== runningFilter.role) return false;
-        if (runningFilter.district && v.district_name !== runningFilter.district) return false;
-        if (runningFilter.division && v.revenue_division_name !== runningFilter.division) return false;
-        if (runningFilter.mandal && v.mandal_name !== runningFilter.mandal) return false;
-        return true;
-      });
-      const key = step === 'district' ? 'district_name' : step === 'division' ? 'revenue_division_name' : 'mandal_name';
+      const candidates = ALL_VACANT.filter(v => matchesRunningFilter(v, runningFilter));
+      const key = geoFieldForStep(step);
       const options = [...new Set(candidates.map(c => c[key]).filter(Boolean))].sort();
       html += `
         <label>${STEP_LABELS[step]}</label>
@@ -289,7 +324,7 @@
   function tStepChanged(sel) {
     const step = sel.dataset.tstep;
     TRANSFER_SELECTION[step] = sel.value;
-    const order = ['district','division','mandal'];
+    const order = ['district','division','mandal','village'];
     order.slice(order.indexOf(step) + 1).forEach(k => TRANSFER_SELECTION[k] = '');
     TRANSFER_MATCH = null;
     renderTransferGeoSteps();
@@ -308,6 +343,7 @@
       if (TRANSFER_SELECTION.district && v.district_name !== TRANSFER_SELECTION.district) return false;
       if (TRANSFER_SELECTION.division && v.revenue_division_name !== TRANSFER_SELECTION.division) return false;
       if (TRANSFER_SELECTION.mandal && v.mandal_name !== TRANSFER_SELECTION.mandal) return false;
+      if (TRANSFER_SELECTION.village && v.village_name !== TRANSFER_SELECTION.village) return false;
       return true;
     });
     if (!matches.length) {
@@ -451,15 +487,14 @@
   }
 
   async function loadEverything() {
-    const [{ data: positions, error: posErr }, { data: { session } }] = await Promise.all([
-      fbcSb.from('fbc_positions').select(`
+    const [positions, { data: { session } }] = await Promise.all([
+      fetchAllRows(() => fbcSb.from('fbc_positions').select(`
         id, position_code, status,
         fbc_roles(code),
-        states(name), districts(name, region), revenue_divisions(name), mandals(name)
-      `).order('position_code'),
+        states(name), districts(name, region), revenue_divisions(name), mandals(name), villages(name)
+      `).order('position_code')),
       VIPL.sb.auth.getSession(),
     ]);
-    if (posErr) throw posErr;
 
     let roster = [];
     try {
@@ -482,6 +517,7 @@
       region: p.districts ? p.districts.region : null,
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
+      village_name: p.villages ? p.villages.name : '',
     }));
     ALL_VACANT = ALL_POSITIONS.filter(p => p.status === 'vacant');
   }
