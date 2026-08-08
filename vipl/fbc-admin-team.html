@@ -250,7 +250,18 @@
     } catch (e) {}
   }
 
+  // Builds the "Statewide — N departments × (1 state + 28 district) = M positions"
+  // note from the actual loaded data, so it never goes stale again when a
+  // department is added or removed — no hardcoded numbers.
+  function buildScopeNote() {
+    const deptCount = DEPARTMENTS.length;
+    const total = ALL_POSITIONS.length;
+    return `✅ Statewide — ${deptCount} department${deptCount === 1 ? '' : 's'} × (1 state + 28 district) = ${total} positions.`;
+  }
+
   function renderAll() {
+    document.getElementById('scopeNoteArea').innerHTML = `<div class="draftNote">${buildScopeNote()}</div>`;
+
     const total = ALL_POSITIONS.length;
     const filled = ALL_POSITIONS.filter(p => p.status === 'active').length;
     const vacant = total - filled;
@@ -272,7 +283,7 @@
       return;
     }
     el.innerHTML = `
-      <div class="draftNote">✅ Statewide — 7 departments × (1 state + 28 district) = 203 positions.</div>
+      <div id="scopeNoteArea"></div>
       <div id="statsArea">Loading…</div>
       <div class="deptGrid" id="deptGrid"></div>
       <div id="modalArea"></div>
