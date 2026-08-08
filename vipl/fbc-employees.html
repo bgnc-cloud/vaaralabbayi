@@ -108,6 +108,25 @@
   const HIRE_ENDPOINT = FBC_URL + '/functions/v1/hire-fbc-employee';
   const AVAILABLE_EMPLOYEES_ENDPOINT = FBC_URL + '/functions/v1/get-available-fbc-employees';
 
+  // ---------------------------------------------------------------------
+  // Same PostgREST 1000-row cap issue as the dashboard: with 7,000+ FO
+  // seats, most of them vacant, a single .select() truncates the list.
+  // This helper pages through with .range() until it gets everything.
+  // ---------------------------------------------------------------------
+  const FETCH_PAGE_SIZE = 1000;
+  async function fetchAllRows(buildQuery) {
+    let allRows = [];
+    let from = 0;
+    while (true) {
+      const { data, error } = await buildQuery().range(from, from + FETCH_PAGE_SIZE - 1);
+      if (error) throw error;
+      allRows = allRows.concat(data || []);
+      if (!data || data.length < FETCH_PAGE_SIZE) break;
+      from += FETCH_PAGE_SIZE;
+    }
+    return allRows;
+  }
+
   const ROLE_GEO_STEPS = {
     CEO: [], BD: [], ZM: ['district'], RM: ['district', 'division'], BDM: ['district', 'division', 'mandal'],
     MM: ['district', 'division', 'mandal', 'village'], FO: ['district', 'division', 'mandal', 'village'],
@@ -162,6 +181,14 @@
     });
   }
 
+  function geoFieldForStep(step) {
+    if (step === 'district') return 'district_name';
+    if (step === 'division') return 'revenue_division_name';
+    if (step === 'mandal') return 'mandal_name';
+    if (step === 'village') return 'village_name';
+    return null;
+  }
+
   function renderFlow() {
     const container = document.getElementById('flowSteps');
     const steps = ROLE_GEO_STEPS[SELECTION.role] || [];
@@ -175,7 +202,7 @@
         if (runningFilter.mandal && p.mandal_name !== runningFilter.mandal) return false;
         return true;
       });
-      const key = step === 'district' ? 'district_name' : step === 'division' ? 'revenue_division_name' : step === 'mandal' ? 'mandal_name' : 'village_name';
+      const key = geoFieldForStep(step);
       const options = uniqueValues(candidatePositions, key);
       html += `
         <div class="stepBlock">
@@ -414,12 +441,14 @@
   }
 
   async function loadVacantPositions() {
-    const { data, error } = await fbcSb
-      .from('fbc_positions')
-      .select(`id, position_code, status, fbc_roles(code), states(name), districts(name), revenue_divisions(name), mandals(name)`)
-      .eq('status', 'vacant')
-      .order('position_code');
-    if (error) {
+    let data;
+    try {
+      data = await fetchAllRows(() => fbcSb
+        .from('fbc_positions')
+        .select(`id, position_code, status, fbc_roles(code), states(name), districts(name), revenue_divisions(name), mandals(name), villages(name)`)
+        .eq('status', 'vacant')
+        .order('position_code'));
+    } catch (error) {
       document.getElementById('fbcContent').innerHTML = `<div class="accessBox"><p>Couldn't load positions: ${error.message}</p></div>`;
       return;
     }
@@ -430,7 +459,7 @@
       district_name: p.districts ? p.districts.name : '',
       revenue_division_name: p.revenue_divisions ? p.revenue_divisions.name : '',
       mandal_name: p.mandals ? p.mandals.name : '',
-      village_name: null,
+      village_name: p.villages ? p.villages.name : '',
     }));
   }
 
