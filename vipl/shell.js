@@ -38,6 +38,7 @@ const NAV_CONFIG = [
     { label: '👤 Employee Management', href: 'employees.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '🗺️ FBC — All States', href: 'fbc-states.html', roles: ['super_admin','admin','hr_manager','investor','director_1','director_2'] },
     { label: '📊 FBC Dashboard', href: 'fbc-dashboard.html', roles: ['super_admin','admin','hr_manager','investor','director_1','director_2'] },
+    { label: '📊 CRM Dashboard', href: 'fbc-crm-dashboard.html', roles: ['super_admin','admin','hr_manager','investor','director_1','director_2'] },
     { label: '🚜 FBC Employees', href: 'fbc-employees.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '🛡️ FBC Admin Team', href: 'fbc-admin-team.html', roles: ['super_admin','admin','hr_manager'] },
     { label: '🔗 Party Tagging', href: 'party-tagging.html', roles: ['super_admin','accountant'] },
