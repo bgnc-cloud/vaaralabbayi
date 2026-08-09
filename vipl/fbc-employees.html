@@ -127,9 +127,13 @@
     return allRows;
   }
 
+  // CRM (Subscriber Monitoring) is a separate chain parallel to the operational
+  // CEO->BD->ZM->RM->BDM->MM->FO hierarchy: CRM Head (state) -> CRM District
+  // (28) -> CRM Regional Manager (82, one per revenue division). No village level.
   const ROLE_GEO_STEPS = {
     CEO: [], BD: [], ZM: ['district'], RM: ['district', 'division'], BDM: ['district', 'division', 'mandal'],
     MM: ['district', 'division', 'mandal', 'village'], FO: ['district', 'division', 'mandal', 'village'],
+    CRM_HD: [], CRM_DT: ['district'], CRM_RM: ['district', 'division'],
   };
   const STEP_LABELS = { district: 'District', division: 'Revenue Division', mandal: 'Mandal', village: 'Village' };
   const VIPL_ROLE_LABELS = {
@@ -474,7 +478,7 @@
     await loadVacantPositions();
     const roleCounts = {};
     ALL_VACANT.forEach(p => { roleCounts[p.role_code] = (roleCounts[p.role_code] || 0) + 1; });
-    const roleOrder = ['CEO','BD','ZM','RM','BDM','MM','FO'];
+    const roleOrder = ['CEO','BD','ZM','RM','BDM','MM','FO','CRM_HD','CRM_DT','CRM_RM'];
 
     el.innerHTML = `
       <div class="hireCard">
