@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Get in Touch — VIPL / FBC Network</title>
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  body { background: var(--off); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .formCard { background: #fff; border-radius: 20px; padding: 32px 26px; width: 100%; max-width: 460px; box-shadow: 0 20px 50px rgba(11,59,46,.12); }
+  .brand { text-align: center; margin-bottom: 22px; }
+  .brand .icon { font-size: 36px; margin-bottom: 6px; }
+  .brand h1 { font-size: 20px; font-weight: 800; margin: 4px 0 0; color: var(--navy); }
+  .brand p { font-size: 13px; color: var(--g3); margin: 4px 0 0; }
+  label { font-size: 12.5px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 6px; margin-top: 16px; }
+  input, select, textarea { width: 100%; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 15px; font-family: inherit; background: var(--off); box-sizing: border-box; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--leaf); background: #fff; }
+  textarea { resize: vertical; min-height: 70px; }
+  .submitBtn { width: 100%; padding: 15px; border-radius: 12px; background: var(--green); color: #fff; border: none; font-weight: 800; font-size: 15px; margin-top: 24px; cursor: pointer; }
+  .submitBtn:disabled { opacity: .6; cursor: default; }
+  #formMsg { font-size: 13px; text-align: center; margin-top: 14px; min-height: 18px; }
+  .successBox { text-align: center; padding: 20px 0; }
+  .successBox .icon { font-size: 44px; margin-bottom: 10px; }
+  .successBox h2 { font-size: 18px; font-weight: 800; margin: 0 0 8px; }
+  .successBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+  .typeFields { display: none; }
+  .typeFields.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="formCard" id="formCard">
+  <div class="brand">
+    <div class="icon">🌾</div>
+    <h1>Get in Touch</h1>
+    <p>Interested in joining or working with us? Tell us a bit about yourself.</p>
+  </div>
+
+  <div id="formArea">
+    <label>What are you interested in? *</label>
+    <select id="leadType">
+      <option value="">Select one…</option>
+      <option value="fo_dso_recruitment">Digital Store Operator (FO/DSO) — village-level role</option>
+      <option value="fbc_team_recruitment">FBC Network Team role (BDM/RM/ZM/etc.)</option>
+      <option value="admin_staff_recruitment">Admin / Support Team role</option>
+      <option value="investor">Investing with VIPL</option>
+    </select>
+
+    <label>Full name *</label>
+    <input type="text" id="fullName" placeholder="Your full name">
+
+    <label>Phone number</label>
+    <input type="tel" id="phone" placeholder="Your phone number">
+
+    <label>Email</label>
+    <input type="email" id="email" placeholder="you@example.com">
+
+    <label>District</label>
+    <select id="districtSelect"><option value="">Select district…</option></select>
+
+    <label>Revenue Division (if known)</label>
+    <select id="divisionSelect"><option value="">Select division…</option></select>
+
+    <div class="typeFields" id="fields_fo_dso_recruitment">
+      <label>Which village/area are you interested in operating in?</label>
+      <input type="text" id="fo_village" placeholder="Village or area name">
+    </div>
+
+    <div class="typeFields" id="fields_fbc_team_recruitment">
+      <label>Which role are you interested in?</label>
+      <input type="text" id="fbc_role_interest" placeholder="e.g. BDM, RM, ZM">
+    </div>
+
+    <div class="typeFields" id="fields_admin_staff_recruitment">
+      <label>Which department interests you?</label>
+      <input type="text" id="admin_dept_interest" placeholder="e.g. Accounts, Legal, Collections">
+    </div>
+
+    <div class="typeFields" id="fields_investor">
+      <label>Approximate investment amount you're considering</label>
+      <input type="text" id="investment_amount" placeholder="e.g. ₹5,00,000">
+    </div>
+
+    <label>Anything else you'd like us to know?</label>
+    <textarea id="message" placeholder="Optional message"></textarea>
+
+    <button class="submitBtn" id="submitBtn">Submit</button>
+    <div id="formMsg"></div>
+  </div>
+
+  <div class="successBox" id="successBox" style="display:none;">
+    <div class="icon">✅</div>
+    <h2>Thank you!</h2>
+    <p>We've received your details and someone from our team will reach out to you soon.</p>
+  </div>
+</div>
+
+<script>
+  // Public, unauthenticated form -- reads reference geography directly (public-read
+  // tables), submits via the submit-lead Edge Function (no login required, no
+  // direct table writes from this page).
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const sb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+  const SUBMIT_ENDPOINT = FBC_URL + '/functions/v1/submit-lead';
+
+  // Capture UTM/campaign info from the URL, so Meta ads links can pass ?campaign=Aug26_FODrive
+  const params = new URLSearchParams(window.location.search);
+  const campaignName = params.get('campaign') || params.get('utm_campaign') || null;
+  const source = params.get('source') || params.get('utm_source') || (campaignName ? 'meta_ads' : 'website');
+
+  let ALL_DIVISIONS = [];
+
+  async function loadDistricts() {
+    const { data } = await sb.from('districts').select('id, name').order('name');
+    const sel = document.getElementById('districtSelect');
+    (data || []).forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      sel.appendChild(opt);
+    });
+  }
+
+  document.getElementById('districtSelect').onchange = async (e) => {
+    const districtId = e.target.value;
+    const divSel = document.getElementById('divisionSelect');
+    divSel.innerHTML = '<option value="">Select division…</option>';
+    if (!districtId) return;
+    const { data } = await sb.from('revenue_divisions').select('id, name').eq('district_id', districtId).order('name');
+    (data || []).forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = d.name;
+      divSel.appendChild(opt);
+    });
+  };
+
+  document.getElementById('leadType').onchange = (e) => {
+    document.querySelectorAll('.typeFields').forEach(el => el.classList.remove('active'));
+    if (e.target.value) {
+      const el = document.getElementById('fields_' + e.target.value);
+      if (el) el.classList.add('active');
+    }
+  };
+
+  document.getElementById('submitBtn').onclick = async () => {
+    const msg = document.getElementById('formMsg');
+    const leadType = document.getElementById('leadType').value;
+    const fullName = document.getElementById('fullName').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const districtId = document.getElementById('districtSelect').value;
+    const divisionId = document.getElementById('divisionSelect').value;
+    const message = document.getElementById('message').value.trim();
+
+    if (!leadType) { msg.style.color = '#C0392B'; msg.textContent = 'Please select what you\'re interested in.'; return; }
+    if (!fullName) { msg.style.color = '#C0392B'; msg.textContent = 'Please enter your full name.'; return; }
+    if (!phone && !email) { msg.style.color = '#C0392B'; msg.textContent = 'Please provide a phone number or email.'; return; }
+
+    const extra_fields = { message: message || null };
+    if (leadType === 'fo_dso_recruitment') extra_fields.village_interest = document.getElementById('fo_village').value.trim() || null;
+    if (leadType === 'fbc_team_recruitment') extra_fields.role_interest = document.getElementById('fbc_role_interest').value.trim() || null;
+    if (leadType === 'admin_staff_recruitment') extra_fields.department_interest = document.getElementById('admin_dept_interest').value.trim() || null;
+    if (leadType === 'investor') extra_fields.investment_amount = document.getElementById('investment_amount').value.trim() || null;
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Submitting…';
+
+    try {
+      const res = await fetch(SUBMIT_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lead_type: leadType, full_name: fullName, phone: phone || null, email: email || null,
+          source, campaign_name: campaignName,
+          district_id: districtId || null, revenue_division_id: divisionId || null,
+          extra_fields,
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Something went wrong. Please try again.'; btn.disabled = false; return; }
+      document.getElementById('formArea').style.display = 'none';
+      document.getElementById('successBox').style.display = 'block';
+    } catch (e) {
+      msg.style.color = '#C0392B'; msg.textContent = 'Network error — please try again.'; btn.disabled = false;
+    }
+  };
+
+  loadDistricts();
+</script>
+</body>
+</html>
