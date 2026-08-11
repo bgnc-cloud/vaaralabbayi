@@ -7,64 +7,128 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="../style.css">
 <link rel="icon" href="../logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
-
-  .statsGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(130px,1fr)); gap: 12px; margin-bottom: 20px; }
-  .statBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
-  .statBox .v { font-family:'Plus Jakarta Sans',sans-serif; font-size: 22px; font-weight: 800; }
-  .statBox .l { font-size: 11px; color: var(--g3); margin-top: 2px; }
-
-  .filterBar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-  .filterBar select, .filterBar input {
-    padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
-    font-size: 13px; font-family: inherit; background: #fff; color: var(--ink);
+  /* ── Field Ledger design system — grounded in VIPL's rural/agri identity.
+     Leads move through the same growth arc a crop does: seed -> sprout ->
+     bud -> bloom -> harvest. Everywhere else in VIPL Internal is a flat
+     admin table; this page is deliberately a pipeline you can see. ── */
+  :root {
+    --soil: #2B2318;
+    --soil-60: rgba(43,35,24,.62);
+    --soil-40: rgba(43,35,24,.42);
+    --paper: #EEF0E4;
+    --card: #FFFFFF;
+    --line: #DDD6C3;
+    --sprout: #6B8E4E;
+    --sprout-tint: #E6EEDC;
+    --harvest: #C98A2B;
+    --harvest-tint: #F5E9CE;
+    --capital: #2B5F6B;
+    --capital-tint: #DCE7E9;
+    --grain: #7A6A3F;
+    --grain-tint: #EDE7D3;
+    --ripe: #3F6B4A;
+    --rot: #8B3A3A;
   }
 
-  .leadsTable { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
-  .leadRow {
-    display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr 0.9fr 1fr 0.6fr;
-    align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--border); font-size: 12.5px;
-  }
-  .leadRow.headerRow { background: var(--off); font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--g3); letter-spacing: .03em; }
-  .leadRow:last-child { border-bottom: none; }
-  .leadRow .name { font-weight: 700; color: var(--ink); }
-  .leadRow .contact { color: var(--g3); font-size: 11.5px; }
-  .typeTag { font-size: 10px; font-weight: 800; background: var(--off); color: var(--ink); padding: 2px 7px; border-radius: 6px; width: fit-content; }
-  .sourceTag { font-size: 10px; color: var(--g3); }
-  .statusPill { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 20px; width: fit-content; }
-  .statusPill.new { background: #E3F0FB; color: #2563EB; }
-  .statusPill.contacted { background: #FBF1DE; color: #B7791F; }
-  .statusPill.qualified, .statusPill.interested { background: #EFE3FB; color: #7C3AED; }
-  .statusPill.converted { background: #E3F5F3; color: #0E9488; }
-  .statusPill.rejected, .statusPill.lost { background: #FBE3E3; color: #C0392B; }
-  .expandBtn { font-size: 11px; font-weight: 700; color: var(--blue); cursor: pointer; }
+  #mainArea { background: var(--paper); }
+  .fl-wrap { font-family: 'Work Sans', sans-serif; color: var(--soil); }
+  .fl-wrap h1, .fl-wrap .fl-serif { font-family: 'Fraunces', serif; }
+  .fl-mono { font-family: 'IBM Plex Mono', monospace; }
 
-  .leadDetail { grid-column: 1 / -1; background: var(--off); border-radius: 10px; padding: 16px; margin-top: 8px; }
-  .leadDetail label { font-size: 11px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 3px; margin-top: 10px; }
-  .leadDetail select, .leadDetail input, .leadDetail textarea {
-    width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 7px;
-    font-size: 13px; font-family: inherit; background: #fff; box-sizing: border-box;
-  }
-  .leadDetail textarea { min-height: 60px; resize: vertical; }
-  .leadDetail button {
-    padding: 8px 14px; border-radius: 7px; border: none; font-size: 12.5px; font-weight: 700; cursor: pointer;
-    background: var(--blue); color: #fff; margin-top: 8px; margin-right: 8px;
-  }
-  .noteItem { background: #fff; border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
-  .noteItem .noteMeta { color: var(--g3); font-size: 11px; margin-bottom: 3px; }
-  .extraFields { font-size: 11.5px; color: var(--g3); margin-top: 4px; }
+  .fl-head { margin-bottom: 6px; }
+  .fl-head h1 { font-size: 30px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  .fl-head p { font-size: 13.5px; color: var(--soil-60); margin: 0 0 24px; max-width: 640px; line-height: 1.5; }
 
-  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
-  .accessBox .emoji { font-size: 40px; margin-bottom: 12px; }
-  .accessBox h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 19px; font-weight: 800; margin-bottom: 8px; }
-  .accessBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
-
-  @media (max-width: 900px) {
-    .leadRow { grid-template-columns: 1fr; gap: 4px; }
-    .leadRow.headerRow { display: none; }
+  .fl-stats {
+    display: flex; align-items: baseline; gap: 0; flex-wrap: wrap;
+    padding: 16px 0; margin-bottom: 22px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   }
+  .fl-stat { padding: 0 22px; border-right: 1px solid var(--line); }
+  .fl-stat:first-child { padding-left: 0; }
+  .fl-stat:last-child { border-right: none; }
+  .fl-stat .n { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; }
+  .fl-stat .l { font-size: 11px; color: var(--soil-60); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+
+  .fl-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 22px; }
+  .fl-typePill {
+    display: flex; align-items: center; gap: 6px; padding: 7px 13px; border-radius: 20px;
+    border: 1px solid var(--line); background: var(--card); font-size: 12.5px; font-weight: 600; cursor: pointer;
+    color: var(--soil-60); transition: all .12s;
+  }
+  .fl-typePill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .fl-typePill.active { border-color: var(--soil); color: var(--soil); background: var(--card); box-shadow: inset 0 0 0 1px var(--soil); }
+  .fl-selects { display: flex; gap: 8px; margin-left: auto; }
+  .fl-selects select {
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    font-size: 12.5px; font-family: inherit; color: var(--soil);
+  }
+
+  .fl-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; }
+  .fl-col { flex: 0 0 270px; min-width: 270px; }
+  .fl-colHead { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; }
+  .fl-ring { width: 20px; height: 20px; flex-shrink: 0; }
+  .fl-colTitle { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; }
+  .fl-colCount { margin-left: auto; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--soil-60); }
+  .fl-colBar { height: 3px; border-radius: 3px; margin: 0 4px 12px; }
+  .fl-colBody { display: flex; flex-direction: column; gap: 10px; min-height: 40px; }
+  .fl-empty { font-size: 11.5px; color: var(--soil-40); padding: 10px 4px; font-style: italic; }
+
+  .fl-card {
+    background: var(--card); border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px;
+    padding: 12px 13px; cursor: pointer; transition: box-shadow .12s, transform .12s;
+  }
+  .fl-card:hover { box-shadow: 0 4px 14px rgba(43,35,24,.08); transform: translateY(-1px); }
+  .fl-card .fl-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14.5px; margin-bottom: 3px; }
+  .fl-card .fl-meta { font-size: 11.5px; color: var(--soil-60); line-height: 1.5; }
+  .fl-card .fl-meta .row { display: flex; gap: 5px; align-items: center; }
+  .fl-card .fl-age { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--soil-40); margin-top: 6px; }
+  .fl-card .fl-assigned { font-size: 10.5px; color: var(--soil-40); margin-top: 4px; }
+
+  .fl-closedCol { flex: 0 0 200px; min-width: 200px; }
+
+  .fl-overlay { position: fixed; inset: 0; background: rgba(43,35,24,.35); z-index: 40; display: none; }
+  .fl-overlay.open { display: block; }
+  .fl-panel {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw; background: var(--card);
+    z-index: 41; transform: translateX(100%); transition: transform .2s ease; overflow-y: auto; padding: 26px;
+    box-shadow: -10px 0 40px rgba(43,35,24,.18);
+  }
+  .fl-panel.open { transform: translateX(0); }
+  .fl-panel .fl-closeBtn { float: right; font-size: 20px; cursor: pointer; color: var(--soil-60); background: none; border: none; }
+  .fl-panel h2 { font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600; margin: 0 0 4px; }
+  .fl-panel .fl-typeTag { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; margin-bottom: 14px; }
+  .fl-panel .fl-contactLine { font-size: 13px; color: var(--soil-60); margin-bottom: 3px; }
+  .fl-panel .fl-extraBox { background: var(--paper); border-radius: 8px; padding: 10px 12px; margin: 14px 0; font-size: 12.5px; }
+  .fl-panel .fl-extraBox div { margin-bottom: 3px; }
+  .fl-panel label { font-size: 11px; font-weight: 700; color: var(--soil-60); text-transform: uppercase; letter-spacing: .04em; display: block; margin-top: 18px; margin-bottom: 6px; }
+  .fl-panel select, .fl-panel textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
+    font-family: inherit; background: var(--paper); box-sizing: border-box;
+  }
+  .fl-panel textarea { min-height: 64px; resize: vertical; }
+  .fl-stageBtns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fl-stageBtn {
+    padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+    font-size: 12px; font-weight: 600; cursor: pointer; color: var(--soil);
+  }
+  .fl-stageBtn.current { background: var(--soil); color: #fff; border-color: var(--soil); }
+  .fl-saveBtn {
+    margin-top: 16px; padding: 10px 18px; border-radius: 8px; border: none; background: var(--ripe); color: #fff;
+    font-weight: 700; font-size: 13px; cursor: pointer;
+  }
+  .fl-noteBtn {
+    margin-top: 8px; padding: 9px 16px; border-radius: 8px; border: none; background: var(--soil); color: #fff;
+    font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  .fl-notesList { margin-top: 12px; }
+  .fl-noteItem { border-left: 2px solid var(--line); padding: 6px 0 6px 12px; margin-bottom: 8px; font-size: 12px; }
+  .fl-noteItem .fl-noteMeta { color: var(--soil-40); font-size: 10.5px; margin-bottom: 2px; }
+
+  .fl-accessBox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
 </style>
 </head>
 <body>
@@ -74,11 +138,12 @@
 <div id="appShell">
   <div id="sidebar"></div>
   <div id="mainArea">
-    <h1 class="pageTitle">Leads CRM</h1>
-    <div class="lead">Recruitment (FO/DSO, FBC Team, Admin Staff), investor interest, and ad-campaign followup. Leads auto-assign to the CRM_RM/CRM_DT covering their area.</div>
-    <div id="leadsContent"></div>
+    <div class="fl-wrap" id="leadsContent"></div>
   </div>
 </div>
+
+<div class="fl-overlay" id="flOverlay" onclick="closeLeadPanel()"></div>
+<div class="fl-panel" id="flPanel"></div>
 
 <script src="shell.js"></script>
 <script>
@@ -87,75 +152,162 @@
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
   const MANAGE_LEADS_ENDPOINT = FBC_URL + '/functions/v1/manage-leads';
 
-  const LEAD_TYPE_LABELS = {
-    fo_dso_recruitment: 'FO/DSO Recruitment',
-    fbc_team_recruitment: 'FBC Team Recruitment',
-    admin_staff_recruitment: 'Admin Staff Recruitment',
-    investor: 'Investor Interest',
+  const LEAD_TYPE_META = {
+    fo_dso_recruitment:    { label: 'FO / DSO',      color: 'var(--sprout)',  tint: 'var(--sprout-tint)' },
+    fbc_team_recruitment:  { label: 'FBC Team',       color: 'var(--harvest)', tint: 'var(--harvest-tint)' },
+    admin_staff_recruitment: { label: 'Admin Staff',  color: 'var(--grain)',   tint: 'var(--grain-tint)' },
+    investor:              { label: 'Investor',       color: 'var(--capital)', tint: 'var(--capital-tint)' },
   };
-  const STATUS_ORDER = ['new', 'contacted', 'qualified', 'interested', 'converted', 'rejected', 'lost'];
+
+  const STAGES = [
+    { key: 'new',        label: 'Seed',     ring: 1 },
+    { key: 'contacted',  label: 'Sprout',   ring: 2 },
+    { key: 'qualified',  label: 'Bud',      ring: 3 },
+    { key: 'interested', label: 'Bloom',    ring: 4 },
+    { key: 'converted',  label: 'Harvest',  ring: 5 },
+  ];
+  const CLOSED_STATUSES = ['rejected', 'lost'];
 
   let ALL_LEADS = [];
   let CRM_POSITIONS = [];
+  let ACTIVE_TYPE_FILTER = null;
+  let ACTIVE_SOURCE_FILTER = '';
+  let ACTIVE_DISTRICT_FILTER = '';
   let OPEN_LEAD_ID = null;
-  let FILTER = { lead_type: '', status: '', source: '', district: '' };
+
+  function ringSvg(filled, total, color) {
+    const r = 8, cx = 10, cy = 10, circ = 2 * Math.PI * r;
+    const dash = (filled / total) * circ;
+    return `<svg class="fl-ring" viewBox="0 0 20 20">
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="3"></circle>
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="3"
+        stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"></circle>
+    </svg>`;
+  }
+
+  function daysAgo(dateStr) {
+    const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    return d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+  }
 
   function filteredLeads() {
     return ALL_LEADS.filter(l => {
-      if (FILTER.lead_type && l.lead_type !== FILTER.lead_type) return false;
-      if (FILTER.status && l.status !== FILTER.status) return false;
-      if (FILTER.source && l.source !== FILTER.source) return false;
-      if (FILTER.district && l.district_name !== FILTER.district) return false;
+      if (ACTIVE_TYPE_FILTER && l.lead_type !== ACTIVE_TYPE_FILTER) return false;
+      if (ACTIVE_SOURCE_FILTER && l.source !== ACTIVE_SOURCE_FILTER) return false;
+      if (ACTIVE_DISTRICT_FILTER && l.district_name !== ACTIVE_DISTRICT_FILTER) return false;
       return true;
     });
   }
 
-  function leadDetailHtml(l) {
-    const extra = Object.entries(l.extra_fields || {}).filter(([k,v]) => v).map(([k,v]) => `${k.replace(/_/g,' ')}: ${v}`).join(' · ');
-    return `
-      <div class="leadDetail" id="detail-${l.id}">
-        ${extra ? `<div class="extraFields">${extra}</div>` : ''}
-        <label>Change status</label>
-        <select id="statusSelect-${l.id}">
-          ${STATUS_ORDER.map(s => `<option value="${s}" ${s === l.status ? 'selected' : ''}>${s}</option>`).join('')}
-        </select>
-        <label>Reassign to</label>
-        <select id="reassignSelect-${l.id}">
-          <option value="">Unassigned</option>
-          ${CRM_POSITIONS.map(p => `<option value="${p.id}" ${l.assigned_position_code === p.position_code ? 'selected' : ''}>${p.position_code} — ${p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name}</option>`).join('')}
-        </select>
-        <button onclick="saveLeadChanges('${l.id}')">Save Status / Assignment</button>
-        <label>Add a note</label>
-        <textarea id="noteInput-${l.id}" placeholder="Call outcome, next step, etc."></textarea>
-        <button onclick="addLeadNote('${l.id}')">Add Note</button>
-        <div id="notesArea-${l.id}" style="margin-top:12px;"><p style="color:var(--g3); font-size:12px;">Loading notes…</p></div>
-      </div>
-    `;
-  }
-
-  function leadRowHtml(l) {
-    const contact = [l.phone, l.email].filter(Boolean).join(' · ') || '—';
+  function leadCardHtml(l) {
+    const meta = LEAD_TYPE_META[l.lead_type] || { label: l.lead_type, color: 'var(--soil)' };
     const area = l.revenue_division_name || l.district_name || '—';
     const assigned = l.assigned_occupant_name || l.assigned_position_code || 'Unassigned';
-    const isOpen = OPEN_LEAD_ID === l.id;
     return `
-      <div class="leadRow">
-        <div><div class="name">${l.full_name}</div><div class="contact">${contact}</div></div>
-        <div><span class="typeTag">${LEAD_TYPE_LABELS[l.lead_type] || l.lead_type}</span><div class="sourceTag">${l.source}${l.campaign_name ? ' · ' + l.campaign_name : ''}</div></div>
-        <div>${area}</div>
-        <div>${assigned}</div>
-        <div><span class="statusPill ${l.status}">${l.status}</span></div>
-        <div style="font-size:11px; color:var(--g3);">${new Date(l.created_at).toLocaleDateString()}</div>
-        <div class="expandBtn" onclick="toggleLeadDetail('${l.id}')">${isOpen ? 'Close' : 'View'}</div>
-        ${isOpen ? leadDetailHtml(l) : ''}
+      <div class="fl-card" style="border-left-color:${meta.color};" onclick="openLeadPanel('${l.id}')">
+        <div class="fl-name">${l.full_name}</div>
+        <div class="fl-meta">
+          <div class="row">${[l.phone, l.email].filter(Boolean).join(' · ') || 'No contact info'}</div>
+          <div class="row">${area}</div>
+        </div>
+        <div class="fl-age">${daysAgo(l.created_at)} in pipeline</div>
+        <div class="fl-assigned">→ ${assigned}</div>
       </div>
     `;
   }
 
-  window.toggleLeadDetail = function(leadId) {
-    OPEN_LEAD_ID = OPEN_LEAD_ID === leadId ? null : leadId;
-    renderLeadsTable();
-    if (OPEN_LEAD_ID) loadNotesFor(leadId);
+  function renderBoard() {
+    const leads = filteredLeads();
+    const board = document.getElementById('flBoard');
+    const totalStages = STAGES.length;
+
+    const activeCols = STAGES.map(stage => {
+      const stageLeads = leads.filter(l => l.status === stage.key);
+      return `
+        <div class="fl-col">
+          <div class="fl-colHead">
+            ${ringSvg(stage.ring, totalStages, 'var(--ripe)')}
+            <div class="fl-colTitle">${stage.label}</div>
+            <div class="fl-colCount">${stageLeads.length}</div>
+          </div>
+          <div class="fl-colBar" style="background:var(--ripe); opacity:${0.3 + (stage.ring / totalStages) * 0.7};"></div>
+          <div class="fl-colBody">
+            ${stageLeads.length ? stageLeads.map(leadCardHtml).join('') : '<div class="fl-empty">Nothing here yet</div>'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    const closedLeads = leads.filter(l => CLOSED_STATUSES.includes(l.status));
+    const closedCol = `
+      <div class="fl-col fl-closedCol">
+        <div class="fl-colHead">
+          <div class="fl-colTitle">Closed</div>
+          <div class="fl-colCount">${closedLeads.length}</div>
+        </div>
+        <div class="fl-colBar" style="background:var(--rot); opacity:.5;"></div>
+        <div class="fl-colBody">
+          ${closedLeads.length ? closedLeads.map(leadCardHtml).join('') : '<div class="fl-empty">None closed out</div>'}
+        </div>
+      </div>
+    `;
+
+    board.innerHTML = activeCols + closedCol;
+  }
+
+  window.setTypeFilter = function(type) {
+    ACTIVE_TYPE_FILTER = ACTIVE_TYPE_FILTER === type ? null : type;
+    document.querySelectorAll('.fl-typePill').forEach(p => p.classList.toggle('active', p.dataset.type === ACTIVE_TYPE_FILTER));
+    renderBoard();
+  };
+
+  function panelHtml(l) {
+    const meta = LEAD_TYPE_META[l.lead_type] || { label: l.lead_type, color: 'var(--soil)', tint: 'var(--paper)' };
+    const extra = Object.entries(l.extra_fields || {}).filter(([k,v]) => v);
+    const allStatuses = [...STAGES.map(s => s.key), 'rejected', 'lost'];
+    return `
+      <button class="fl-closeBtn" onclick="closeLeadPanel()">✕</button>
+      <div style="clear:both;"></div>
+      <h2>${l.full_name}</h2>
+      <span class="fl-typeTag" style="background:${meta.tint}; color:${meta.color};">${meta.label}</span>
+      <div class="fl-contactLine">${l.phone || '—'}</div>
+      <div class="fl-contactLine">${l.email || '—'}</div>
+      <div class="fl-contactLine">${l.revenue_division_name || l.district_name || 'No area given'}</div>
+      <div class="fl-contactLine">Source: ${l.source}${l.campaign_name ? ' · ' + l.campaign_name : ''}</div>
+      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k,v]) => `<div><strong>${k.replace(/_/g,' ')}:</strong> ${v}</div>`).join('')}</div>` : ''}
+
+      <label>Move to stage</label>
+      <div class="fl-stageBtns" id="stageBtns-${l.id}">
+        ${allStatuses.map(s => `<div class="fl-stageBtn ${s === l.status ? 'current' : ''}" onclick="quickMove('${l.id}','${s}')">${s}</div>`).join('')}
+      </div>
+
+      <label>Reassign to</label>
+      <select id="reassignSelect-${l.id}">
+        <option value="">Unassigned</option>
+        ${CRM_POSITIONS.map(p => `<option value="${p.id}" ${l.assigned_position_code === p.position_code ? 'selected' : ''}>${p.position_code} — ${p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name}</option>`).join('')}
+      </select>
+      <button class="fl-saveBtn" onclick="saveReassign('${l.id}')">Save Assignment</button>
+
+      <label>Add a note</label>
+      <textarea id="noteInput-${l.id}" placeholder="Call outcome, next step, etc."></textarea>
+      <button class="fl-noteBtn" onclick="addLeadNote('${l.id}')">Add Note</button>
+
+      <div class="fl-notesList" id="notesArea-${l.id}"><p style="color:var(--soil-40); font-size:12px;">Loading activity…</p></div>
+    `;
+  }
+
+  window.openLeadPanel = function(leadId) {
+    OPEN_LEAD_ID = leadId;
+    const l = ALL_LEADS.find(x => x.id === leadId);
+    document.getElementById('flPanel').innerHTML = panelHtml(l);
+    document.getElementById('flPanel').classList.add('open');
+    document.getElementById('flOverlay').classList.add('open');
+    loadNotesFor(leadId);
+  };
+  window.closeLeadPanel = function() {
+    OPEN_LEAD_ID = null;
+    document.getElementById('flPanel').classList.remove('open');
+    document.getElementById('flOverlay').classList.remove('open');
   };
 
   async function loadNotesFor(leadId) {
@@ -168,40 +320,42 @@
       });
       const result = await res.json();
       if (!area) return;
-      if (!result.notes || !result.notes.length) { area.innerHTML = `<p style="color:var(--g3); font-size:12px;">No activity yet.</p>`; return; }
+      if (!result.notes || !result.notes.length) { area.innerHTML = `<p style="color:var(--soil-40); font-size:12px;">No activity yet.</p>`; return; }
       area.innerHTML = result.notes.map(n => `
-        <div class="noteItem">
-          <div class="noteMeta">${n.created_by_name || 'Unknown'} · ${new Date(n.created_at).toLocaleString()} · ${n.action_type}</div>
-          ${n.note ? n.note : ''}
-          ${n.action_type === 'status_change' ? `${n.old_value} → ${n.new_value}` : ''}
+        <div class="fl-noteItem">
+          <div class="fl-noteMeta">${n.created_by_name || 'Unknown'} · ${new Date(n.created_at).toLocaleString()}</div>
+          ${n.action_type === 'status_change' ? `Moved ${n.old_value} → ${n.new_value}` : (n.note || '')}
         </div>
       `).join('');
     } catch (e) {
-      if (area) area.innerHTML = `<p style="color:var(--g3); font-size:12px;">Couldn't load activity.</p>`;
+      if (area) area.innerHTML = `<p style="color:var(--soil-40); font-size:12px;">Couldn't load activity.</p>`;
     }
   }
 
-  window.saveLeadChanges = async function(leadId) {
+  window.quickMove = async function(leadId, newStatus) {
     const { data: { session } } = await VIPL.sb.auth.getSession();
-    const newStatus = document.getElementById('statusSelect-' + leadId).value;
-    const newPosition = document.getElementById('reassignSelect-' + leadId).value;
-    const lead = ALL_LEADS.find(l => l.id === leadId);
     try {
-      if (newStatus !== lead.status) {
-        await fetch(MANAGE_LEADS_ENDPOINT, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: session.access_token, action: 'update_status', lead_id: leadId, new_status: newStatus }),
-        });
-      }
-      const currentPos = CRM_POSITIONS.find(p => p.position_code === lead.assigned_position_code);
-      if ((currentPos ? currentPos.id : '') !== newPosition) {
-        await fetch(MANAGE_LEADS_ENDPOINT, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token: session.access_token, action: 'reassign', lead_id: leadId, new_position_id: newPosition || null }),
-        });
-      }
+      await fetch(MANAGE_LEADS_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token, action: 'update_status', lead_id: leadId, new_status: newStatus }),
+      });
       await loadLeads();
-    } catch (e) { alert('Failed to save changes.'); }
+      const l = ALL_LEADS.find(x => x.id === leadId);
+      if (l) { document.getElementById('flPanel').innerHTML = panelHtml(l); loadNotesFor(leadId); }
+    } catch (e) { alert('Failed to move lead.'); }
+  };
+
+  window.saveReassign = async function(leadId) {
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    const newPosition = document.getElementById('reassignSelect-' + leadId).value;
+    try {
+      await fetch(MANAGE_LEADS_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token, action: 'reassign', lead_id: leadId, new_position_id: newPosition || null }),
+      });
+      await loadLeads();
+      loadNotesFor(leadId);
+    } catch (e) { alert('Failed to reassign.'); }
   };
 
   window.addLeadNote = async function(leadId) {
@@ -219,27 +373,57 @@
     } catch (e) { alert('Failed to add note.'); }
   };
 
-  function renderLeadsTable() {
-    const area = document.getElementById('leadsTableArea');
-    const leads = filteredLeads();
-    const rowsHtml = leads.map(leadRowHtml).join('');
-    area.innerHTML = `
-      <div class="leadsTable">
-        <div class="leadRow headerRow"><div>Name</div><div>Type / Source</div><div>Area</div><div>Assigned To</div><div>Status</div><div>Date</div><div></div></div>
-        ${rowsHtml || '<div class="leadRow"><div>No leads match this filter.</div></div>'}
-      </div>
-    `;
-  }
-
-  function populateFilterOptions() {
+  function renderShell() {
+    const container = document.getElementById('leadsContent');
+    const total = ALL_LEADS.length;
+    const byStatus = {};
+    ALL_LEADS.forEach(l => { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
+    const converted = byStatus.converted || 0;
+    const closed = CLOSED_STATUSES.reduce((s, k) => s + (byStatus[k] || 0), 0);
+    const active = total - converted - closed;
     const districts = [...new Set(ALL_LEADS.map(l => l.district_name).filter(Boolean))].sort();
-    const districtSel = document.getElementById('filterDistrict');
-    districtSel.innerHTML = `<option value="">All Districts</option>` + districts.map(d => `<option value="${d}">${d}</option>`).join('');
+
+    container.innerHTML = `
+      <div class="fl-head">
+        <h1>Leads CRM</h1>
+        <p>Recruitment leads (FO/DSO, FBC Team, Admin Staff) and investor interest — from Meta ads and other sources, moving through the pipeline toward a decision.</p>
+      </div>
+      <div class="fl-stats">
+        <div class="fl-stat"><div class="n">${total}</div><div class="l">Total Leads</div></div>
+        <div class="fl-stat"><div class="n">${active}</div><div class="l">In Pipeline</div></div>
+        <div class="fl-stat"><div class="n">${converted}</div><div class="l">Converted</div></div>
+        <div class="fl-stat"><div class="n">${closed}</div><div class="l">Closed Out</div></div>
+      </div>
+      <div class="fl-filters">
+        ${Object.entries(LEAD_TYPE_META).map(([key, m]) => `
+          <div class="fl-typePill" data-type="${key}" onclick="setTypeFilter('${key}')">
+            <span class="dot" style="background:${m.color};"></span>${m.label}
+          </div>
+        `).join('')}
+        <div class="fl-selects">
+          <select id="filterSource">
+            <option value="">All Sources</option>
+            <option value="meta_ads">Meta Ads</option>
+            <option value="referral">Referral</option>
+            <option value="walk_in">Walk-in</option>
+            <option value="website">Website</option>
+            <option value="other">Other</option>
+          </select>
+          <select id="filterDistrict">
+            <option value="">All Districts</option>
+            ${districts.map(d => `<option value="${d}">${d}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="fl-board" id="flBoard"></div>
+    `;
+    document.getElementById('filterSource').onchange = (e) => { ACTIVE_SOURCE_FILTER = e.target.value; renderBoard(); };
+    document.getElementById('filterDistrict').onchange = (e) => { ACTIVE_DISTRICT_FILTER = e.target.value; renderBoard(); };
+    renderBoard();
   }
 
   async function loadLeads() {
     const { data: { session } } = await VIPL.sb.auth.getSession();
-    const container = document.getElementById('leadsContent');
     try {
       const [leadsRes, posRes] = await Promise.all([
         fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list' }) }),
@@ -250,45 +434,9 @@
       if (!leadsRes.ok) throw new Error(leadsResult.error || 'Failed to load leads');
       ALL_LEADS = leadsResult.leads || [];
       CRM_POSITIONS = posResult.positions || [];
-
-      const total = ALL_LEADS.length;
-      const byStatus = {};
-      ALL_LEADS.forEach(l => { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
-
-      container.innerHTML = `
-        <div class="statsGrid">
-          <div class="statBox"><div class="v">${total}</div><div class="l">Total Leads</div></div>
-          ${STATUS_ORDER.map(s => `<div class="statBox"><div class="v">${byStatus[s] || 0}</div><div class="l">${s.charAt(0).toUpperCase() + s.slice(1)}</div></div>`).join('')}
-        </div>
-        <div class="filterBar">
-          <select id="filterType">
-            <option value="">All Types</option>
-            ${Object.entries(LEAD_TYPE_LABELS).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}
-          </select>
-          <select id="filterStatus">
-            <option value="">All Statuses</option>
-            ${STATUS_ORDER.map(s => `<option value="${s}">${s}</option>`).join('')}
-          </select>
-          <select id="filterSource">
-            <option value="">All Sources</option>
-            <option value="meta_ads">Meta Ads</option>
-            <option value="referral">Referral</option>
-            <option value="walk_in">Walk-in</option>
-            <option value="website">Website</option>
-            <option value="other">Other</option>
-          </select>
-          <select id="filterDistrict"></select>
-        </div>
-        <div id="leadsTableArea"></div>
-      `;
-      populateFilterOptions();
-      document.getElementById('filterType').onchange = (e) => { FILTER.lead_type = e.target.value; renderLeadsTable(); };
-      document.getElementById('filterStatus').onchange = (e) => { FILTER.status = e.target.value; renderLeadsTable(); };
-      document.getElementById('filterSource').onchange = (e) => { FILTER.source = e.target.value; renderLeadsTable(); };
-      document.getElementById('filterDistrict').onchange = (e) => { FILTER.district = e.target.value; renderLeadsTable(); };
-      renderLeadsTable();
+      renderShell();
     } catch (e) {
-      container.innerHTML = `<div class="accessBox"><p>Couldn't load leads: ${e.message}</p></div>`;
+      document.getElementById('leadsContent').innerHTML = `<div class="fl-accessBox"><p>Couldn't load leads: ${e.message}</p></div>`;
     }
   }
 
@@ -296,10 +444,10 @@
     const role = VIPL.profile.role;
     const el = document.getElementById('leadsContent');
     if (!LEADS_VIEW_ROLES.includes(role)) {
-      el.innerHTML = `<div class="accessBox"><div class="emoji">🔒</div><h2>Restricted</h2><p>Leads CRM is visible to Super Admin, Admin, and HR Manager.</p></div>`;
+      el.innerHTML = `<div class="fl-accessBox"><h2 class="fl-serif">Restricted</h2><p>Leads CRM is visible to Super Admin, Admin, and HR Manager.</p></div>`;
       return;
     }
-    el.innerHTML = `<p style="color:var(--g3); font-size:13px;">Loading…</p>`;
+    el.innerHTML = `<p style="color:var(--soil-60); font-size:13px;">Loading…</p>`;
     await loadLeads();
   };
 </script>
