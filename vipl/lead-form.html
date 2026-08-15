@@ -4,27 +4,77 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Get in Touch — VIPL / FBC Network</title>
-<link rel="stylesheet" href="../style.css">
 <link rel="icon" href="../logo.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  body { background: var(--off); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-  .formCard { background: #fff; border-radius: 20px; padding: 32px 26px; width: 100%; max-width: 460px; box-shadow: 0 20px 50px rgba(11,59,46,.12); }
-  .brand { text-align: center; margin-bottom: 22px; }
-  .brand .icon { font-size: 36px; margin-bottom: 6px; }
-  .brand h1 { font-size: 20px; font-weight: 800; margin: 4px 0 0; color: var(--navy); }
-  .brand p { font-size: 13px; color: var(--g3); margin: 4px 0 0; }
-  label { font-size: 12.5px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 6px; margin-top: 16px; }
-  input, select, textarea { width: 100%; padding: 13px 15px; border: 1.5px solid var(--border); border-radius: 12px; font-size: 15px; font-family: inherit; background: var(--off); box-sizing: border-box; }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--leaf); background: #fff; }
+  /* ── Same Field Ledger design system as leads-crm.html: this form is
+     where a lead gets planted (the "Seed" stage of the pipeline), so it
+     should carry the same identity as the board that manages it. ── */
+  :root {
+    --soil: #2B2318;
+    --soil-60: rgba(43,35,24,.62);
+    --soil-40: rgba(43,35,24,.42);
+    --paper: #EEF0E4;
+    --card: #FFFFFF;
+    --line: #DDD6C3;
+    --sprout: #6B8E4E;
+    --sprout-tint: #E6EEDC;
+    --harvest: #C98A2B;
+    --harvest-tint: #F5E9CE;
+    --capital: #2B5F6B;
+    --capital-tint: #DCE7E9;
+    --grain: #7A6A3F;
+    --grain-tint: #EDE7D3;
+    --ripe: #3F6B4A;
+    --rot: #8B3A3A;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper); margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 32px 18px; font-family: 'Work Sans', sans-serif; color: var(--soil);
+  }
+  h1, .fl-serif { font-family: 'Fraunces', serif; }
+
+  .formCard { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 34px 28px; width: 100%; max-width: 480px; }
+  .brand { text-align: center; margin-bottom: 24px; }
+  .brand .seedMark {
+    width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 12px; background: var(--sprout-tint);
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  .brand h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+  .brand p { font-size: 13px; color: var(--soil-60); margin: 0; line-height: 1.5; }
+
+  label { font-size: 11px; font-weight: 700; color: var(--soil-60); text-transform: uppercase; letter-spacing: .04em; display: block; margin-top: 18px; margin-bottom: 7px; }
+  input, select, textarea {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 14.5px;
+    font-family: inherit; background: var(--paper); color: var(--soil);
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--sprout); background: var(--card); }
   textarea { resize: vertical; min-height: 70px; }
-  .submitBtn { width: 100%; padding: 15px; border-radius: 12px; background: var(--green); color: #fff; border: none; font-weight: 800; font-size: 15px; margin-top: 24px; cursor: pointer; }
+
+  .typeGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .typeOpt {
+    border: 1.5px solid var(--line); border-radius: 12px; padding: 12px 12px; cursor: pointer; text-align: center;
+    font-size: 12.5px; font-weight: 600; color: var(--soil-60); transition: all .12s; background: var(--paper);
+  }
+  .typeOpt .dot { width: 8px; height: 8px; border-radius: 50%; margin: 0 auto 6px; }
+  .typeOpt.selected { border-color: var(--soil); color: var(--soil); background: var(--card); box-shadow: 0 2px 8px rgba(43,35,24,.08); }
+
+  .submitBtn {
+    width: 100%; padding: 15px; border-radius: 12px; background: var(--ripe); color: #fff; border: none;
+    font-weight: 700; font-size: 15px; margin-top: 26px; cursor: pointer; font-family: 'Work Sans', sans-serif;
+  }
   .submitBtn:disabled { opacity: .6; cursor: default; }
-  #formMsg { font-size: 13px; text-align: center; margin-top: 14px; min-height: 18px; }
-  .successBox { text-align: center; padding: 20px 0; }
-  .successBox .icon { font-size: 44px; margin-bottom: 10px; }
-  .successBox h2 { font-size: 18px; font-weight: 800; margin: 0 0 8px; }
-  .successBox p { font-size: 13.5px; color: var(--g3); line-height: 1.5; }
+  #formMsg { font-size: 13px; text-align: center; margin-top: 12px; min-height: 18px; color: var(--rot); }
+
+  .successBox { text-align: center; padding: 10px 0; }
+  .successBox .sprig { font-size: 40px; margin-bottom: 10px; }
+  .successBox h2 { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin: 0 0 8px; color: var(--ripe); }
+  .successBox p { font-size: 13.5px; color: var(--soil-60); line-height: 1.5; }
+
   .typeFields { display: none; }
   .typeFields.active { display: block; }
 </style>
@@ -33,20 +83,27 @@
 
 <div class="formCard" id="formCard">
   <div class="brand">
-    <div class="icon">🌾</div>
+    <div class="seedMark">🌱</div>
     <h1>Get in Touch</h1>
-    <p>Interested in joining or working with us? Tell us a bit about yourself.</p>
+    <p>Interested in joining or working with us? Tell us a bit about yourself — this is where it starts.</p>
   </div>
 
   <div id="formArea">
     <label>What are you interested in? *</label>
-    <select id="leadType">
-      <option value="">Select one…</option>
-      <option value="fo_dso_recruitment">Digital Store Operator (FO/DSO) — village-level role</option>
-      <option value="fbc_team_recruitment">FBC Network Team role (BDM/RM/ZM/etc.)</option>
-      <option value="admin_staff_recruitment">Admin / Support Team role</option>
-      <option value="investor">Investing with VIPL</option>
-    </select>
+    <div class="typeGrid" id="typeGrid">
+      <div class="typeOpt" data-type="fo_dso_recruitment" onclick="selectType('fo_dso_recruitment')">
+        <div class="dot" style="background:var(--sprout);"></div>Digital Store Operator (FO/DSO)
+      </div>
+      <div class="typeOpt" data-type="fbc_team_recruitment" onclick="selectType('fbc_team_recruitment')">
+        <div class="dot" style="background:var(--harvest);"></div>FBC Network Team role
+      </div>
+      <div class="typeOpt" data-type="admin_staff_recruitment" onclick="selectType('admin_staff_recruitment')">
+        <div class="dot" style="background:var(--grain);"></div>Admin / Support Team
+      </div>
+      <div class="typeOpt" data-type="investor" onclick="selectType('investor')">
+        <div class="dot" style="background:var(--capital);"></div>Investing with VIPL
+      </div>
+    </div>
 
     <label>Full name *</label>
     <input type="text" id="fullName" placeholder="Your full name">
@@ -91,27 +148,23 @@
   </div>
 
   <div class="successBox" id="successBox" style="display:none;">
-    <div class="icon">✅</div>
+    <div class="sprig">🌾</div>
     <h2>Thank you!</h2>
     <p>We've received your details and someone from our team will reach out to you soon.</p>
   </div>
 </div>
 
 <script>
-  // Public, unauthenticated form -- reads reference geography directly (public-read
-  // tables), submits via the submit-lead Edge Function (no login required, no
-  // direct table writes from this page).
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
   const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
   const sb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const SUBMIT_ENDPOINT = FBC_URL + '/functions/v1/submit-lead';
 
-  // Capture UTM/campaign info from the URL, so Meta ads links can pass ?campaign=Aug26_FODrive
   const params = new URLSearchParams(window.location.search);
   const campaignName = params.get('campaign') || params.get('utm_campaign') || null;
   const source = params.get('source') || params.get('utm_source') || (campaignName ? 'meta_ads' : 'website');
 
-  let ALL_DIVISIONS = [];
+  let SELECTED_TYPE = '';
 
   async function loadDistricts() {
     const { data } = await sb.from('districts').select('id, name').order('name');
@@ -136,17 +189,16 @@
     });
   };
 
-  document.getElementById('leadType').onchange = (e) => {
+  window.selectType = function(type) {
+    SELECTED_TYPE = type;
+    document.querySelectorAll('.typeOpt').forEach(el => el.classList.toggle('selected', el.dataset.type === type));
     document.querySelectorAll('.typeFields').forEach(el => el.classList.remove('active'));
-    if (e.target.value) {
-      const el = document.getElementById('fields_' + e.target.value);
-      if (el) el.classList.add('active');
-    }
+    const fields = document.getElementById('fields_' + type);
+    if (fields) fields.classList.add('active');
   };
 
   document.getElementById('submitBtn').onclick = async () => {
     const msg = document.getElementById('formMsg');
-    const leadType = document.getElementById('leadType').value;
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -154,36 +206,36 @@
     const divisionId = document.getElementById('divisionSelect').value;
     const message = document.getElementById('message').value.trim();
 
-    if (!leadType) { msg.style.color = '#C0392B'; msg.textContent = 'Please select what you\'re interested in.'; return; }
-    if (!fullName) { msg.style.color = '#C0392B'; msg.textContent = 'Please enter your full name.'; return; }
-    if (!phone && !email) { msg.style.color = '#C0392B'; msg.textContent = 'Please provide a phone number or email.'; return; }
+    if (!SELECTED_TYPE) { msg.textContent = 'Please select what you\'re interested in.'; return; }
+    if (!fullName) { msg.textContent = 'Please enter your full name.'; return; }
+    if (!phone && !email) { msg.textContent = 'Please provide a phone number or email.'; return; }
 
     const extra_fields = { message: message || null };
-    if (leadType === 'fo_dso_recruitment') extra_fields.village_interest = document.getElementById('fo_village').value.trim() || null;
-    if (leadType === 'fbc_team_recruitment') extra_fields.role_interest = document.getElementById('fbc_role_interest').value.trim() || null;
-    if (leadType === 'admin_staff_recruitment') extra_fields.department_interest = document.getElementById('admin_dept_interest').value.trim() || null;
-    if (leadType === 'investor') extra_fields.investment_amount = document.getElementById('investment_amount').value.trim() || null;
+    if (SELECTED_TYPE === 'fo_dso_recruitment') extra_fields.village_interest = document.getElementById('fo_village').value.trim() || null;
+    if (SELECTED_TYPE === 'fbc_team_recruitment') extra_fields.role_interest = document.getElementById('fbc_role_interest').value.trim() || null;
+    if (SELECTED_TYPE === 'admin_staff_recruitment') extra_fields.department_interest = document.getElementById('admin_dept_interest').value.trim() || null;
+    if (SELECTED_TYPE === 'investor') extra_fields.investment_amount = document.getElementById('investment_amount').value.trim() || null;
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
-    msg.style.color = 'var(--g3)'; msg.textContent = 'Submitting…';
+    msg.style.color = 'var(--soil-60)'; msg.textContent = 'Submitting…';
 
     try {
       const res = await fetch(SUBMIT_ENDPOINT, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          lead_type: leadType, full_name: fullName, phone: phone || null, email: email || null,
+          lead_type: SELECTED_TYPE, full_name: fullName, phone: phone || null, email: email || null,
           source, campaign_name: campaignName,
           district_id: districtId || null, revenue_division_id: divisionId || null,
           extra_fields,
         }),
       });
       const result = await res.json();
-      if (!res.ok) { msg.style.color = '#C0392B'; msg.textContent = result.error || 'Something went wrong. Please try again.'; btn.disabled = false; return; }
+      if (!res.ok) { msg.style.color = 'var(--rot)'; msg.textContent = result.error || 'Something went wrong. Please try again.'; btn.disabled = false; return; }
       document.getElementById('formArea').style.display = 'none';
       document.getElementById('successBox').style.display = 'block';
     } catch (e) {
-      msg.style.color = '#C0392B'; msg.textContent = 'Network error — please try again.'; btn.disabled = false;
+      msg.style.color = 'var(--rot)'; msg.textContent = 'Network error — please try again.'; btn.disabled = false;
     }
   };
 
