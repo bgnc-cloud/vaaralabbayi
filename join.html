@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Redirecting…</title>
+</head>
+<body>
+<script>
+  // Short, shareable link for the public lead form (vipl/lead-form.html).
+  // Defaults to the current campaign, but stays reusable for future ones:
+  // vaaralabbayi.com/join.html            -> defaults to Aug26_FO_Drive
+  // vaaralabbayi.com/join.html?c=Sep_Push -> overrides to Sep_Push
+  const params = new URLSearchParams(window.location.search);
+  const campaign = params.get('c') || params.get('campaign') || 'Aug26_FO_Drive';
+  window.location.replace('/vipl/lead-form.html?campaign=' + encodeURIComponent(campaign));
+</script>
+</body>
+</html>
