@@ -93,7 +93,39 @@
       <div class="form-group">
         <label class="form-label eng">I am enquiring about... *</label>
         <label class="form-label tel" style="display:none">నేను ఏ విషయంలో విచారిస్తున్నాను...</label>
-        <select class="form-select" id="fEnquiry" required>
+
+        <div class="enquiry-tiles" id="enquiryTiles">
+          <div class="enquiry-tile" data-value="subscribe" onclick="selectEnquiry('subscribe')">
+            <span class="dot" style="background:#4A7A9E;"></span>
+            <span class="eng">📦 Subscriber / Household</span>
+            <span class="tel" style="display:none">📦 సభ్యత్వ విచారణ</span>
+          </div>
+          <div class="enquiry-tile" data-value="store" onclick="selectEnquiry('store')">
+            <span class="dot" style="background:#6B8E4E;"></span>
+            <span class="eng">🏪 Digital Store Operator</span>
+            <span class="tel" style="display:none">🏪 డిజిటల్ స్టోర్ దరఖాస్తు</span>
+          </div>
+          <div class="enquiry-tile" data-value="fbc" onclick="selectEnquiry('fbc')">
+            <span class="dot" style="background:#C98A2B;"></span>
+            <span class="eng">🎯 FBC Team — RM/BDM/MM</span>
+            <span class="tel" style="display:none">🎯 FBC టీమ్ చేరిక</span>
+          </div>
+          <div class="enquiry-tile" data-value="investor" onclick="selectEnquiry('investor')">
+            <span class="dot" style="background:#2B5F6B;"></span>
+            <span class="eng">📊 Investment Enquiry</span>
+            <span class="tel" style="display:none">📊 పెట్టుబడి విచారణ</span>
+          </div>
+          <div class="enquiry-tile" data-value="general" onclick="selectEnquiry('general')">
+            <span class="dot" style="background:#8A7A6A;"></span>
+            <span class="eng">💬 General Question</span>
+            <span class="tel" style="display:none">💬 సాధారణ ప్రశ్న</span>
+          </div>
+        </div>
+
+        <!-- Original select kept in the DOM (hidden) so handleSubmit() below
+             reads it exactly as before — tiles just drive its value via JS.
+             The submit logic itself needed zero changes. -->
+        <select class="form-select" id="fEnquiry" required style="display:none">
           <option value="" class="eng">Select enquiry type</option>
           <option value="subscribe" class="eng">📦 Subscriber / Household subscription</option>
           <option value="store" class="eng">🏪 Digital Store operator application</option>
@@ -101,6 +133,19 @@
           <option value="investor" class="eng">📊 Investment enquiry</option>
           <option value="general" class="eng">💬 General question</option>
         </select>
+
+        <style>
+          .enquiry-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+          @media (max-width: 480px) { .enquiry-tiles { grid-template-columns: 1fr; } }
+          .enquiry-tile {
+            border: 1.5px solid rgba(0,0,0,.12); border-radius: 12px; padding: 13px 14px; cursor: pointer;
+            font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 9px;
+            transition: all .12s; background: #fff;
+          }
+          .enquiry-tile .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+          .enquiry-tile:hover { border-color: rgba(0,0,0,.28); }
+          .enquiry-tile.selected { border-color: #15803D; background: #F0F9F0; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        </style>
       </div>
 
       <div class="form-group">
@@ -198,6 +243,21 @@
 
 <script src="main.js"></script>
 <script>
+// Tile selection: keeps the hidden <select id="fEnquiry"> in sync, so
+// handleSubmit() below needs zero changes to the fields it reads.
+function selectEnquiry(value) {
+  document.getElementById('fEnquiry').value = value;
+  document.querySelectorAll('.enquiry-tile').forEach(t => {
+    t.classList.toggle('selected', t.dataset.value === value);
+  });
+}
+
+// Campaign/source capture from the URL, e.g.
+// contact.html?campaign=Aug26_FO_Drive or ?utm_campaign=...
+const _params = new URLSearchParams(window.location.search);
+const _campaignName = _params.get('campaign') || _params.get('utm_campaign') || null;
+const _source = _params.get('source') || _params.get('utm_source') || (_campaignName ? 'meta_ads' : 'website');
+
 async function handleSubmit(e) {
   e.preventDefault();
 
@@ -231,13 +291,14 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite })
+      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite, source: _source, campaignName: _campaignName })
     });
     if (!res.ok) throw new Error('Submission failed');
 
     msgBox.style.display = 'block';
     setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
     ['fName','fMobile','fVillage','fCityDistrict','fState','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+    document.querySelectorAll('.enquiry-tile').forEach(t => t.classList.remove('selected'));
   } catch (err) {
     errBox.textContent = 'Something went wrong. Please try again, or contact us directly at the number above.';
     errBox.style.display = 'block';
