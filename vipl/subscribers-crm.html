@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VIPL Internal — Subscriber Workflow</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 8px; margin-top: -12px; }
+  .statsRow { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .statBox { background: var(--off); border-radius: 10px; padding: 12px 16px; text-align: center; flex: 1; min-width: 100px; }
+  .statBox .v { font-size: 20px; font-weight: 800; }
+  .statBox .l { font-size: 10.5px; color: var(--g3); }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 12px; background: var(--off); font-size: 10.5px; text-transform: uppercase; color: var(--g3); font-weight: 700; }
+  td { padding: 12px; border-bottom: 1px solid var(--off); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .code { font-weight: 700; color: var(--blue); font-size: 12px; }
+  .statusPill { font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 20px; display: inline-block; }
+  .statusPill.active { background: #E3F5F3; color: var(--green); }
+  .statusPill.inactive { background: #FBE3E3; color: #C0392B; }
+  .expandBtn { font-size: 11.5px; color: var(--blue); cursor: pointer; font-weight: 700; }
+  .detailRow { background: var(--off); }
+  .detailRow td { padding: 16px; }
+  input, select, textarea { padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-family: inherit; width: 100%; box-sizing: border-box; }
+  label { font-size: 11px; font-weight: 700; color: var(--g3); display: block; margin-bottom: 4px; margin-top: 10px; }
+  button.primary { background: var(--blue); color: #fff; border: none; padding: 9px 16px; border-radius: 8px; font-weight: 700; font-size: 12.5px; cursor: pointer; margin-top: 10px; }
+  button.secondary { background: #fff; border: 1px solid var(--border); padding: 9px 16px; border-radius: 8px; font-weight: 700; font-size: 12.5px; cursor: pointer; margin-top: 10px; }
+  button.danger { background: #C0392B; color: #fff; border: none; padding: 7px 12px; border-radius: 7px; font-weight: 700; font-size: 11.5px; cursor: pointer; }
+  .formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+  .noteItem { border-left: 2px solid var(--border); padding: 6px 0 6px 10px; margin-bottom: 6px; font-size: 12px; }
+  .noteMeta { color: var(--g3); font-size: 10.5px; }
+  .planRow { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--off); }
+  .planRow input { width: auto; flex: 1; }
+  .accessBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Subscriber Workflow</h1>
+    <div class="lead">Same dashboard CRM_HD/CEO see on the FBC Network side — statewide, full read/write.</div>
+    <div id="subContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  const SUB_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager'];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const SUBSCRIBERS_ENDPOINT = FBC_URL + '/functions/v1/manage-subscribers';
+  const PLANS_ENDPOINT = FBC_URL + '/functions/v1/manage-subscription-plans';
+
+  let SUBSCRIBERS = [], PLANS = [], VILLAGES = [], OPEN_ROW = null;
+
+  async function callFn(endpoint, payload) {
+    const { data: { session } } = await VIPL.sb.auth.getSession();
+    const res = await fetch(endpoint, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ access_token: session.access_token, ...payload }),
+    });
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Request failed');
+    return result;
+  }
+
+  async function loadAll() {
+    const container = document.getElementById('subContent');
+    try {
+      const [subsRes, plansRes, villagesRes] = await Promise.all([
+        callFn(SUBSCRIBERS_ENDPOINT, { action: 'list' }),
+        callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' }),
+        callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_villages' }),
+      ]);
+      SUBSCRIBERS = subsRes.subscribers; PLANS = plansRes.plans; VILLAGES = villagesRes.villages;
+      const total = SUBSCRIBERS.length;
+      const active = SUBSCRIBERS.filter(s => s.status === 'active').length;
+
+      container.innerHTML = `
+        <div class="statsRow">
+          <div class="statBox"><div class="v">${total}</div><div class="l">Total</div></div>
+          <div class="statBox"><div class="v">${active}</div><div class="l">Active</div></div>
+          <div class="statBox"><div class="v">${total - active}</div><div class="l">Inactive</div></div>
+        </div>
+        <div class="card">
+          <b>Enroll New Subscriber</b>
+          <div class="formGrid">
+            <div><label>Full Name *</label><input id="enFullName" placeholder="Subscriber name"></div>
+            <div><label>Phone</label><input id="enPhone" placeholder="Phone number"></div>
+            <div><label>Village *</label><select id="enVillage"><option value="">Select village…</option>${VILLAGES.map(v => `<option value="${v.id}">${v.name} (${v.mandal_name})</option>`).join('')}</select></div>
+            <div><label>Plan</label><select id="enPlan"><option value="">No plan yet (inactive)</option>${PLANS.filter(p=>p.is_active).map(p => `<option value="${p.id}">${p.name} — ₹${p.price}/${p.period_years}yr</option>`).join('')}</select></div>
+          </div>
+          <button class="primary" onclick="enrollSubscriber()">Enroll Subscriber</button>
+          <div id="enrollMsg" style="font-size:12px;margin-top:6px;"></div>
+        </div>
+        <div class="card" style="padding:0;">
+          <table><tr><th>Code</th><th>Name</th><th>Village</th><th>Plan</th><th>Assigned FO</th><th>Status</th><th></th></tr>
+          <tbody id="subsTableBody"></tbody></table>
+        </div>
+        <div class="card">
+          <b>Plan Tiers</b>
+          <div id="planList" style="margin-top:10px;"></div>
+          <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--off);">
+            <label>New plan name</label><input id="newPlanName" placeholder="e.g. Gold">
+            <label>Price (₹)</label><input id="newPlanPrice" type="number" placeholder="e.g. 750">
+            <label>Period (years)</label><input id="newPlanPeriod" type="number" value="2">
+            <button class="primary" onclick="createPlan()">Add Plan</button>
+          </div>
+        </div>
+      `;
+      renderSubsTable();
+      renderPlanList();
+    } catch (e) {
+      container.innerHTML = `<div class="accessBox"><p>Couldn't load: ${e.message}</p></div>`;
+    }
+  }
+
+  function renderSubsTable() {
+    const body = document.getElementById('subsTableBody');
+    body.innerHTML = SUBSCRIBERS.map(s => `
+      <tr>
+        <td class="code">${s.subscriber_code || '—'}</td>
+        <td>${s.full_name}<div style="color:var(--g3);font-size:11px;">${s.phone || ''}</div></td>
+        <td>${s.village_name}<div style="color:var(--g3);font-size:11px;">${s.mandal_name}</div></td>
+        <td>${s.plan_name ? s.plan_name + ' · ₹' + s.plan_price : '—'}</td>
+        <td style="font-size:11px;color:var(--g3);">${s.assigned_fo_code || '—'}</td>
+        <td><span class="statusPill ${s.status}">${s.status}</span></td>
+        <td><span class="expandBtn" onclick="toggleRow('${s.id}')">${OPEN_ROW === s.id ? 'Close' : 'View'}</span></td>
+      </tr>
+      ${OPEN_ROW === s.id ? `<tr class="detailRow"><td colspan="7">${detailHtml(s)}</td></tr>` : ''}
+    `).join('') || '<tr><td colspan="7" style="color:var(--g3);">No subscribers yet.</td></tr>';
+  }
+
+  function detailHtml(s) {
+    return `
+      <label>Status</label>
+      <div style="display:flex; gap:8px; margin-top:4px;">
+        <button class="${s.status==='active' ? 'primary' : 'secondary'}" style="margin-top:0;" onclick="saveStatus('${s.id}','active')">Active</button>
+        <button class="${s.status==='inactive' ? 'danger' : 'secondary'}" style="margin-top:0;" onclick="saveStatus('${s.id}','inactive')">Inactive</button>
+      </div>
+      <label>Add note</label>
+      <input id="noteInput-${s.id}" placeholder="Call outcome, delivery note, etc.">
+      <button class="primary" onclick="addNote('${s.id}')">Add Note</button>
+      <div id="notesArea-${s.id}" style="margin-top:12px;"><span style="color:var(--g3);font-size:12px;">Loading activity…</span></div>
+    `;
+  }
+
+  window.toggleRow = function(id) {
+    OPEN_ROW = OPEN_ROW === id ? null : id;
+    renderSubsTable();
+    if (OPEN_ROW) loadNotes(id);
+  };
+
+  async function loadNotes(id) {
+    const area = document.getElementById('notesArea-' + id);
+    try {
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'get_notes', subscriber_id: id });
+      if (!area) return;
+      if (!result.notes.length) { area.innerHTML = '<span style="color:var(--g3);font-size:12px;">No activity yet.</span>'; return; }
+      area.innerHTML = result.notes.map(n => `
+        <div class="noteItem"><div class="noteMeta">${n.created_by_name || 'Unknown'} · ${new Date(n.created_at).toLocaleString()}</div>
+        ${n.action_type === 'status_change' ? `Moved ${n.old_value} → ${n.new_value}` : (n.note || '')}</div>
+      `).join('');
+    } catch (e) { if (area) area.innerHTML = "<span style=\"color:var(--g3);font-size:12px;\">Couldn't load.</span>"; }
+  }
+
+  window.enrollSubscriber = async function() {
+    const msg = document.getElementById('enrollMsg');
+    const full_name = document.getElementById('enFullName').value.trim();
+    const phone = document.getElementById('enPhone').value.trim();
+    const village_id = document.getElementById('enVillage').value;
+    const plan_id = document.getElementById('enPlan').value;
+    if (!full_name || !village_id) { msg.style.color = '#C0392B'; msg.textContent = 'Name and village are required.'; return; }
+    msg.style.color = 'var(--g3)'; msg.textContent = 'Enrolling…';
+    try {
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'enroll', full_name, phone, village_id, plan_id: plan_id || null });
+      msg.style.color = 'var(--green)'; msg.textContent = `Enrolled as ${result.subscriber_code}.`;
+      await loadAll();
+    } catch (e) { msg.style.color = '#C0392B'; msg.textContent = e.message; }
+  };
+
+  window.saveStatus = async function(id, newStatus) {
+    try {
+      await callFn(SUBSCRIBERS_ENDPOINT, { action: 'update_status', subscriber_id: id, new_status: newStatus });
+      await loadAll();
+      OPEN_ROW = id; renderSubsTable(); loadNotes(id);
+    } catch (e) { alert(e.message); }
+  };
+
+  window.addNote = async function(id) {
+    const input = document.getElementById('noteInput-' + id);
+    const note = input.value.trim();
+    if (!note) return;
+    try {
+      await callFn(SUBSCRIBERS_ENDPOINT, { action: 'add_note', subscriber_id: id, note });
+      input.value = '';
+      loadNotes(id);
+    } catch (e) { alert(e.message); }
+  };
+
+  function renderPlanList() {
+    const el = document.getElementById('planList');
+    if (!el) return;
+    el.innerHTML = PLANS.map(p => `
+      <div class="planRow">
+        <input value="${p.name}" id="planName-${p.id}" ${!p.is_active ? 'disabled' : ''}>
+        <input value="${p.price}" type="number" id="planPrice-${p.id}" style="max-width:100px;" ${!p.is_active ? 'disabled' : ''}>
+        <input value="${p.period_years}" type="number" id="planPeriod-${p.id}" style="max-width:70px;" ${!p.is_active ? 'disabled' : ''}>
+        ${p.is_active
+          ? `<button class="secondary" style="margin-top:0;" onclick="savePlan('${p.id}')">Save</button><button class="danger" onclick="removePlan('${p.id}')">Remove</button>`
+          : `<span style="color:var(--g3);font-size:11px;">Inactive</span><button class="secondary" style="margin-top:0;" onclick="restorePlan('${p.id}')">Restore</button>`}
+      </div>
+    `).join('');
+  }
+
+  window.createPlan = async function() {
+    const name = document.getElementById('newPlanName').value.trim();
+    const price = document.getElementById('newPlanPrice').value;
+    const period_years = document.getElementById('newPlanPeriod').value;
+    if (!name || !price) { alert('Name and price required.'); return; }
+    try {
+      await callFn(PLANS_ENDPOINT, { action: 'create', name, price: Number(price), period_years: Number(period_years) || 2 });
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
+      PLANS = result.plans; renderPlanList();
+      document.getElementById('newPlanName').value = ''; document.getElementById('newPlanPrice').value = '';
+    } catch (e) { alert(e.message); }
+  };
+  window.savePlan = async function(id) {
+    const name = document.getElementById('planName-' + id).value.trim();
+    const price = document.getElementById('planPrice-' + id).value;
+    const period_years = document.getElementById('planPeriod-' + id).value;
+    try {
+      await callFn(PLANS_ENDPOINT, { action: 'update', plan_id: id, name, price: Number(price), period_years: Number(period_years) });
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
+      PLANS = result.plans; renderPlanList();
+    } catch (e) { alert(e.message); }
+  };
+  window.removePlan = async function(id) {
+    if (!confirm('Retire this plan? Existing subscribers on it are unaffected.')) return;
+    try {
+      await callFn(PLANS_ENDPOINT, { action: 'remove', plan_id: id });
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
+      PLANS = result.plans; renderPlanList();
+    } catch (e) { alert(e.message); }
+  };
+  window.restorePlan = async function(id) {
+    try {
+      await callFn(PLANS_ENDPOINT, { action: 'restore', plan_id: id });
+      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
+      PLANS = result.plans; renderPlanList();
+    } catch (e) { alert(e.message); }
+  };
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('subContent');
+    if (!SUB_VIEW_ROLES.includes(role)) {
+      el.innerHTML = `<div class="accessBox"><div style="font-size:40px;margin-bottom:12px;">🔒</div><h2>Restricted</h2><p>Subscriber Workflow is visible to Super Admin, Admin, and HR Manager.</p></div>`;
+      return;
+    }
+    el.innerHTML = `<p style="color:var(--g3); font-size:13px;">Loading…</p>`;
+    await loadAll();
+  };
+</script>
+</body>
+</html>
