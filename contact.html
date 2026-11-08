@@ -63,31 +63,31 @@
       <div class="form-group">
         <label class="form-label eng">Full Name *</label>
         <label class="form-label tel" style="display:none">పూర్తి పేరు *</label>
-        <input class="form-input" type="text" id="fName" placeholder="Your full name" required>
+        <input class="form-input" type="text" id="fName" placeholder="Your full name" maxlength="120" required>
       </div>
 
       <div class="form-group">
         <label class="form-label eng">Mobile Number *</label>
         <label class="form-label tel" style="display:none">మొబైల్ నంబర్ *</label>
-        <input class="form-input" type="tel" id="fMobile" placeholder="+91 XXXXX XXXXX" required>
+        <input class="form-input" type="tel" id="fMobile" placeholder="+91 XXXXX XXXXX" maxlength="20" required>
       </div>
 
       <div class="form-group">
         <label class="form-label eng">Village</label>
         <label class="form-label tel" style="display:none">గ్రామం</label>
-        <input class="form-input" type="text" id="fVillage" placeholder="Village name">
+        <input class="form-input" type="text" id="fVillage" placeholder="Village name" maxlength="120">
       </div>
 
       <div class="form-group">
         <label class="form-label eng">City / District</label>
         <label class="form-label tel" style="display:none">నగరం / జిల్లా</label>
-        <input class="form-input" type="text" id="fCityDistrict" placeholder="City or District">
+        <input class="form-input" type="text" id="fCityDistrict" placeholder="City or District" maxlength="120">
       </div>
 
       <div class="form-group">
         <label class="form-label eng">State</label>
         <label class="form-label tel" style="display:none">రాష్ట్రం</label>
-        <input class="form-input" type="text" id="fState" placeholder="State">
+        <input class="form-input" type="text" id="fState" placeholder="State" maxlength="60">
       </div>
 
       <div class="form-group">
@@ -151,7 +151,7 @@
       <div class="form-group">
         <label class="form-label eng">Message</label>
         <label class="form-label tel" style="display:none">సందేశం</label>
-        <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..."></textarea>
+        <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..." maxlength="2000"></textarea>
       </div>
 
       <!-- Honeypot field — invisible to real visitors, left empty by them. Bots that fill every

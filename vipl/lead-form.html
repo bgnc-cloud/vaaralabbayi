@@ -106,13 +106,13 @@
     </div>
 
     <label>Full name *</label>
-    <input type="text" id="fullName" placeholder="Your full name">
+    <input type="text" id="fullName" placeholder="Your full name" maxlength="120">
 
     <label>Phone number</label>
-    <input type="tel" id="phone" placeholder="Your phone number">
+    <input type="tel" id="phone" placeholder="Your phone number" maxlength="20">
 
     <label>Email</label>
-    <input type="email" id="email" placeholder="you@example.com">
+    <input type="email" id="email" placeholder="you@example.com" maxlength="254">
 
     <label>District</label>
     <select id="districtSelect"><option value="">Select district…</option></select>
@@ -122,26 +122,34 @@
 
     <div class="typeFields" id="fields_fo_dso_recruitment">
       <label>Which village/area are you interested in operating in?</label>
-      <input type="text" id="fo_village" placeholder="Village or area name">
+      <input type="text" id="fo_village" placeholder="Village or area name" maxlength="500">
     </div>
 
     <div class="typeFields" id="fields_fbc_team_recruitment">
       <label>Which role are you interested in?</label>
-      <input type="text" id="fbc_role_interest" placeholder="e.g. BDM, RM, ZM">
+      <input type="text" id="fbc_role_interest" placeholder="e.g. BDM, RM, ZM" maxlength="500">
     </div>
 
     <div class="typeFields" id="fields_admin_staff_recruitment">
       <label>Which department interests you?</label>
-      <input type="text" id="admin_dept_interest" placeholder="e.g. Accounts, Legal, Collections">
+      <input type="text" id="admin_dept_interest" placeholder="e.g. Accounts, Legal, Collections" maxlength="500">
     </div>
 
     <div class="typeFields" id="fields_investor">
       <label>Approximate investment amount you're considering</label>
-      <input type="text" id="investment_amount" placeholder="e.g. ₹5,00,000">
+      <input type="text" id="investment_amount" placeholder="e.g. ₹5,00,000" maxlength="500">
     </div>
 
     <label>Anything else you'd like us to know?</label>
-    <textarea id="message" placeholder="Optional message"></textarea>
+    <textarea id="message" placeholder="Optional message" maxlength="2000"></textarea>
+
+    <!-- Honeypot: invisible to real visitors and left empty by them. Bots that
+         fill every input fill this too, and submit-lead quietly discards those.
+         Off-screen rather than display:none, out of the tab order. -->
+    <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+      <label for="companyWebsite">Company Website</label>
+      <input type="text" id="companyWebsite" name="company_website" tabindex="-1" autocomplete="off">
+    </div>
 
     <button class="submitBtn" id="submitBtn">Submit</button>
     <div id="formMsg"></div>
@@ -209,6 +217,11 @@
     if (!SELECTED_TYPE) { msg.textContent = 'Please select what you\'re interested in.'; return; }
     if (!fullName) { msg.textContent = 'Please enter your full name.'; return; }
     if (!phone && !email) { msg.textContent = 'Please provide a phone number or email.'; return; }
+    // Same rule as the server: 10-13 digits once every non-digit is removed.
+    if (phone && !/^\d{10,13}$/.test(phone.replace(/\D/g, ''))) {
+      msg.textContent = 'Please enter a valid phone number: 10 to 13 digits, for example 98765 43210 or +91 98765 43210.';
+      return;
+    }
 
     const extra_fields = { message: message || null };
     if (SELECTED_TYPE === 'fo_dso_recruitment') extra_fields.village_interest = document.getElementById('fo_village').value.trim() || null;
@@ -228,6 +241,7 @@
           source, campaign_name: campaignName,
           district_id: districtId || null, revenue_division_id: divisionId || null,
           extra_fields,
+          company_website: document.getElementById('companyWebsite').value.trim(),
         }),
       });
       const result = await res.json();
