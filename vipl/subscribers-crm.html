@@ -78,7 +78,9 @@
     try {
       const [subsRes, plansRes, villagesRes] = await Promise.all([
         callFn(SUBSCRIBERS_ENDPOINT, { action: 'list' }),
-        callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' }),
+        // All plans, including retired ones, so they stay visible and
+        // restorable below. The enroll dropdown filters to active plans.
+        callFn(PLANS_ENDPOINT, { action: 'list' }),
         callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_villages' }),
       ]);
       SUBSCRIBERS = subsRes.subscribers; PLANS = plansRes.plans; VILLAGES = villagesRes.villages;
@@ -222,6 +224,12 @@
     `).join('');
   }
 
+  // Reload every plan (active and retired) from manage-subscription-plans.
+  async function reloadPlans() {
+    const result = await callFn(PLANS_ENDPOINT, { action: 'list' });
+    PLANS = result.plans; renderPlanList();
+  }
+
   window.createPlan = async function() {
     const name = document.getElementById('newPlanName').value.trim();
     const price = document.getElementById('newPlanPrice').value;
@@ -229,8 +237,7 @@
     if (!name || !price) { alert('Name and price required.'); return; }
     try {
       await callFn(PLANS_ENDPOINT, { action: 'create', name, price: Number(price), period_years: Number(period_years) || 2 });
-      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
-      PLANS = result.plans; renderPlanList();
+      await reloadPlans();
       document.getElementById('newPlanName').value = ''; document.getElementById('newPlanPrice').value = '';
     } catch (e) { alert(e.message); }
   };
@@ -240,23 +247,20 @@
     const period_years = document.getElementById('planPeriod-' + id).value;
     try {
       await callFn(PLANS_ENDPOINT, { action: 'update', plan_id: id, name, price: Number(price), period_years: Number(period_years) });
-      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
-      PLANS = result.plans; renderPlanList();
+      await reloadPlans();
     } catch (e) { alert(e.message); }
   };
   window.removePlan = async function(id) {
     if (!confirm('Retire this plan? Existing subscribers on it are unaffected.')) return;
     try {
       await callFn(PLANS_ENDPOINT, { action: 'remove', plan_id: id });
-      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
-      PLANS = result.plans; renderPlanList();
+      await reloadPlans();
     } catch (e) { alert(e.message); }
   };
   window.restorePlan = async function(id) {
     try {
       await callFn(PLANS_ENDPOINT, { action: 'restore', plan_id: id });
-      const result = await callFn(SUBSCRIBERS_ENDPOINT, { action: 'list_plans' });
-      PLANS = result.plans; renderPlanList();
+      await reloadPlans();
     } catch (e) { alert(e.message); }
   };
 
