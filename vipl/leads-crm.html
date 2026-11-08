@@ -129,6 +129,15 @@
   .fl-noteItem .fl-noteMeta { color: var(--soil-40); font-size: 10.5px; margin-bottom: 2px; }
 
   .fl-accessBox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
+
+  .fl-pager { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 14px 0 4px; border-top: 1px solid var(--line); margin-top: 6px; }
+  .fl-pager .fl-pagerInfo { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--soil-60); }
+  .fl-pager button {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--card);
+    font-family: inherit; font-size: 12.5px; font-weight: 600; color: var(--soil); cursor: pointer;
+  }
+  .fl-pager button:disabled { opacity: .4; cursor: default; }
+  .fl-pageNote { font-size: 11.5px; color: var(--soil-60); margin: -14px 0 18px; }
 </style>
 </head>
 <body>
@@ -168,6 +177,16 @@
   ];
   const CLOSED_STATUSES = ['rejected', 'lost'];
 
+  // HTML-escape any server value before it goes into innerHTML.
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  // Server-side paging: ALL_LEADS holds the current page only.
+  const PAGE_SIZE = 50;
+  let PAGE = 1;
+  let TOTAL = 0;
+
   let ALL_LEADS = [];
   let CRM_POSITIONS = [];
   let ACTIVE_TYPE_FILTER = null;
@@ -204,14 +223,14 @@
     const area = l.revenue_division_name || l.district_name || '—';
     const assigned = l.assigned_occupant_name || l.assigned_position_code || 'Unassigned';
     return `
-      <div class="fl-card" style="border-left-color:${meta.color};" onclick="openLeadPanel('${l.id}')">
-        <div class="fl-name">${l.full_name}</div>
+      <div class="fl-card" style="border-left-color:${meta.color};" data-id="${esc(l.id)}" onclick="openLeadPanel(this.dataset.id)">
+        <div class="fl-name">${esc(l.full_name)}</div>
         <div class="fl-meta">
-          <div class="row">${[l.phone, l.email].filter(Boolean).join(' · ') || 'No contact info'}</div>
-          <div class="row">${area}</div>
+          <div class="row">${esc([l.phone, l.email].filter(Boolean).join(' · ') || 'No contact info')}</div>
+          <div class="row">${esc(area)}</div>
         </div>
-        <div class="fl-age">${daysAgo(l.created_at)} in pipeline</div>
-        <div class="fl-assigned">→ ${assigned}</div>
+        <div class="fl-age">${esc(daysAgo(l.created_at))} in pipeline</div>
+        <div class="fl-assigned">→ ${esc(assigned)}</div>
       </div>
     `;
   }
@@ -265,36 +284,43 @@
     const meta = LEAD_TYPE_META[l.lead_type] || { label: l.lead_type, color: 'var(--soil)', tint: 'var(--paper)' };
     const extra = Object.entries(l.extra_fields || {}).filter(([k,v]) => v);
     const allStatuses = [...STAGES.map(s => s.key), 'rejected', 'lost'];
+    // The lead id rides on data-lead (read via leadIdOf), never inside an
+    // inline onclick string.
+    const id = esc(l.id);
     return `
+      <div data-lead="${id}">
       <button class="fl-closeBtn" onclick="closeLeadPanel()">✕</button>
       <div style="clear:both;"></div>
-      <h2>${l.full_name}</h2>
-      <span class="fl-typeTag" style="background:${meta.tint}; color:${meta.color};">${meta.label}</span>
-      <div class="fl-contactLine">${l.phone || '—'}</div>
-      <div class="fl-contactLine">${l.email || '—'}</div>
-      <div class="fl-contactLine">${l.revenue_division_name || l.district_name || 'No area given'}</div>
-      <div class="fl-contactLine">Source: ${l.source}${l.campaign_name ? ' · ' + l.campaign_name : ''}</div>
-      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k,v]) => `<div><strong>${k.replace(/_/g,' ')}:</strong> ${v}</div>`).join('')}</div>` : ''}
+      <h2>${esc(l.full_name)}</h2>
+      <span class="fl-typeTag" style="background:${meta.tint}; color:${meta.color};">${esc(meta.label)}</span>
+      <div class="fl-contactLine">${esc(l.phone || '—')}</div>
+      <div class="fl-contactLine">${esc(l.email || '—')}</div>
+      <div class="fl-contactLine">${esc(l.revenue_division_name || l.district_name || 'No area given')}</div>
+      <div class="fl-contactLine">Source: ${esc(l.source)}${l.campaign_name ? ' · ' + esc(l.campaign_name) : ''}</div>
+      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k,v]) => `<div><strong>${esc(k.replace(/_/g,' '))}:</strong> ${esc(v)}</div>`).join('')}</div>` : ''}
 
       <label>Move to stage</label>
-      <div class="fl-stageBtns" id="stageBtns-${l.id}">
-        ${allStatuses.map(s => `<div class="fl-stageBtn ${s === l.status ? 'current' : ''}" onclick="quickMove('${l.id}','${s}')">${s}</div>`).join('')}
+      <div class="fl-stageBtns" id="stageBtns-${id}">
+        ${allStatuses.map(s => `<div class="fl-stageBtn ${s === l.status ? 'current' : ''}" data-status="${s}" onclick="quickMove(leadIdOf(this), this.dataset.status)">${s}</div>`).join('')}
       </div>
 
       <label>Reassign to</label>
-      <select id="reassignSelect-${l.id}">
+      <select id="reassignSelect-${id}">
         <option value="">Unassigned</option>
-        ${CRM_POSITIONS.map(p => `<option value="${p.id}" ${l.assigned_position_code === p.position_code ? 'selected' : ''}>${p.position_code} — ${p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name}</option>`).join('')}
+        ${CRM_POSITIONS.map(p => `<option value="${esc(p.id)}" ${l.assigned_position_code === p.position_code ? 'selected' : ''}>${esc(p.position_code)} — ${esc(p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name)}</option>`).join('')}
       </select>
-      <button class="fl-saveBtn" onclick="saveReassign('${l.id}')">Save Assignment</button>
+      <button class="fl-saveBtn" onclick="saveReassign(leadIdOf(this))">Save Assignment</button>
 
       <label>Add a note</label>
-      <textarea id="noteInput-${l.id}" placeholder="Call outcome, next step, etc."></textarea>
-      <button class="fl-noteBtn" onclick="addLeadNote('${l.id}')">Add Note</button>
+      <textarea id="noteInput-${id}" placeholder="Call outcome, next step, etc."></textarea>
+      <button class="fl-noteBtn" onclick="addLeadNote(leadIdOf(this))">Add Note</button>
 
-      <div class="fl-notesList" id="notesArea-${l.id}"><p style="color:var(--soil-40); font-size:12px;">Loading activity…</p></div>
+      <div class="fl-notesList" id="notesArea-${id}"><p style="color:var(--soil-40); font-size:12px;">Loading activity…</p></div>
+      </div>
     `;
   }
+
+  window.leadIdOf = function(el) { return el.closest('[data-lead]').dataset.lead; };
 
   window.openLeadPanel = function(leadId) {
     OPEN_LEAD_ID = leadId;
@@ -323,8 +349,8 @@
       if (!result.notes || !result.notes.length) { area.innerHTML = `<p style="color:var(--soil-40); font-size:12px;">No activity yet.</p>`; return; }
       area.innerHTML = result.notes.map(n => `
         <div class="fl-noteItem">
-          <div class="fl-noteMeta">${n.created_by_name || 'Unknown'} · ${new Date(n.created_at).toLocaleString()}</div>
-          ${n.action_type === 'status_change' ? `Moved ${n.old_value} → ${n.new_value}` : (n.note || '')}
+          <div class="fl-noteMeta">${esc(n.created_by_name || 'Unknown')} · ${esc(new Date(n.created_at).toLocaleString())}</div>
+          ${n.action_type === 'status_change' ? `Moved ${esc(n.old_value)} → ${esc(n.new_value)}` : esc(n.note || '')}
         </div>
       `).join('');
     } catch (e) {
@@ -373,15 +399,40 @@
     } catch (e) { alert('Failed to add note.'); }
   };
 
+  function pagerHtml() {
+    const totalPages = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
+    const from = TOTAL ? (PAGE - 1) * PAGE_SIZE + 1 : 0;
+    const to = Math.min(TOTAL, PAGE * PAGE_SIZE);
+    return `
+      <div class="fl-pager">
+        <span class="fl-pagerInfo">${from}–${to} of ${TOTAL} leads</span>
+        <span>
+          <button onclick="goToPage(${PAGE - 1})" ${PAGE <= 1 ? 'disabled' : ''}>← Previous</button>
+          <span class="fl-pagerInfo" style="margin:0 8px;">Page ${PAGE} of ${totalPages}</span>
+          <button onclick="goToPage(${PAGE + 1})" ${PAGE >= totalPages ? 'disabled' : ''}>Next →</button>
+        </span>
+      </div>`;
+  }
+
+  window.goToPage = function(page) {
+    PAGE = Math.max(1, page);
+    closeLeadPanel();
+    loadLeads();
+  };
+
   function renderShell() {
     const container = document.getElementById('leadsContent');
-    const total = ALL_LEADS.length;
+    // Total is the server's count; the stage breakdown, the board and the
+    // filters below only see the leads on the current page.
+    const total = TOTAL;
+    const multiPage = TOTAL > ALL_LEADS.length;
     const byStatus = {};
     ALL_LEADS.forEach(l => { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
     const converted = byStatus.converted || 0;
     const closed = CLOSED_STATUSES.reduce((s, k) => s + (byStatus[k] || 0), 0);
-    const active = total - converted - closed;
+    const active = ALL_LEADS.length - converted - closed;
     const districts = [...new Set(ALL_LEADS.map(l => l.district_name).filter(Boolean))].sort();
+    const onPage = multiPage ? ' (this page)' : '';
 
     container.innerHTML = `
       <div class="fl-head">
@@ -390,10 +441,11 @@
       </div>
       <div class="fl-stats">
         <div class="fl-stat"><div class="n">${total}</div><div class="l">Total Leads</div></div>
-        <div class="fl-stat"><div class="n">${active}</div><div class="l">In Pipeline</div></div>
-        <div class="fl-stat"><div class="n">${converted}</div><div class="l">Converted</div></div>
-        <div class="fl-stat"><div class="n">${closed}</div><div class="l">Closed Out</div></div>
+        <div class="fl-stat"><div class="n">${active}</div><div class="l">In Pipeline${onPage}</div></div>
+        <div class="fl-stat"><div class="n">${converted}</div><div class="l">Converted${onPage}</div></div>
+        <div class="fl-stat"><div class="n">${closed}</div><div class="l">Closed Out${onPage}</div></div>
       </div>
+      ${multiPage ? `<div class="fl-pageNote">Showing ${PAGE_SIZE} leads per page, newest first. Board columns and filters apply to the leads on this page.</div>` : ''}
       <div class="fl-filters">
         ${Object.entries(LEAD_TYPE_META).map(([key, m]) => `
           <div class="fl-typePill" data-type="${key}" onclick="setTypeFilter('${key}')">
@@ -411,11 +463,12 @@
           </select>
           <select id="filterDistrict">
             <option value="">All Districts</option>
-            ${districts.map(d => `<option value="${d}">${d}</option>`).join('')}
+            ${districts.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('')}
           </select>
         </div>
       </div>
       <div class="fl-board" id="flBoard"></div>
+      ${pagerHtml()}
     `;
     document.getElementById('filterSource').onchange = (e) => { ACTIVE_SOURCE_FILTER = e.target.value; renderBoard(); };
     document.getElementById('filterDistrict').onchange = (e) => { ACTIVE_DISTRICT_FILTER = e.target.value; renderBoard(); };
@@ -426,17 +479,24 @@
     const { data: { session } } = await VIPL.sb.auth.getSession();
     try {
       const [leadsRes, posRes] = await Promise.all([
-        fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list' }) }),
+        fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list', page: PAGE, page_size: PAGE_SIZE }) }),
         fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list_crm_positions' }) }),
       ]);
       const leadsResult = await leadsRes.json();
       const posResult = await posRes.json();
       if (!leadsRes.ok) throw new Error(leadsResult.error || 'Failed to load leads');
+      TOTAL = leadsResult.total ?? (leadsResult.leads || []).length;
+      // Page went past the end (e.g. after leads moved): step back to the last page.
+      const lastPage = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
+      if (!(leadsResult.leads || []).length && TOTAL > 0 && PAGE > lastPage) {
+        PAGE = lastPage;
+        return loadLeads();
+      }
       ALL_LEADS = leadsResult.leads || [];
       CRM_POSITIONS = posResult.positions || [];
       renderShell();
     } catch (e) {
-      document.getElementById('leadsContent').innerHTML = `<div class="fl-accessBox"><p>Couldn't load leads: ${e.message}</p></div>`;
+      document.getElementById('leadsContent').innerHTML = `<div class="fl-accessBox"><p>Couldn't load leads: ${esc(e.message)}</p></div>`;
     }
   }
 
