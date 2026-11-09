@@ -110,6 +110,14 @@ export default async function handler(req, res) {
     });
 
     const result = await submitRes.json();
+    // 429 = the CRM's hourly lead budget is full. Pass its friendly message
+    // through so the visitor knows to try again later.
+    if (submitRes.status === 429) {
+      const busy = typeof result.error === 'string' && result.error
+        ? result.error
+        : 'We are receiving a lot of enquiries right now. Please try again in an hour.';
+      return res.status(429).json({ error: busy });
+    }
     if (!submitRes.ok) {
       console.error('CRM submit-lead error:', result.error);
       return res.status(502).json({ error: 'Failed to save submission' });

@@ -293,6 +293,14 @@ async function handleSubmit(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite, source: _source, campaignName: _campaignName })
     });
+    // 429: hourly enquiry budget is full; show the server's "try again later" text.
+    if (res.status === 429) {
+      let busy = '';
+      try { busy = (await res.json()).error || ''; } catch (_) { /* fall back below */ }
+      errBox.textContent = busy || 'Something went wrong. Please try again, or contact us directly at the number above.';
+      errBox.style.display = 'block';
+      return;
+    }
     if (!res.ok) throw new Error('Submission failed');
 
     msgBox.style.display = 'block';
