@@ -120,12 +120,13 @@
         <div class="card">
           <b>Plan Tiers</b>
           <div id="planList" style="margin-top:10px;"></div>
+          <div id="planMsg" style="font-size:12px;font-weight:700;margin-top:8px;min-height:16px;"></div>
           <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--off);">
             ${CAN_EDIT_PLANS ? `
             <label>New plan name</label><input id="newPlanName" placeholder="e.g. Gold">
             <label>Price (₹)</label><input id="newPlanPrice" type="number" placeholder="e.g. 750">
             <div style="font-size:12px;color:var(--g3);margin-top:8px;">Validity: 1 year</div>
-            <button class="primary" onclick="createPlan()">Add Plan</button>
+            <button class="primary" onclick="createPlan(this)">Add Plan</button>
             ` : `<div style="font-size:12px;color:var(--g3);">Only Super Admin or Admin can change plans.</div>`}
           </div>
         </div>
@@ -232,8 +233,8 @@
         <input value="${esc(p.price)}" type="number" id="planPrice-${id}" style="max-width:100px;" ${locked}>
         <span style="color:var(--g3);font-size:11px;white-space:nowrap;">Validity: 1 year</span>
         ${p.is_active
-          ? (CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="savePlan(this.dataset.id)">Save</button><button class="danger" data-id="${id}" onclick="removePlan(this.dataset.id)">Remove</button>` : '')
-          : `<span style="color:var(--g3);font-size:11px;">Inactive</span>${CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="restorePlan(this.dataset.id)">Restore</button>` : ''}`}
+          ? (CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="savePlan(this.dataset.id, this)">Save</button><button class="danger" data-id="${id}" onclick="removePlan(this.dataset.id, this)">Remove</button>` : '')
+          : `<span style="color:var(--g3);font-size:11px;">Inactive</span>${CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="restorePlan(this.dataset.id, this)">Restore</button>` : ''}`}
       </div>
     `;
     }).join('');
@@ -245,36 +246,70 @@
     PLANS = result.plans; renderPlanList();
   }
 
-  window.createPlan = async function() {
+  // Status line under the plan list (#planMsg). Uses textContent only.
+  // Success fades after ~3s; errors stay (red) until the next action.
+  let PLAN_MSG_TIMER = null;
+  function showPlanMsg(text, isError) {
+    const m = document.getElementById('planMsg');
+    if (!m) return;
+    clearTimeout(PLAN_MSG_TIMER);
+    m.style.transition = 'none';
+    m.style.opacity = '1';
+    m.style.color = isError ? '#C0392B' : 'var(--green)';
+    m.textContent = text;
+    if (!isError) PLAN_MSG_TIMER = setTimeout(() => { m.style.transition = 'opacity 0.6s'; m.style.opacity = '0'; }, 3000);
+  }
+
+  // Run one plan request: disable the clicked button and show "Saving…"
+  // so a double click can't send twice, then report the outcome.
+  async function runPlanAction(btn, work, okText) {
+    if (btn && btn.disabled) return false;
+    const label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+    try {
+      await work();
+      showPlanMsg(okText, false);
+      return true;
+    } catch (e) {
+      showPlanMsg(e.message || 'Request failed', true);
+      return false;
+    } finally {
+      // After a successful reload the row is re-rendered and this button is
+      // gone; this restores it when it is still on the page (e.g. on error).
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+  }
+
+  window.createPlan = async function(btn) {
     const name = document.getElementById('newPlanName').value.trim();
     const price = document.getElementById('newPlanPrice').value;
     if (!name || !price) { alert('Name and price required.'); return; }
-    try {
+    const ok = await runPlanAction(btn, async () => {
       await callFn(PLANS_ENDPOINT, { action: 'create', name, price: Number(price), period_years: 1 });
       await reloadPlans();
-      document.getElementById('newPlanName').value = ''; document.getElementById('newPlanPrice').value = '';
-    } catch (e) { alert(e.message); }
+    }, 'Plan added ✓');
+    if (ok) { document.getElementById('newPlanName').value = ''; document.getElementById('newPlanPrice').value = ''; }
   };
-  window.savePlan = async function(id) {
+  window.savePlan = async function(id, btn) {
     const name = document.getElementById('planName-' + id).value.trim();
     const price = document.getElementById('planPrice-' + id).value;
-    try {
+    await runPlanAction(btn, async () => {
       await callFn(PLANS_ENDPOINT, { action: 'update', plan_id: id, name, price: Number(price), period_years: 1 });
       await reloadPlans();
-    } catch (e) { alert(e.message); }
+    }, 'Saved ✓');
   };
-  window.removePlan = async function(id) {
+  window.removePlan = async function(id, btn) {
     if (!confirm('Retire this plan? Existing subscribers on it are unaffected.')) return;
-    try {
+    await runPlanAction(btn, async () => {
       await callFn(PLANS_ENDPOINT, { action: 'remove', plan_id: id });
       await reloadPlans();
-    } catch (e) { alert(e.message); }
+    }, 'Plan removed ✓');
   };
-  window.restorePlan = async function(id) {
-    try {
+  window.restorePlan = async function(id, btn) {
+    await runPlanAction(btn, async () => {
       await callFn(PLANS_ENDPOINT, { action: 'restore', plan_id: id });
       await reloadPlans();
-    } catch (e) { alert(e.message); }
+    }, 'Plan restored ✓');
   };
 
   window.onVIPLReady = async function() {
