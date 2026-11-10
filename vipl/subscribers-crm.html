@@ -247,17 +247,29 @@
   }
 
   // Status line under the plan list (#planMsg). Uses textContent only.
-  // Success fades after ~3s; errors stay (red) until the next action.
+  // Success stays fully visible for 4s, then fades over 0.5s; errors stay
+  // (red) until the next message. Each new message cancels the old timer.
+  const PLAN_MSG_VISIBLE_MS = 4000;
+  const PLAN_MSG_FADE_MS = 500;
   let PLAN_MSG_TIMER = null;
   function showPlanMsg(text, isError) {
     const m = document.getElementById('planMsg');
     if (!m) return;
     clearTimeout(PLAN_MSG_TIMER);
+    PLAN_MSG_TIMER = null;
+    // Snap back to fully visible with no transition, and force a reflow so
+    // the browser commits opacity 1 before any later fade starts.
     m.style.transition = 'none';
     m.style.opacity = '1';
+    void m.offsetWidth;
     m.style.color = isError ? '#C0392B' : 'var(--green)';
     m.textContent = text;
-    if (!isError) PLAN_MSG_TIMER = setTimeout(() => { m.style.transition = 'opacity 0.6s'; m.style.opacity = '0'; }, 3000);
+    if (isError) return;
+    PLAN_MSG_TIMER = setTimeout(() => {
+      PLAN_MSG_TIMER = null;
+      m.style.transition = 'opacity ' + PLAN_MSG_FADE_MS + 'ms ease';
+      m.style.opacity = '0';
+    }, PLAN_MSG_VISIBLE_MS);
   }
 
   // Run one plan request: disable the clicked button and show "Saving…"
