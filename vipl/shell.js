@@ -16,7 +16,7 @@ const NAV_CONFIG = [
   ]},
   { group: 'Command Center', items: [
     { label: '🖥️ Health Monitor', href: 'command-center.html', roles: ['super_admin'] },
-    { label: '📋 Audit Feed', href: 'audit-feed.html', roles: ['super_admin'] },
+    { label: '📋 Audit Feed', href: 'audit-feed.html', roles: ['super_admin', 'admin'] },
   ]},
   { group: 'Finance', items: [
     { label: '📒 Ledger Entry', href: 'ledger.html', roles: ['super_admin','accountant','entry','auditor_team'] },

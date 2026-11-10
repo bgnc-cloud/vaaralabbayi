@@ -48,15 +48,23 @@
   <div id="sidebar"></div>
   <div id="mainArea">
     <h1 class="pageTitle">Audit Feed</h1>
-    <div class="lead">One timeline across every domain. Only VIPL Core reports in today — FBC Network and future domains will merge into this same feed once their bridges are wired up.</div>
+    <div class="lead">One timeline across every domain. Includes VIPL Core activity and FBC Network actions (plan changes now; more as they are added).</div>
     <div id="afContent"></div>
   </div>
 </div>
 
 <script src="shell.js"></script>
 <script>
-  const AF_ALLOWED_ROLES = ['super_admin'];
+  const AF_ALLOWED_ROLES = ['super_admin', 'admin'];
   let AF_ITEMS = [];
+
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_AUDIT_ENDPOINT = FBC_URL + '/functions/v1/get-audit-events';
+
+  // HTML-escape any server value before it goes into innerHTML.
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
   function timeAgo(iso) {
     if (!iso) return '—';
@@ -139,6 +147,33 @@
         }));
       }
     },
+    fbc: {
+      label: 'FBC Network', icon: '🌐',
+      // Expects { events: [{ action, summary, actor_name, actor_role, occurred_at, ... }], next_cursor }.
+      // Returns [] on any failure (403 for non-admins, network error, bad JSON)
+      // so Promise.all in onVIPLReady still loads the other sources.
+      async fetch() {
+        try {
+          const { data: { session } } = await VIPL.sb.auth.getSession();
+          if (!session) return [];
+          const res = await fetch(FBC_AUDIT_ENDPOINT, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ access_token: session.access_token, limit: 50 }),
+          });
+          if (!res.ok) return [];
+          const result = await res.json();
+          const events = Array.isArray(result && result.events) ? result.events : [];
+          return events.map(e => ({
+            type: 'fbc', icon: '🌐',
+            label: e.summary || e.action || 'FBC event',
+            sub: `FBC · ${e.action || '—'} · by ${e.actor_name || 'Unknown'} (${e.actor_role || '—'})`,
+            ts: e.occurred_at
+          }));
+        } catch (err) {
+          return [];
+        }
+      }
+    },
   };
 
   function renderFeed(typeFilter) {
@@ -150,12 +185,12 @@
     }
     list.innerHTML = items.slice(0, 60).map(i => `
       <div class="feedRow">
-        <div class="icon">${i.icon}</div>
+        <div class="icon">${esc(i.icon)}</div>
         <div class="body">
-          <div class="label">${i.label}</div>
-          <div class="sub">${i.sub}</div>
+          <div class="label">${esc(i.label)}</div>
+          <div class="sub">${esc(i.sub)}</div>
         </div>
-        <div class="when">${timeAgo(i.ts)}</div>
+        <div class="when">${esc(timeAgo(i.ts))}</div>
       </div>
     `).join('');
   }
@@ -168,8 +203,8 @@
       el.innerHTML = `
         <div class="accessBox">
           <div class="emoji">🔒</div>
-          <h2>Restricted to Super Admin</h2>
-          <p>The Audit Feed aggregates activity across every domain. Only Super Admin can view it right now.</p>
+          <h2>Restricted to Super Admin and Admin</h2>
+          <p>The Audit Feed aggregates activity across every domain. Only Super Admin and Admin can view it right now.</p>
         </div>
       `;
       return;
@@ -182,7 +217,7 @@
         </select>
         <select id="typeFilter">
           <option value="all">All Activity</option>
-          ${Object.entries(FEED_SOURCES).map(([k, s]) => `<option value="${k}">${s.label}</option>`).join('')}
+          ${Object.entries(FEED_SOURCES).map(([k, s]) => `<option value="${esc(k)}">${esc(s.label)}</option>`).join('')}
         </select>
       </div>
       <div class="feedList" id="feedList">Loading…</div>
