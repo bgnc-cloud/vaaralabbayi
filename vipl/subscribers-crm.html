@@ -55,6 +55,15 @@
 <script src="shell.js"></script>
 <script>
   const SUB_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager'];
+  // Only these roles may create, edit, remove or restore plans
+  // (manage-subscription-plans enforces the same rule server-side).
+  const PLAN_EDIT_ROLES = ['super_admin', 'admin'];
+  let CAN_EDIT_PLANS = false;
+
+  // HTML-escape any server value before it goes into innerHTML.
+  function esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
 
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
   const SUBSCRIBERS_ENDPOINT = FBC_URL + '/functions/v1/manage-subscribers';
@@ -112,10 +121,12 @@
           <b>Plan Tiers</b>
           <div id="planList" style="margin-top:10px;"></div>
           <div style="margin-top:14px; padding-top:14px; border-top:1px solid var(--off);">
+            ${CAN_EDIT_PLANS ? `
             <label>New plan name</label><input id="newPlanName" placeholder="e.g. Gold">
             <label>Price (₹)</label><input id="newPlanPrice" type="number" placeholder="e.g. 750">
-            <label>Period (years)</label><input id="newPlanPeriod" type="number" value="2">
+            <div style="font-size:12px;color:var(--g3);margin-top:8px;">Validity: 1 year</div>
             <button class="primary" onclick="createPlan()">Add Plan</button>
+            ` : `<div style="font-size:12px;color:var(--g3);">Only Super Admin or Admin can change plans.</div>`}
           </div>
         </div>
       `;
@@ -212,16 +223,20 @@
   function renderPlanList() {
     const el = document.getElementById('planList');
     if (!el) return;
-    el.innerHTML = PLANS.map(p => `
+    el.innerHTML = PLANS.map(p => {
+      const id = esc(p.id);
+      const locked = (!p.is_active || !CAN_EDIT_PLANS) ? 'disabled' : '';
+      return `
       <div class="planRow">
-        <input value="${p.name}" id="planName-${p.id}" ${!p.is_active ? 'disabled' : ''}>
-        <input value="${p.price}" type="number" id="planPrice-${p.id}" style="max-width:100px;" ${!p.is_active ? 'disabled' : ''}>
-        <input value="${p.period_years}" type="number" id="planPeriod-${p.id}" style="max-width:70px;" ${!p.is_active ? 'disabled' : ''}>
+        <input value="${esc(p.name)}" id="planName-${id}" ${locked}>
+        <input value="${esc(p.price)}" type="number" id="planPrice-${id}" style="max-width:100px;" ${locked}>
+        <span style="color:var(--g3);font-size:11px;white-space:nowrap;">Validity: 1 year</span>
         ${p.is_active
-          ? `<button class="secondary" style="margin-top:0;" onclick="savePlan('${p.id}')">Save</button><button class="danger" onclick="removePlan('${p.id}')">Remove</button>`
-          : `<span style="color:var(--g3);font-size:11px;">Inactive</span><button class="secondary" style="margin-top:0;" onclick="restorePlan('${p.id}')">Restore</button>`}
+          ? (CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="savePlan(this.dataset.id)">Save</button><button class="danger" data-id="${id}" onclick="removePlan(this.dataset.id)">Remove</button>` : '')
+          : `<span style="color:var(--g3);font-size:11px;">Inactive</span>${CAN_EDIT_PLANS ? `<button class="secondary" style="margin-top:0;" data-id="${id}" onclick="restorePlan(this.dataset.id)">Restore</button>` : ''}`}
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   // Reload every plan (active and retired) from manage-subscription-plans.
@@ -233,10 +248,9 @@
   window.createPlan = async function() {
     const name = document.getElementById('newPlanName').value.trim();
     const price = document.getElementById('newPlanPrice').value;
-    const period_years = document.getElementById('newPlanPeriod').value;
     if (!name || !price) { alert('Name and price required.'); return; }
     try {
-      await callFn(PLANS_ENDPOINT, { action: 'create', name, price: Number(price), period_years: Number(period_years) || 2 });
+      await callFn(PLANS_ENDPOINT, { action: 'create', name, price: Number(price), period_years: 1 });
       await reloadPlans();
       document.getElementById('newPlanName').value = ''; document.getElementById('newPlanPrice').value = '';
     } catch (e) { alert(e.message); }
@@ -244,9 +258,8 @@
   window.savePlan = async function(id) {
     const name = document.getElementById('planName-' + id).value.trim();
     const price = document.getElementById('planPrice-' + id).value;
-    const period_years = document.getElementById('planPeriod-' + id).value;
     try {
-      await callFn(PLANS_ENDPOINT, { action: 'update', plan_id: id, name, price: Number(price), period_years: Number(period_years) });
+      await callFn(PLANS_ENDPOINT, { action: 'update', plan_id: id, name, price: Number(price), period_years: 1 });
       await reloadPlans();
     } catch (e) { alert(e.message); }
   };
@@ -271,6 +284,7 @@
       el.innerHTML = `<div class="accessBox"><div style="font-size:40px;margin-bottom:12px;">🔒</div><h2>Restricted</h2><p>Subscriber Workflow is visible to Super Admin, Admin, and HR Manager.</p></div>`;
       return;
     }
+    CAN_EDIT_PLANS = PLAN_EDIT_ROLES.includes(role);
     el.innerHTML = `<p style="color:var(--g3); font-size:13px;">Loading…</p>`;
     await loadAll();
   };
