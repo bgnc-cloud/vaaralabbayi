@@ -33,6 +33,10 @@
   .pickRow .code { font-weight: 700; font-size: 13px; color: var(--ink); }
   .pickRow .meta { font-size: 11.5px; color: var(--g3); }
   .bdDistricts { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
+  .changeSeatBtn {
+    background: none; border: none; padding: 0; margin-top: 8px; cursor: pointer;
+    font: inherit; font-size: 12px; font-weight: 700; color: var(--blue); text-decoration: underline;
+  }
 
   .noneMsg { font-size: 13px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
 
@@ -289,18 +293,45 @@
       box.innerHTML = `<div class="matchBox"><div class="code">${MATCHED_POSITION.position_code}</div><div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div>${bdDistrictsLine(MATCHED_POSITION)}</div>`;
       renderHireForm();
     } else {
-      box.innerHTML = `<label class="stepLabel">Multiple open seats here — pick one</label><div class="pickList" id="pickList"></div>`;
+      box.innerHTML = `<div id="pickWrap"><label class="stepLabel">Multiple open seats here — pick one</label><div class="pickList" id="pickList"></div></div><div id="pickedSeat"></div>`;
       const pickList = document.getElementById('pickList');
       pickList.innerHTML = matches.map(p => `<div class="pickRow" data-id="${p.id}"><div><div class="code">${p.position_code}</div><div class="meta">${geoLabel(p)}</div>${bdDistrictsLine(p)}</div></div>`).join('');
       pickList.querySelectorAll('.pickRow').forEach(row => {
         row.onclick = () => {
           MATCHED_POSITION = matches.find(m => m.id === row.dataset.id);
           pickList.querySelectorAll('.pickRow').forEach(r => r.classList.toggle('selected', r === row));
+          showPickedSeat();
           renderHireForm();
         };
       });
       document.getElementById('hireFormArea').innerHTML = '';
     }
+  }
+
+  // Pick list collapsed: show only the chosen seat (single-match style) with a
+  // "Change seat" button, so the hire form sits right under it.
+  function showPickedSeat() {
+    const wrap = document.getElementById('pickWrap');
+    const picked = document.getElementById('pickedSeat');
+    if (!wrap || !picked || !MATCHED_POSITION) return;
+    wrap.style.display = 'none';
+    picked.innerHTML = `<div class="matchBox"><div class="code">${MATCHED_POSITION.position_code}</div><div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div>${bdDistrictsLine(MATCHED_POSITION)}<button type="button" class="changeSeatBtn" id="changeSeatBtn">Change seat</button></div>`;
+    document.getElementById('changeSeatBtn').onclick = showPickList;
+    picked.scrollIntoView({ block: 'nearest' });
+  }
+
+  // Back to the full list; the previous pick keeps its highlight, and the
+  // form stays hidden until a seat is picked again.
+  function showPickList() {
+    const wrap = document.getElementById('pickWrap');
+    const picked = document.getElementById('pickedSeat');
+    if (!wrap || !picked) return;
+    MATCHED_POSITION = null;
+    picked.innerHTML = '';
+    wrap.style.display = '';
+    document.getElementById('hireFormArea').innerHTML = '';
+    const sel = wrap.querySelector('.pickRow.selected');
+    (sel || wrap).scrollIntoView({ block: 'nearest' });
   }
 
   function geoLabel(p) {
