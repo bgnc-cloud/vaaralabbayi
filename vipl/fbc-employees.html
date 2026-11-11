@@ -32,6 +32,7 @@
   .pickRow.selected { background: #E3F5F3; border-color: #0E9488; }
   .pickRow .code { font-weight: 700; font-size: 13px; color: var(--ink); }
   .pickRow .meta { font-size: 11.5px; color: var(--g3); }
+  .bdDistricts { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
 
   .noneMsg { font-size: 13px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; }
 
@@ -107,6 +108,7 @@
   const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const HIRE_ENDPOINT = FBC_URL + '/functions/v1/hire-fbc-employee';
   const AVAILABLE_EMPLOYEES_ENDPOINT = FBC_URL + '/functions/v1/get-available-fbc-employees';
+  const BD_DISTRICTS_ENDPOINT = FBC_URL + '/functions/v1/get-bd-districts';
 
   // ---------------------------------------------------------------------
   // Same PostgREST 1000-row cap issue as the dashboard: with 7,000+ FO
@@ -149,6 +151,41 @@
   let HIRE_MODE = 'new';
   let AVAILABLE_EMPLOYEES = [];
   let SELECTED_EXISTING_EMPLOYEE = null;
+  // { bd_position_id: [district names] } from get-bd-districts. Fetched at most
+  // once; stays null if the fetch fails, so BD cards render as before.
+  let BD_DISTRICTS = null;
+  let BD_DISTRICTS_REQUESTED = false;
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  async function loadBdDistricts() {
+    BD_DISTRICTS_REQUESTED = true;
+    try {
+      const { data: { session } } = await VIPL.sb.auth.getSession();
+      if (!session) return;
+      const res = await fetch(BD_DISTRICTS_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ access_token: session.access_token }),
+      });
+      if (!res.ok) return;
+      const result = await res.json();
+      const map = result && result.bd_districts;
+      if (map && typeof map === 'object' && !Array.isArray(map)) BD_DISTRICTS = map;
+    } catch (e) {}
+  }
+
+  // Grey districts line for a BD seat card; '' for non-BD seats, no data, or no assignments.
+  function bdDistrictsLine(p) {
+    if (p.role_code !== 'BD' || !BD_DISTRICTS || !Object.prototype.hasOwnProperty.call(BD_DISTRICTS, p.id)) return '';
+    const names = BD_DISTRICTS[p.id];
+    if (!Array.isArray(names)) return '';
+    const clean = names.filter(n => typeof n === 'string' && n.trim());
+    if (!clean.length) return '';
+    return `<div class="bdDistricts">${clean.map(escapeHtml).join(', ')}</div>`;
+  }
 
   // Cross-system check: does this email/phone already belong to a real VIPL Core login
   // account (super_admin, director, accountant, etc.)? Not blocking — dual roles can be
@@ -249,12 +286,12 @@
     }
     if (matches.length === 1) {
       MATCHED_POSITION = matches[0];
-      box.innerHTML = `<div class="matchBox"><div class="code">${MATCHED_POSITION.position_code}</div><div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div></div>`;
+      box.innerHTML = `<div class="matchBox"><div class="code">${MATCHED_POSITION.position_code}</div><div class="meta">${MATCHED_POSITION.role_code} · ${geoLabel(MATCHED_POSITION)}</div>${bdDistrictsLine(MATCHED_POSITION)}</div>`;
       renderHireForm();
     } else {
       box.innerHTML = `<label class="stepLabel">Multiple open seats here — pick one</label><div class="pickList" id="pickList"></div>`;
       const pickList = document.getElementById('pickList');
-      pickList.innerHTML = matches.map(p => `<div class="pickRow" data-id="${p.id}"><div><div class="code">${p.position_code}</div><div class="meta">${geoLabel(p)}</div></div></div>`).join('');
+      pickList.innerHTML = matches.map(p => `<div class="pickRow" data-id="${p.id}"><div><div class="code">${p.position_code}</div><div class="meta">${geoLabel(p)}</div>${bdDistrictsLine(p)}</div></div>`).join('');
       pickList.querySelectorAll('.pickRow').forEach(row => {
         row.onclick = () => {
           MATCHED_POSITION = matches.find(m => m.id === row.dataset.id);
@@ -465,6 +502,7 @@
       mandal_name: p.mandals ? p.mandals.name : '',
       village_name: p.villages ? p.villages.name : '',
     }));
+    if (!BD_DISTRICTS_REQUESTED && ALL_VACANT.some(p => p.role_code === 'BD')) await loadBdDistricts();
   }
 
   window.onVIPLReady = async function() {
