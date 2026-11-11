@@ -536,9 +536,14 @@
     }
     CAN_EDIT = FBC_DASH_EDIT_ROLES.includes(role);
 
+    // BD seat count comes from the loaded positions; until they load (or if
+    // none are found) the note just omits the number.
+    const regionList = REGION_ORDER.slice(0, -1).join(', ') + ' or ' + REGION_ORDER[REGION_ORDER.length - 1];
+    const bdNoteText = (n) => `BD district clusters follow geography: ${n ? `each of the ${n} BD seat${n === 1 ? '' : 's'}` : 'each BD seat'} covers a group of districts within one master-warehouse region (${regionList}).`;
+
     el.innerHTML = `
       <div class="scopeNote">✅ Statewide — all 28 Andhra Pradesh districts.</div>
-      <div class="draftNote">⚠️ BD district clusters (7 seats, up to 6 districts each) are draft geographic defaults, not a confirmed business decision — reassignable anytime since no one's appointed to most yet.</div>
+      <div class="draftNote">${bdNoteText(0)}</div>
       ${!CAN_EDIT ? `<div class="viewOnlyNote">👁️ View-only — Transfer and Terminate are restricted to Super Admin, Admin, and HR Manager.</div>` : ''}
       <div id="dashBody">Loading…</div>
     `;
@@ -549,6 +554,8 @@
       document.getElementById('dashBody').innerHTML = `<div class="accessBox"><p>Couldn't load dashboard: ${e.message}</p></div>`;
       return;
     }
+
+    el.querySelector('.draftNote').textContent = bdNoteText(ALL_POSITIONS.filter(p => p.role_code === 'BD').length);
 
     const total = ALL_POSITIONS.length;
     const vacant = ALL_POSITIONS.filter(p => p.status === 'vacant').length;
