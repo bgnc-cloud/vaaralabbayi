@@ -152,7 +152,7 @@
 
   async function loadAll() {
     const [{ data: investors, error: invErr }, { data: cats, error: catErr }, { data: loans, error: loanErr }, { data: totalsRow, error: totErr }] = await Promise.all([
-      VIPL.sb.from('investors').select('*').order('total_invested', { ascending: false }),
+      VIPL.sb.from('investor_cap_table').select('*').order('total_invested', { ascending: false, nullsFirst: false }),
       VIPL.sb.from('category_totals').select('*'),
       VIPL.sb.from('loan_tracker').select('*').order('month_start'),
       VIPL.sb.from('investor_totals').select('*').single()
@@ -210,7 +210,7 @@
       const isMe = isSingleInvestorView && i.id === myRowId;
       return `<tr class="${isCompany ? 'companyRow' : ''} ${isMe ? 'myRow' : ''}">
         <td><div class="nameCell"><div class="avatar ${isCompany ? 'companyAvatar' : ''}">${isCompany ? 'CO' : initials(i.investor_name)}</div>${i.investor_name}${isMe ? '<span class="youTag">YOU</span>' : ''}${isCompany ? '<span class="companyBadge">Structural</span>' : ''}</div></td>
-        <td class="balPos numCell">${fmt(i.total_invested)}</td>
+        <td class="balPos numCell">${isCompany ? '—' : fmt(i.total_invested)}</td>
         <td>${i.ownership_percentage ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${i.ownership_percentage}%</div>` : '—'}</td>
         <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
         <td>${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>

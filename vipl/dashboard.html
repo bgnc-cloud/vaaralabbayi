@@ -146,7 +146,7 @@
       VIPL.sb.from('loan_tracker').select('*').order('month_start'),
       VIPL.sb.from('investor_capital').select('*'),
       VIPL.sb.from('monthly_ledger_summary').select('*').order('month_start'),
-      VIPL.sb.from('investors').select('*').order('total_invested',{ascending:false})
+      VIPL.sb.from('investor_cap_table').select('*').order('total_invested', { ascending: false, nullsFirst: false })
     ]);
 
     const totalInvested = officialInvestors
@@ -174,7 +174,7 @@
       <td class="balNeg">${fmt(l.running_balance)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
 
     document.getElementById('officialInvestorBody').innerHTML = officialInvestors.map(i => `
-      <tr><td><strong>${i.investor_name}</strong></td><td class="balPos">${fmt(i.total_invested)}</td>
+      <tr><td><strong>${i.investor_name}</strong></td><td class="balPos">${i.investor_type === 'company_share' ? '—' : fmt(i.total_invested)}</td>
       <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
       <td>${i.notes || '—'}</td></tr>`).join('');
 
