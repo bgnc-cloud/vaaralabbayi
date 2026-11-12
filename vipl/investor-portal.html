@@ -131,7 +131,7 @@
           <thead><tr><th>Shareholder</th><th>Invested</th><th>Ownership %</th><th>Share of P&amp;L</th><th>Notes</th></tr></thead>
           <tbody id="shareholderBody"></tbody>
         </table></div>
-        <div class="note">"Share of P&amp;L" = Ownership % × Net Profit/Loss. The Company's 40% is a fixed structural share, not a cash investment — shown for completeness but excluded from the "Total Investor Capital" figure above.</div>
+        <div class="note">"Share of P&amp;L" = Ownership % × Net Profit/Loss. The fixed 40% is held by the directors (70% / 30% of it) and is withdrawable only after revenue and profit start; it is not a cash investment — shown for completeness but excluded from the "Total Investor Capital" figure above.</div>
       </div>
 
       <div class="card">
@@ -187,18 +187,16 @@
     const isSingleInvestorView = SINGLE_ROW_ROLES.includes(VIPL.profile.role);
     let visibleInvestors = investors;
     let myRowMissing = false;
-    let myRowId = null;
+    let myRowIds = new Set();
 
     if (isSingleInvestorView) {
-      const myRow = investors.find(i => i.profile_id === VIPL.user.id)
-        || investors.find(i => (i.investor_name || '').trim().toLowerCase() === (VIPL.profile.full_name || '').trim().toLowerCase());
-      if (myRow) {
-        visibleInvestors = [myRow];
-        myRowId = myRow.id;
-      } else {
-        visibleInvestors = [];
-        myRowMissing = true;
+      let myRows = investors.filter(i => i.profile_id === VIPL.user.id);
+      if (!myRows.length) {
+        const byName = investors.find(i => (i.investor_name||'').trim().toLowerCase() === (VIPL.profile.full_name||'').trim().toLowerCase());
+        if (byName) myRows = [byName];
       }
+      if (myRows.length) { visibleInvestors = myRows; myRowIds = new Set(myRows.map(r => r.id)); }
+      else { visibleInvestors = []; myRowMissing = true; }
     }
 
     document.getElementById('shareholderBody').innerHTML = myRowMissing
@@ -207,7 +205,7 @@
       const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
       const shareOfPL = pct / 100 * netPL;
       const isCompany = i.investor_type === 'company_share';
-      const isMe = isSingleInvestorView && i.id === myRowId;
+      const isMe = isSingleInvestorView && myRowIds.has(i.id);
       return `<tr class="${isCompany ? 'companyRow' : ''} ${isMe ? 'myRow' : ''}">
         <td><div class="nameCell"><div class="avatar ${isCompany ? 'companyAvatar' : ''}">${isCompany ? 'CO' : initials(i.investor_name)}</div>${i.investor_name}${isMe ? '<span class="youTag">YOU</span>' : ''}${isCompany ? '<span class="companyBadge">Structural</span>' : ''}</div></td>
         <td class="balPos numCell">${isCompany ? '—' : fmt(i.total_invested)}</td>
