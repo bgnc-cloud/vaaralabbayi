@@ -52,6 +52,10 @@
   .companyRow td:first-child { box-shadow: inset 4px 0 0 #5B4FCF; }
   .companyRow .companyName { font-weight: 800; }
   .companyRow .companySub { font-size: 11px; font-weight: 600; color: var(--g3); margin-top: 2px; }
+  .openTag {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #0E9488; background: #E3F5F3;
+    padding: 2px 8px; border-radius: 5px; margin-left: 6px; white-space: nowrap;
+  }
   .companyBadge {
     font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #5B4FCF; background: #EDECFC;
     padding: 2px 8px; border-radius: 5px;
@@ -128,8 +132,15 @@
       director_labels: [...new Set(company.map(r => r.director_label).filter(Boolean))].sort(),
       ownership_percentage: Math.round(company.reduce((s, r) => s + Number(r.ownership_percentage || 0), 0) * 100) / 100,
       available_to_withdraw: avail.length ? avail.reduce((s, v) => s + Number(v), 0) : null,
+      // Open only when every merged row says so; the fallback row has null, so it stays closed.
+      withdrawals_open: company.every(r => r.withdrawals_open === true),
     };
     return rows.filter(r => r.investor_type !== 'company_share').concat(merged);
+  }
+  function companyNotesHtml(i) {
+    const avail = i.available_to_withdraw !== null ? `Available to withdraw ${fmt(i.available_to_withdraw)}.` : '';
+    if (i.withdrawals_open) return `${avail}<span class="openTag">Withdrawals open</span>`;
+    return (avail ? avail + ' ' : '') + 'Opens after revenue and profit start.';
   }
   const ALLOWED_ROLES = ['super_admin','accountant','investor','director_1','director_2','auditor_team'];
   const SINGLE_ROW_ROLES = ['investor','director_1','director_2'];
@@ -225,7 +236,7 @@
       const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
       const shareOfPL = pct / 100 * netPL;
       if (i.merged) {
-        const notes = (i.available_to_withdraw !== null ? `Available to withdraw ${fmt(i.available_to_withdraw)}. ` : '') + 'Opens after revenue and profit start.';
+        const notes = companyNotesHtml(i);
         return `<tr class="companyRow">
         <td><div class="nameCell"><div class="avatar companyAvatar">CO</div><div><div class="companyName">Company Share (40%) <span class="companyBadge">Structural</span></div>${i.director_labels.length ? `<div class="companySub">${esc(i.director_labels.join(' & '))}</div>` : ''}</div></div></td>
         <td class="balPos numCell">—</td>
