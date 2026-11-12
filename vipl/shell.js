@@ -30,6 +30,7 @@ const NAV_CONFIG = [
   { group: 'Operations', items: [
     { label: '🏪 Stores', href: null, roles: ['super_admin','store_operator'], soon: true },
     { label: '📈 Investor Portal', href: 'investor-portal.html', roles: ['super_admin','accountant','investor','director_1','director_2','auditor_team'] },
+    { label: '🏦 Director Share', href: 'director-share.html', roles: ['super_admin','accountant','director_1','director_2','auditor_team'] },
     { label: '👥 Subscribers', href: null, roles: ['super_admin','subscriber'], soon: true },
     { label: '🚚 Supply Chain', href: 'warehouse-management.html', roles: ['super_admin','admin','hr_manager','investor','director_1','director_2'] },
   ]},

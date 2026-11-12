@@ -166,7 +166,7 @@
     const totalCashInvested = Number(totalsRow.total_cash_invested || 0);
     const companyShareAmount = Number(totalsRow.company_share_amount || 0);
 
-    const NON_PL_CATEGORIES = ['Loan Movement', 'Investment'];
+    const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
     const revenueCat = cats.find(c => c.category === 'Revenue');
     const totalRevenue = revenueCat ? Number(revenueCat.total_credit) - Number(revenueCat.total_debit) : 0;
 
