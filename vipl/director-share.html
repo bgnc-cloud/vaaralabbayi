@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Director Share — VIPL Internal</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="../style.css">
+<link rel="icon" href="../logo.jpg">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 24px; }
+  .card h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+  .card .sub { font-size: 13px; color: var(--g3); margin-bottom: 16px; }
+  .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
+
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; margin-bottom: 24px; }
+  .summaryBox { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; overflow: hidden; }
+  .summaryBox::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #5B4FCF; }
+  .summaryBox.open::before { background: var(--green); }
+  .summaryBox.closed::before { background: #B7791F; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .summaryBox .lbl { font-size: 12px; color: var(--g3); margin-top: 4px; }
+  .summaryBox .name { font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+  .summaryBox .rows { font-size: 12.5px; color: var(--g3); margin-top: 10px; line-height: 1.7; }
+  .summaryBox .rows b { color: var(--g1, #1A2B3C); font-variant-numeric: tabular-nums; }
+
+  .gateRow { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px; }
+  .pill.open { background: #E3F5F3; color: #0E9488; }
+  .pill.closed { background: #FDF3E1; color: #B7791F; }
+  .btn { background: var(--blue); color: #fff; border: none; border-radius: 10px; padding: 11px 18px; font-weight: 800; font-size: 13.5px; cursor: pointer; }
+  .btn.ghost { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  .formGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-bottom: 14px; }
+  .formGrid label { display: block; font-size: 12px; font-weight: 700; color: var(--g3); margin-bottom: 5px; }
+  .formGrid input, .formGrid select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; background: #fff; }
+  #wdMsg, #gateMsg { font-size: 13px; margin-top: 10px; min-height: 18px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { background: #FAFBFC; color: var(--g3); padding: 10px 14px; text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; font-weight: 800; border-bottom: 1px solid var(--border); border-top: 1px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  td.numCell { font-variant-numeric: tabular-nums; font-weight: 700; }
+  tbody tr:last-child td { border-bottom: none; }
+  .balPos { color: var(--green); font-weight: 700; }
+  .balNeg { color: #C0392B; font-weight: 700; }
+  #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
+  @media (max-width: 600px) { .card { padding: 18px; } table { font-size: 12.5px; } th, td { padding: 9px 10px; } }
+</style>
+</head>
+<body>
+
+<div id="authBox"></div>
+
+<div id="appShell">
+  <div id="sidebar"></div>
+  <div id="mainArea">
+    <h1 class="pageTitle">Director Share</h1>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script src="shell.js"></script>
+<script>
+  function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  const ALLOWED_ROLES = ['super_admin','accountant','auditor_team','director_1','director_2'];
+  const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
+  let CAN_EDIT = false;
+  let SUMMARY = [];
+
+  function localDate() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  window.onVIPLReady = async function() {
+    const role = VIPL.profile.role;
+    const el = document.getElementById('pageContent');
+    if (!ALLOWED_ROLES.includes(role)) { el.innerHTML = '<div id="noAccess">🔒 No access to this page.</div>'; return; }
+    CAN_EDIT = role === 'super_admin';
+    el.innerHTML = `
+      <div class="summaryGrid" id="dirCards"></div>
+      <div class="card" id="gateCard"></div>
+      ${CAN_EDIT ? '<div class="card" id="formCard"></div>' : ''}
+      <div class="card"><h2>Withdrawal history</h2><div class="sub">Every withdrawal, with the ledger entry it created.</div>
+        <div style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Director</th><th>Mode</th><th>Amount</th><th>Notes</th></tr></thead><tbody id="histBody"></tbody></table></div>
+      </div>`;
+    await loadAll();
+  };
+
+  async function loadAll() {
+    const [sum, hist, cats] = await Promise.all([
+      VIPL.sb.from('director_share_summary').select('*').order('split_percent', { ascending: false }),
+      VIPL.sb.from('director_share_withdrawals').select('*').order('withdrawn_on', { ascending: false }).order('created_at', { ascending: false }),
+      VIPL.sb.from('category_totals').select('*')
+    ]);
+    if (sum.error || hist.error) {
+      document.getElementById('pageContent').innerHTML = '<div class="note" style="color:#C0392B">' + esc((sum.error || hist.error).message) + '</div>';
+      return;
+    }
+    SUMMARY = sum.data || [];
+    const open = SUMMARY.length ? SUMMARY[0].withdrawals_open : false;
+    const names = {}; SUMMARY.forEach(s => { names[s.profile_id] = s.director_name; });
+
+    document.getElementById('dirCards').innerHTML = SUMMARY.map(s => `
+      <div class="summaryBox ${open ? 'open' : 'closed'}">
+        <div class="name">${esc(s.director_name)} · ${Number(s.ownership_percentage)}% of the company</div>
+        <div class="val">${fmt(s.available)}</div><div class="lbl">Available to withdraw</div>
+        <div class="rows">Pot share <b>${fmt(s.pot_share)}</b><br>Withdrawn <b>${fmt(s.withdrawn)}</b></div>
+      </div>`).join('') || '<div class="note">No director share is recorded for you.</div>';
+
+    // Guide numbers for the "after revenue and profit start" decision (the switch itself stays manual).
+    let guide = '';
+    if (cats && cats.data) {
+      const rev = cats.data.find(c => c.category === 'Revenue');
+      const totalRevenue = rev ? Number(rev.total_credit) - Number(rev.total_debit) : 0;
+      const expenses = cats.data.filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category))
+        .reduce((s, c) => s + Math.max(Number(c.total_debit) - Number(c.total_credit), 0), 0);
+      const net = totalRevenue - expenses;
+      guide = `<div class="note">For your decision — all-time revenue <b>${fmt(totalRevenue)}</b>, expenses <b>${fmt(expenses)}</b>, net <b class="${net >= 0 ? 'balPos' : 'balNeg'}">${fmt(net)}</b>. The switch below is manual; nothing opens automatically.</div>`;
+    }
+    document.getElementById('gateCard').innerHTML = `
+      <div class="gateRow">
+        <div><h2>Withdrawals <span class="pill ${open ? 'open' : 'closed'}">${open ? 'OPEN' : 'CLOSED'}</span></h2>
+          <div class="sub" style="margin-bottom:0">Directors can withdraw their share of the 40% pot only after revenue and profit start. A Super Admin opens or closes this.</div></div>
+        ${CAN_EDIT ? `<button class="btn ${open ? 'ghost' : ''}" id="gateBtn">${open ? 'Close withdrawals' : 'Open withdrawals'}</button>` : ''}
+      </div>${guide}<div id="gateMsg"></div>`;
+    if (CAN_EDIT) document.getElementById('gateBtn').onclick = () => toggleGate(!open);
+
+    if (CAN_EDIT) {
+      document.getElementById('formCard').innerHTML = `
+        <h2>Record a withdrawal</h2>
+        <div class="sub">Saves the withdrawal and posts the cash-out in the ledger as “Director Withdrawal” in one step.</div>
+        <div class="formGrid">
+          <div><label>Director</label><select id="wdDirector">${SUMMARY.map(s => `<option value="${esc(s.profile_id)}">${esc(s.director_name)} — available ${fmt(s.available)}</option>`).join('')}</select></div>
+          <div><label>Amount (₹)</label><input id="wdAmount" type="number" min="1" step="0.01" inputmode="decimal"></div>
+          <div><label>Date</label><input id="wdDate" type="date" value="${localDate()}"></div>
+          <div><label>Paid from</label><select id="wdMode"><option value="bank">Bank</option><option value="cash">Cash</option></select></div>
+        </div>
+        <div class="formGrid"><div style="grid-column:1/-1"><label>Notes (optional)</label><input id="wdNotes" type="text" maxlength="200"></div></div>
+        <button class="btn" id="wdBtn" ${open ? '' : 'disabled'}>Record withdrawal</button>
+        ${open ? '' : '<span style="font-size:12.5px;color:var(--g3);margin-left:10px">Open withdrawals first.</span>'}
+        <div id="wdMsg"></div>`;
+      document.getElementById('wdBtn').onclick = recordWithdrawal;
+    }
+
+    document.getElementById('histBody').innerHTML = (hist.data || []).map(w => `
+      <tr><td>${esc(w.withdrawn_on)}</td><td>${esc(names[w.profile_id] || '—')}</td><td>${w.mode ? esc(w.mode) : '—'}</td>
+      <td class="numCell">${fmt(w.amount)}</td><td>${esc(w.notes || '—')}</td></tr>`).join('')
+      || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No withdrawals yet.</td></tr>';
+  }
+
+  async function toggleGate(open) {
+    const msg = document.getElementById('gateMsg');
+    const q = open
+      ? 'Open director withdrawals now? Only do this once revenue and profit have started.'
+      : 'Close director withdrawals?';
+    if (!window.confirm(q)) return;
+    const { error } = await VIPL.sb.from('company_share_settings')
+      .update({ withdrawals_open: open, opened_on: open ? localDate() : null }).eq('id', 1);
+    if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
+    await loadAll();
+  }
+
+  async function recordWithdrawal() {
+    const msg = document.getElementById('wdMsg');
+    const btn = document.getElementById('wdBtn');
+    const profile = document.getElementById('wdDirector').value;
+    const amount = Number(document.getElementById('wdAmount').value);
+    const date = document.getElementById('wdDate').value;
+    const mode = document.getElementById('wdMode').value;
+    const notes = document.getElementById('wdNotes').value.trim() || null;
+    msg.style.color = '#C0392B';
+    if (!profile || !(amount > 0) || !date) { msg.textContent = 'Choose a director, an amount and a date.'; return; }
+    const who = SUMMARY.find(s => s.profile_id === profile);
+    if (!window.confirm(`Record ${fmt(amount)} withdrawal for ${who ? who.director_name : 'this director'} from ${mode}? This also posts a ledger entry.`)) return;
+    btn.disabled = true;
+    const { error } = await VIPL.sb.rpc('record_director_withdrawal', { p_profile: profile, p_amount: amount, p_date: date, p_mode: mode, p_notes: notes });
+    if (error) { msg.textContent = error.message; btn.disabled = false; return; }
+    msg.style.color = 'var(--green)'; msg.textContent = 'Recorded. The ledger entry was posted.';
+    await loadAll();
+  }
+</script>
+</body>
+</html>
