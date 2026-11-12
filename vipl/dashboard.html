@@ -68,6 +68,14 @@
     font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #B7791F; background: #FBF1DE;
     padding: 2px 8px; border-radius: 5px; margin-left: 8px;
   }
+  .companyRow td { background: #EDECFC; }
+  .companyRow td:first-child { box-shadow: inset 4px 0 0 #5B4FCF; }
+  .companyRow .companySub { font-size: 11px; font-weight: 600; color: var(--g3); margin-top: 2px; }
+  .companyBadge {
+    font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #5B4FCF; background: #EDECFC;
+    padding: 2px 8px; border-radius: 5px; margin-left: 6px;
+  }
+  .companyRow .companyBadge { background: #fff; }
   #noAccess { text-align: center; padding: 60px 20px; color: var(--g3); }
 </style>
 </head>
@@ -86,6 +94,23 @@
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+  // The view returns one company_share row per director (each named after the
+  // director). Merge them into one "Company Share (40%)" row, placed last; no
+  // personal names are carried over.
+  function mergeCompanyRows(rows) {
+    const company = rows.filter(r => r.investor_type === 'company_share');
+    if (!company.length) return rows;
+    const avail = company.map(r => r.available_to_withdraw).filter(v => v !== null && v !== undefined && v !== '');
+    const merged = {
+      id: 'company-share', investor_type: 'company_share', merged: true,
+      director_labels: [...new Set(company.map(r => r.director_label).filter(Boolean))].sort(),
+      ownership_percentage: Math.round(company.reduce((s, r) => s + Number(r.ownership_percentage || 0), 0) * 100) / 100,
+      available_to_withdraw: avail.length ? avail.reduce((s, v) => s + Number(v), 0) : null,
+    };
+    return rows.filter(r => r.investor_type !== 'company_share').concat(merged);
+  }
   const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
 
   window.onVIPLReady = async function() {
@@ -173,7 +198,10 @@
       <td class="${l.net_movement >= 0 ? 'balNeg' : 'balPos'}">${fmt(l.net_movement)}</td>
       <td class="balNeg">${fmt(l.running_balance)}</td></tr>`).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--g3)">No loan activity found.</td></tr>';
 
-    document.getElementById('officialInvestorBody').innerHTML = officialInvestors.map(i => `
+    document.getElementById('officialInvestorBody').innerHTML = mergeCompanyRows(officialInvestors).map(i => i.merged ? `
+      <tr class="companyRow"><td><strong>Company Share (40%)</strong><span class="companyBadge">Structural</span>${i.director_labels.length ? `<div class="companySub">${esc(i.director_labels.join(' & '))}</div>` : ''}</td><td class="balPos">—</td>
+      <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
+      <td>${i.available_to_withdraw !== null ? `Available to withdraw ${fmt(i.available_to_withdraw)}. ` : ''}Opens after revenue and profit start.</td></tr>` : `
       <tr><td><strong>${i.investor_name}</strong></td><td class="balPos">${i.investor_type === 'company_share' ? '—' : fmt(i.total_invested)}</td>
       <td>${i.ownership_percentage ? i.ownership_percentage + '%' : '—'}</td>
       <td>${i.notes || '—'}</td></tr>`).join('');
