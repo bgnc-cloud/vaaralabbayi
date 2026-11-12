@@ -49,6 +49,7 @@
 
   .districtGroup { margin-bottom: 24px; }
   .districtGroup h3 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15px; font-weight: 800; margin-bottom: 2px; }
+  .bdSub { font-size: 11.5px; color: var(--g3); margin-top: 2px; }
   .districtGroup .regionTag { font-size: 11px; color: var(--g3); font-weight: 600; margin-bottom: 10px; display: block; }
   .statusTable { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
   .statusRow {
@@ -186,6 +187,35 @@
     if (p.district_name) return p.district_name + ' district';
     if (p.state_name) return p.state_name;
     return '—';
+  }
+  const BD_DISTRICTS_ENDPOINT = FBC_URL + '/functions/v1/get-bd-districts';
+  let BD_DISTRICTS = null;
+  let DISTRICT_BD_CODE = {};  // district name -> BD seat code
+  function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function geoCellHtml(p) {
+    const base = escapeHtml(geoLabel(p));
+    if (!BD_DISTRICTS) return base;
+    if (p.role_code === 'BD' && Array.isArray(BD_DISTRICTS[p.id]) && BD_DISTRICTS[p.id].length) {
+      const names = BD_DISTRICTS[p.id].filter(n => typeof n === 'string' && n.trim());
+      return `${base}<div class="bdSub">${names.length} district${names.length === 1 ? '' : 's'}: ${names.map(escapeHtml).join(', ')}</div>`;
+    }
+    if (p.role_code === 'ZM' && DISTRICT_BD_CODE[p.district_name]) {
+      return `${base}<div class="bdSub">reports to ${escapeHtml(DISTRICT_BD_CODE[p.district_name])}</div>`;
+    }
+    return base;
+  }
+  async function loadBdDistricts(session, positions) {
+    try {
+      const res = await fetch(BD_DISTRICTS_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: session.access_token }) });
+      if (!res.ok) return;
+      const map = (await res.json()).bd_districts;
+      if (!map || typeof map !== 'object' || Array.isArray(map)) return;
+      BD_DISTRICTS = map;
+      const codeById = {};
+      positions.forEach(p => { if (p.role_code === 'BD') codeById[p.id] = p.position_code; });
+      DISTRICT_BD_CODE = {};
+      Object.keys(map).forEach(id => { (Array.isArray(map[id]) ? map[id] : []).forEach(d => { if (codeById[id]) DISTRICT_BD_CODE[d] = codeById[id]; }); });
+    } catch (e) {}
   }
   function districtLabel(p) { return p.district_name || p.state_name || 'Other'; }
 
@@ -446,7 +476,7 @@
           <div class="${rowClass}">
             <div class="code">${p.position_code}</div>
             <div><span class="roleTag">${p.role_code}</span></div>
-            <div>${geoLabel(p)}</div>
+            <div>${geoCellHtml(p)}</div>
             <div><span class="statusPill2 ${p.status}">${p.status === 'active' ? 'Filled' : 'Vacant'}</span></div>
             <div>${occupantHtml(p)}</div>
             ${CAN_EDIT ? `<div>${actionsHtml(p)}</div>` : ''}
@@ -524,6 +554,7 @@
       village_name: p.villages ? p.villages.name : '',
     }));
     ALL_VACANT = ALL_POSITIONS.filter(p => p.status === 'vacant');
+    await loadBdDistricts(session, ALL_POSITIONS);
   }
 
   window.onVIPLReady = async function() {
