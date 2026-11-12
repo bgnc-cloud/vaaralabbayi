@@ -114,13 +114,16 @@
       available_to_withdraw: avail.length ? avail.reduce((s, v) => s + Number(v), 0) : null,
       // Open only when every merged row says so; the fallback row has null, so it stays closed.
       withdrawals_open: company.every(r => r.withdrawals_open === true),
+      // The fallback single company row (no holders set up) has withdrawals_open null.
+      is_fallback: company.every(r => r.withdrawals_open == null),
     };
     return rows.filter(r => r.investor_type !== 'company_share').concat(merged);
   }
   function companyNotesHtml(i) {
+    if (i.is_fallback) return 'Structural share, not cash';
     const avail = i.available_to_withdraw !== null ? `Available to withdraw ${fmt(i.available_to_withdraw)}.` : '';
     if (i.withdrawals_open) return `${avail}<span class="openTag">Withdrawals open</span>`;
-    return (avail ? avail + ' ' : '') + 'Opens after revenue and profit start.';
+    return avail || '—';
   }
   const ALLOWED_ROLES = ['super_admin','accountant','auditor_team'];
 
