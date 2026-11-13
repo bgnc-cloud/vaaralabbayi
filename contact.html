@@ -164,6 +164,14 @@
         <input type="text" id="fCompanyWebsite" name="companyWebsite" tabindex="-1" autocomplete="off">
       </div>
 
+      <div class="form-group">
+        <label for="fConsent" style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.55;color:#3D4B5C;cursor:pointer">
+          <input type="checkbox" id="fConsent" required style="margin-top:3px;width:18px;height:18px;flex-shrink:0;accent-color:#15803D">
+          <span class="eng">I agree that VIPL may contact me about my enquiry and store my details as described in the <a href="privacy.html" target="_blank" rel="noopener noreferrer" style="color:#1565C0;font-weight:700">Privacy Policy</a>. *</span>
+          <span class="tel" style="display:none">నా విచారణ గురించి VIPL నన్ను సంప్రదించడానికి మరియు <a href="privacy.html" target="_blank" rel="noopener noreferrer" style="color:#1565C0;font-weight:700">గోప్యతా విధానం</a>లో వివరించిన విధంగా నా వివరాలను నిల్వ చేయడానికి నేను అంగీకరిస్తున్నాను. *</span>
+        </label>
+      </div>
+
       <button class="form-submit" id="submitBtn" onclick="handleSubmit(event)">
         <span class="eng">Send Message →</span>
         <span class="tel" style="display:none">సందేశం పంపండి →</span>
@@ -194,6 +202,15 @@
             <span>📊</span><span class="eng">Investor Zone</span><span class="tel" style="display:none">పెట్టుబడి విభాగం</span>
           </a>
         </div>
+      </div>
+
+      <!-- Call us -->
+      <div class="cinfo-card">
+        <div class="cinfo-title eng">Call us</div>
+        <div class="cinfo-title tel" style="display:none">మాకు కాల్ చేయండి</div>
+        <a href="tel:+919985831114" style="display:inline-flex;align-items:center;gap:10px;margin-top:10px;padding:12px 16px;background:#EAF3DE;border-radius:10px;text-decoration:none;color:#15803D;font-weight:800;font-size:16px">
+          <span>📞</span><span>+91 99858 31114</span>
+        </a>
       </div>
 
       <!-- Office -->
@@ -236,7 +253,7 @@
     <div><div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div><p class="footer-tagline eng">Rural subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p><p class="footer-tagline tel" style="display:none">AP &amp; తెలంగాణలో గ్రామీణ సభ్యత్వ ఆధారిత కిరాణా వాణిజ్యం. త్వరలో ప్రారంభం.</p><div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div></div>
     <div><div class="footer-col-title">Platform</div><ul class="footer-links"><li><a href="index.html">Home</a></li><li><a href="subscribe.html">Subscribe</a></li><li><a href="store.html">Open a Store</a></li><li><a href="about.html">About</a></li></ul></div>
     <div><div class="footer-col-title">Portals</div><ul class="footer-links"><li><a href="subscribe.html">Subscriber Portal</a></li><li><a href="store.html">Store Operator</a></li><li><a href="contact.html">FBC Team</a></li><li><a href="vipl/index.html">Investor Zone</a></li></ul></div>
-    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
+    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a href="privacy.html"><span class="eng">Privacy Policy</span><span class="tel" style="display:none">గోప్యతా విధానం</span></a></li><li><a href="tel:+919985831114"><span class="eng">Phone: +91 99858 31114</span><span class="tel" style="display:none">ఫోన్: +91 99858 31114</span></a></li><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
   </div>
   <div class="footer-bottom"><p>© 2026 Vaaralabbayi India Private Limited. All rights reserved.</p><div class="footer-badges"><span class="footer-badge" style="color:#42A5F5">Startup India ✓</span><span class="footer-badge" style="color:#F97316">Launching Soon</span></div></div>
 </footer>
@@ -283,6 +300,14 @@ async function handleSubmit(e) {
     return;
   }
 
+  if (!document.getElementById('fConsent').checked) {
+    errBox.textContent = document.body.classList.contains('te')
+      ? 'దయచేసి సమ్మతి బాక్స్‌ను టిక్ చేయండి — అది లేకుండా మేము మీ వివరాలను ఉపయోగించలేము.'
+      : 'Please tick the consent box — we can only use your details with your agreement.';
+    errBox.style.display = 'block';
+    return;
+  }
+
   btn.disabled = true;
   const originalHTML = btn.innerHTML;
   btn.innerHTML = '<span>Sending…</span>';
@@ -291,13 +316,13 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite, source: _source, campaignName: _campaignName })
+      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite, consent: true, source: _source, campaignName: _campaignName })
     });
     // 429: hourly enquiry budget is full; show the server's "try again later" text.
     if (res.status === 429) {
       let busy = '';
       try { busy = (await res.json()).error || ''; } catch (_) { /* fall back below */ }
-      errBox.textContent = busy || 'Something went wrong. Please try again, or contact us directly at the number above.';
+      errBox.textContent = busy || 'Something went wrong. Please try again, or call us on +91 99858 31114.';
       errBox.style.display = 'block';
       return;
     }
@@ -306,9 +331,10 @@ async function handleSubmit(e) {
     msgBox.style.display = 'block';
     setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
     ['fName','fMobile','fVillage','fCityDistrict','fState','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('fConsent').checked = false;
     document.querySelectorAll('.enquiry-tile').forEach(t => t.classList.remove('selected'));
   } catch (err) {
-    errBox.textContent = 'Something went wrong. Please try again, or contact us directly at the number above.';
+    errBox.textContent = 'Something went wrong. Please try again, or call us on +91 99858 31114.';
     errBox.style.display = 'block';
   } finally {
     btn.disabled = false;
