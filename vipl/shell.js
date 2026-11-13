@@ -99,30 +99,41 @@ function injectShellStyles() {
     #appShell { display: none; }
 
     /* ── Desktop sidebar ── */
-    #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; background: var(--navy); color: #fff; padding: 24px 16px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; }
-    #sidebar .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; padding: 0 8px; }
-    #sidebar .brand img { height: 30px; filter: brightness(10); }
-    #sidebar .brand span { font-family:'Plus Jakarta Sans',sans-serif; font-weight: 800; font-size: 15px; }
-    #roleBadge { font-size: 11px; font-weight: 700; background: rgba(249,115,22,.2); color: #F97316; padding: 4px 10px; border-radius: 6px; margin: 0 8px 20px; display: inline-block; }
-    .navGroup { margin-bottom: 22px; }
-    .navGroupLbl { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.4); padding: 0 8px; margin-bottom: 8px; }
-    .navLink { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-radius: 8px; color: rgba(255,255,255,.8); text-decoration: none; font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-    .navLink:hover { background: rgba(255,255,255,.06); color: #fff; }
-    .navLink.active { background: var(--blue); color: #fff; }
-    .navLink.soon { color: rgba(255,255,255,.3); cursor: default; }
-    .navLink .tag { margin-left: auto; font-size: 9px; background: rgba(255,255,255,.1); padding: 2px 6px; border-radius: 6px; text-transform: uppercase; }
-    #sidebarFooter { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1); }
-    #sidebarFooter .userEmail { font-size: 12px; color: rgba(255,255,255,.5); padding: 0 8px; margin-bottom: 4px; word-break: break-all; }
-    #sidebarFooter .userCustomerId { font-size: 11px; color: rgba(255,255,255,.35); padding: 0 8px; margin-bottom: 10px; }
-    #signOutBtn { width: 100%; background: rgba(255,255,255,.08); border: none; border-radius: 8px; padding: 10px; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; }
-    #shareAppBtn { width: 100%; background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 9px; color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 8px; }
-    #shareAppBtn:hover { background: rgba(255,255,255,.06); }
-    #visitWebsiteBtn {
-      display: block; text-align: center; width: 100%; box-sizing: border-box;
-      background: transparent; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 9px;
-      color: rgba(255,255,255,.85); font-size: 13px; font-weight: 700; text-decoration: none; margin-bottom: 8px;
+    #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; box-sizing: border-box; background: var(--navy); color: #fff; padding: 22px 14px 18px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
+    #sidebar .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 14px; padding: 0 8px; text-decoration: none; color: #fff; border-radius: 12px; }
+    #sidebar .brand .logoTile { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 6px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.2); line-height: 0; }
+    #sidebar .brand img { width: 150px; height: auto; display: block; }
+    #sidebar .brand .brandSub { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5); padding-left: 2px; }
+    #roleBadge { align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: rgba(249,115,22,.14); color: #FDBA74; border: 1px solid rgba(249,115,22,.28); padding: 4px 10px; border-radius: 999px; margin: 0 8px 18px; line-height: 1.3; }
+    .navGroup { margin-bottom: 16px; }
+    .navGroupLbl { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.36); padding: 0 10px; margin-bottom: 6px; }
+    .navLink { position: relative; display: flex; align-items: center; gap: 11px; padding: 8px 10px; border-radius: 8px; color: rgba(255,255,255,.72); text-decoration: none; font-size: 13.5px; font-weight: 600; line-height: 1.3; margin-bottom: 1px; transition: background .15s, color .15s; }
+    .navLink .navIcon { width: 18px; height: 18px; flex-shrink: 0; opacity: .85; }
+    .navLink:hover { background: rgba(255,255,255,.07); color: #fff; }
+    .navLink:hover .navIcon { opacity: 1; }
+    .navLink.active { background: rgba(66,165,245,.18); color: #fff; }
+    .navLink.active .navIcon { opacity: 1; color: #90CAF9; }
+    .navLink.active::before { content: ''; position: absolute; left: -14px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0; background: #42A5F5; }
+    .navLink.soon { color: rgba(255,255,255,.32); cursor: default; }
+    .navLink.soon:hover { background: none; color: rgba(255,255,255,.32); }
+    .navLink .tag { margin-left: auto; font-size: 9px; font-weight: 800; letter-spacing: .06em; background: rgba(255,255,255,.08); color: rgba(255,255,255,.5); padding: 2px 6px; border-radius: 999px; text-transform: uppercase; }
+    #sidebar a:focus-visible, #sidebar button:focus-visible { outline: 2px solid #90CAF9; outline-offset: 2px; }
+    #sidebarFooter { margin-top: auto; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.09); }
+    .userBlock { display: flex; align-items: center; gap: 10px; padding: 10px; margin-bottom: 10px; background: rgba(255,255,255,.05); border-radius: 10px; }
+    .userAvatar { width: 30px; height: 30px; border-radius: 50%; background: rgba(66,165,245,.22); color: #BBDEFB; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .userMeta { min-width: 0; }
+    #sidebarFooter .userEmail { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.82); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #sidebarFooter .userCustomerId { font-size: 11px; color: rgba(255,255,255,.45); margin-top: 1px; font-variant-numeric: tabular-nums; }
+    .sideBtn {
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box;
+      background: transparent; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 8px 10px;
+      color: rgba(255,255,255,.82); font: inherit; font-size: 12.5px; font-weight: 700; text-decoration: none; cursor: pointer;
+      margin-bottom: 6px; transition: background .15s, border-color .15s, color .15s;
     }
-    #visitWebsiteBtn:hover { background: rgba(255,255,255,.06); }
+    .sideBtn svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .sideBtn:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.24); color: #fff; }
+    #signOutBtn { margin-bottom: 0; color: #FCA5A5; border-color: rgba(252,165,165,.22); }
+    #signOutBtn:hover { background: rgba(239,68,68,.12); border-color: rgba(252,165,165,.4); color: #FECACA; }
     #mainArea { margin-left: 230px; padding: 32px 40px; max-width: 1100px; }
     #mainArea h1.pageTitle { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; margin-bottom: 20px; }
     .pendingBox { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 40px; text-align: center; max-width: 480px; margin: 40px auto; }
@@ -153,8 +164,10 @@ function injectShellStyles() {
         font-size: 10.5px; font-weight: 600; border: none; background: none; cursor: pointer;
         -webkit-tap-highlight-color: transparent;
       }
-      .bnItem .bnIcon { font-size: 19px; line-height: 1; }
+      .bnItem .bnIcon { font-size: 19px; line-height: 1; display: flex; }
+      .bnItem .bnIcon svg { width: 20px; height: 20px; }
       .bnItem.active { color: var(--blue); font-weight: 800; }
+      .bnItem:focus-visible, .sheetLink:focus-visible, #moreSheet button:focus-visible, #moreSheet a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
       #moreSheetBackdrop.open {
         display: block; position: fixed; inset: 0; background: rgba(11,29,46,.42); z-index: 40;
@@ -172,6 +185,9 @@ function injectShellStyles() {
         color: var(--ink); text-decoration: none; font-size: 14.5px; font-weight: 600;
       }
       .sheetLink:active { background: var(--off); }
+      .sheetLink .navIcon { width: 18px; height: 18px; flex-shrink: 0; color: var(--g3); }
+      .sheetLink.active { color: var(--blue); background: var(--off); }
+      .sheetLink.active .navIcon { color: var(--blue); }
       .sheetLink.soon { color: var(--g3); opacity: .55; }
       .sheetLink .tag { margin-left: auto; font-size: 9px; background: var(--off); padding: 2px 7px; border-radius: 6px; text-transform: uppercase; color: var(--g3); }
       .sheetDivider { height: 1px; background: var(--border); margin: 10px 6px; }
@@ -285,37 +301,115 @@ function splitIconLabel(label) {
   return { icon: parts[0], text: parts.slice(1).join(' ') };
 }
 
+// ── ICONS ───────────────────────────────────────────
+// One line-icon style: 24-unit grid, 1.8 stroke, round caps, currentColor.
+// Looked up by href (or by label for "Soon" items), so NAV_CONFIG stays as is.
+const ICON_PATHS = {
+  home:      '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h5v-6h4v6h5V9.5"/>',
+  monitor:   '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/><path d="m7 11 2.5-2.5 2.5 2.5L16 7"/>',
+  list:      '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>',
+  book:      '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/><path d="M8 7.5h8M8 11h6"/>',
+  barChart:  '<path d="M4 20h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/>',
+  card:      '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  fileText:  '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  calculator:'<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8"/><path d="M8.5 12h.01M12 12h.01M15.5 12h.01M8.5 16h.01M12 16h.01M15.5 16h.01"/>',
+  file:      '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+  receipt:   '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+  store:     '<path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"/><path d="M5.5 12v8h13v-8M10 20v-5h4v5"/>',
+  trending:  '<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  bank:      '<path d="M3 9.5 12 4l9 5.5"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8"/><path d="M3 20.5h18"/>',
+  users:     '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 4.8a3.2 3.2 0 0 1 0 6.4M17.5 14.7c2.1.6 3.5 2.6 3.5 5.3"/>',
+  truck:     '<path d="M3 6h11v10H3z"/><path d="M14 9.5h4l3 3.5v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+  key:       '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M16 7l3 3M14 9l2 2"/>',
+  user:      '<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/>',
+  map:       '<path d="m3 6.5 6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  grid:      '<rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/>',
+  pie:       '<path d="M12 3v9h9"/><path d="M20.5 15.5A9 9 0 1 1 8.5 3.7"/>',
+  inbox:     '<path d="M3 13.5 5.5 5h13l2.5 8.5V19a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13.5h5l1.5 2.5h5l1.5-2.5h5"/>',
+  workflow:  '<rect x="3" y="3.5" width="7" height="6" rx="1.5"/><rect x="14" y="14.5" width="7" height="6" rx="1.5"/><path d="M6.5 9.5v3a2 2 0 0 0 2 2H14"/>',
+  tractor:   '<circle cx="7" cy="16" r="4"/><circle cx="18" cy="17.5" r="2.5"/><path d="M4.5 12.5V6h6l2 6.5h5.5l1 3"/><path d="M15 12.5V8"/>',
+  shield:    '<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6z"/><path d="m9 12 2 2 4-4"/>',
+  tag:       '<path d="M3 12.2V4a1 1 0 0 1 1-1h8.2l8.4 8.4a1.4 1.4 0 0 1 0 2l-7.2 7.2a1.4 1.4 0 0 1-2 0z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  idCard:    '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16c.6-1.6 1.8-2.4 3.2-2.4s2.6.8 3.2 2.4M15 10h3M15 13.5h3"/>',
+  globe:     '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z"/>',
+  share:     '<circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.2 10.8 7.6-4.1M8.2 13.2l7.6 4.1"/>',
+  logout:    '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5M5 12h11"/>',
+  more:      '<circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/>',
+  wallet:    '<path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3"/><rect x="4" y="8" width="17" height="11" rx="2"/><path d="M16.5 13.5h.01"/>',
+  cash:      '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6.5 9.5v.01M17.5 14.5v.01"/>',
+};
+const ICON_BY_HREF = {
+  'index.html': 'home', 'command-center.html': 'monitor', 'audit-feed.html': 'list',
+  'ledger.html': 'book', 'dashboard.html': 'barChart', 'loan-portal.html': 'card',
+  'statements.html': 'fileText', 'gst-audit.html': 'calculator', 'invoices.html': 'file',
+  'receipts.html': 'receipt', 'investor-portal.html': 'trending', 'director-share.html': 'bank',
+  'warehouse-management.html': 'truck', 'roles.html': 'key', 'employees.html': 'user',
+  'fbc-states.html': 'map', 'fbc-dashboard.html': 'grid', 'fbc-crm-dashboard.html': 'pie',
+  'leads-crm.html': 'inbox', 'subscribers-crm.html': 'workflow', 'fbc-employees.html': 'tractor',
+  'fbc-admin-team.html': 'shield', 'party-tagging.html': 'tag', 'people-overview.html': 'idCard',
+};
+const ICON_BY_SOON_LABEL = { 'Stores': 'store', 'Subscribers': 'users' };
+
+function svgIcon(name, cls) {
+  const p = ICON_PATHS[name] || ICON_PATHS.file;
+  return `<svg class="${cls || 'navIcon'}" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${p}</svg>`;
+}
+function navItemParts(item) {
+  const { text } = splitIconLabel(item.label);
+  const name = item.href ? ICON_BY_HREF[item.href] : ICON_BY_SOON_LABEL[text];
+  return { text, iconName: name || 'file' };
+}
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+// Shared with pages (e.g. Overview cards) so icons stay consistent.
+window.VIPL_ICONS = { svg: svgIcon, byHref: ICON_BY_HREF };
+
 function renderSidebar() {
   const role = window.VIPL.profile ? window.VIPL.profile.role : 'viewer';
   const email = window.VIPL.user ? window.VIPL.user.email : '';
   const customerId = window.VIPL.profile ? window.VIPL.profile.customer_id || '' : '';
+  const displayName = (window.VIPL.profile && window.VIPL.profile.full_name) || email || '';
+  const initials = displayName.trim().split(/[\s@._-]+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '·';
 
-  // ── Desktop sidebar (unchanged structure) ──
+  // ── Desktop sidebar ──
   let html = `
-    <div class="brand"><img src="../logo.jpg" alt=""><span>VIPL Internal</span></div>
-    <div id="roleBadge">${ROLE_LABELS[role] || role}</div>
+    <a class="brand" href="index.html" aria-label="VIPL Internal — Overview">
+      <span class="logoTile"><img src="../logo-footer.png" alt="Vaaralabbayi India Private Limited" width="150" height="82"></span>
+      <span class="brandSub">VIPL Internal</span>
+    </a>
+    <div id="roleBadge">${escHtml(ROLE_LABELS[role] || role)}</div>
+    <div class="navMain" role="navigation" aria-label="Main">
   `;
+  // (a div, not <nav>: ../style.css styles every <nav> as the public site's fixed top bar)
   NAV_CONFIG.forEach(group => {
     const visibleItems = group.items.filter(item => item.roles === 'all' || item.roles.includes(role));
     if (!visibleItems.length) return;
     html += `<div class="navGroup"><div class="navGroupLbl">${group.group}</div>`;
     visibleItems.forEach(item => {
+      const { text, iconName } = navItemParts(item);
       if (item.soon || !item.href) {
-        html += `<a class="navLink soon">${item.label} <span class="tag">Soon</span></a>`;
+        html += `<a class="navLink soon" aria-disabled="true">${svgIcon(iconName)}<span>${text}</span><span class="tag">Soon</span></a>`;
       } else {
-        const activeClass = currentPage === item.href ? ' active' : '';
-        html += `<a class="navLink${activeClass}" href="${item.href}">${item.label}</a>`;
+        const isActive = currentPage === item.href;
+        html += `<a class="navLink${isActive ? ' active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}>${svgIcon(iconName)}<span>${text}</span></a>`;
       }
     });
     html += `</div>`;
   });
   html += `
+    </div>
     <div id="sidebarFooter">
-      <div class="userEmail">${email}</div>
-      <div class="userCustomerId">${customerId}</div>
-      <a id="visitWebsiteBtn" href="../index.html">🌐 Visit Website</a>
-      <button id="shareAppBtn" onclick="shareApp('shareAppBtn')">🔗 Share App</button>
-      <button id="signOutBtn">Sign Out</button>
+      <div class="userBlock">
+        <div class="userAvatar" aria-hidden="true">${escHtml(initials)}</div>
+        <div class="userMeta">
+          <div class="userEmail" title="${escHtml(email)}">${escHtml(email)}</div>
+          <div class="userCustomerId">${escHtml(customerId)}</div>
+        </div>
+      </div>
+      <a id="visitWebsiteBtn" class="sideBtn" href="../index.html">${svgIcon('globe', '')}<span>Visit Website</span></a>
+      <button id="shareAppBtn" class="sideBtn" type="button" onclick="shareApp('shareAppBtn')">${svgIcon('share', '')}<span>Share App</span></button>
+      <button id="signOutBtn" class="sideBtn" type="button">${svgIcon('logout', '')}<span>Sign Out</span></button>
     </div>
   `;
   document.getElementById('sidebar').innerHTML = html;
@@ -355,32 +449,35 @@ function renderBottomNav(role, email, customerId) {
   const overflowItems = flatAll.filter(i => !(i.href && primaryHrefs.has(i.href)));
 
   // Bottom bar tabs
+  bottomNav.setAttribute('aria-label', 'Main');
   bottomNav.innerHTML = primaryTabs.map(item => {
-    const { icon, text } = splitIconLabel(item.label);
-    const activeClass = currentPage === item.href ? ' active' : '';
-    return `<a class="bnItem${activeClass}" href="${item.href}"><span class="bnIcon">${icon}</span>${text}</a>`;
-  }).join('') + `<button class="bnItem" onclick="openMoreSheet()"><span class="bnIcon">⋯</span>More</button>`;
+    const { text, iconName } = navItemParts(item);
+    const isActive = currentPage === item.href;
+    return `<a class="bnItem${isActive ? ' active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}><span class="bnIcon">${svgIcon(iconName, '')}</span>${text}</a>`;
+  }).join('') + `<button class="bnItem" type="button" onclick="openMoreSheet()"><span class="bnIcon">${svgIcon('more', '')}</span>More</button>`;
 
   // "More" sheet: overflow nav items (incl. soon) + account + sign out
   let sheetHtml = `<div class="sheetHandle"></div>`;
   if (overflowItems.length) {
     sheetHtml += `<div class="sheetGroupLbl">More</div>`;
     overflowItems.forEach(item => {
+      const { text, iconName } = navItemParts(item);
       if (item.soon || !item.href) {
-        sheetHtml += `<div class="sheetLink soon">${item.label} <span class="tag">Soon</span></div>`;
+        sheetHtml += `<div class="sheetLink soon">${svgIcon(iconName)}<span>${text}</span><span class="tag">Soon</span></div>`;
       } else {
-        sheetHtml += `<a class="sheetLink" href="${item.href}">${item.label}</a>`;
+        const isActive = currentPage === item.href;
+        sheetHtml += `<a class="sheetLink${isActive ? ' active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}>${svgIcon(iconName)}<span>${text}</span></a>`;
       }
     });
     sheetHtml += `<div class="sheetDivider"></div>`;
   }
   sheetHtml += `
     <div class="sheetAccount">
-      <div class="sheetEmail">${email}</div>
-      <div class="sheetCustomerId">${customerId}</div>
-      <a class="sheetVisitWeb" href="../index.html">🌐 Visit Website</a>
-      <button class="sheetShare" id="sheetShareBtn" onclick="shareApp('sheetShareBtn')">🔗 Share App</button>
-      <button class="sheetSignOut" id="sheetSignOutBtn">Sign Out</button>
+      <div class="sheetEmail">${escHtml(email)}</div>
+      <div class="sheetCustomerId">${escHtml(customerId)}</div>
+      <a class="sheetVisitWeb" href="../index.html">Visit Website</a>
+      <button class="sheetShare" id="sheetShareBtn" type="button" onclick="shareApp('sheetShareBtn')">Share App</button>
+      <button class="sheetSignOut" id="sheetSignOutBtn" type="button">Sign Out</button>
     </div>
   `;
   sheet.innerHTML = sheetHtml;
@@ -410,9 +507,11 @@ async function shareApp(btnId) {
       await navigator.clipboard.writeText(url);
       const btn = document.getElementById(btnId);
       if (btn) {
-        const original = btn.textContent;
-        btn.textContent = 'Link copied!';
-        setTimeout(() => { btn.textContent = original; }, 1800);
+        // Swap only the text span (if any) so the button's icon survives.
+        const target = btn.querySelector('span') || btn;
+        const original = target.textContent;
+        target.textContent = 'Link copied!';
+        setTimeout(() => { target.textContent = original; }, 1800);
       }
     } catch (e) { /* clipboard unavailable — silently ignore */ }
   }
