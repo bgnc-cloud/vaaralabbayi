@@ -7,14 +7,14 @@ looks the same as it does without images, so you can add photos one at a time.
 ## Rules
 
 - Format: **JPG only** (`.jpg`, lowercase extension).
-- Size: **150 KB maximum** per file. Export at about 75–80% JPEG quality.
-- Use the exact pixel size below. The aspect ratio matters: images are cropped
+- Size: **under 150 KB** per file. Export at about 75–80% JPEG quality.
+- Shape: **16:9** (landscape). Use the exact pixel size below. Images are cropped
   to fill the slot (`object-fit: cover`), so off-ratio photos lose their edges.
 - File names are case-sensitive on the live server: use them exactly as written.
-- Use photos you own or are licensed to use. No logos or brand names of other companies.
-- Keep the main subject near the centre (edges may be cropped on some screens).
+- A logo may be in the photo. Use photos you own or are licensed to use.
+- Keep the main subject (and any logo) near the centre; edges may be cropped on some screens.
 
-## What we offer: 5 cards, 800 × 600 px (4:3)
+## What we offer: 5 cards, 800 × 450 px (16:9)
 
 | File | Card |
 |---|---|
@@ -24,7 +24,7 @@ looks the same as it does without images, so you can add photos one at a time.
 | `offer-electronics.jpg` | Electronics |
 | `offer-clothing.jpg` | Clothing & Footwear |
 
-## How it works: 4 steps, 600 × 450 px (4:3)
+## How it works: 4 steps, 640 × 360 px (16:9)
 
 | File | Step |
 |---|---|
