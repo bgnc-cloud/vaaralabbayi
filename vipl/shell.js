@@ -100,9 +100,9 @@ function injectShellStyles() {
 
     /* ── Desktop sidebar ── */
     #sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 230px; box-sizing: border-box; background: var(--navy); color: #fff; padding: 22px 14px 18px; overflow-y: auto; display: flex; flex-direction: column; z-index: 10; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.18) transparent; }
-    #sidebar .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin: 0 0 14px; padding: 0 8px; text-decoration: none; color: #fff; border-radius: 12px; }
-    #sidebar .brand .logoTile { background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 6px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.2); line-height: 0; }
-    #sidebar .brand img { width: 150px; height: auto; display: block; }
+    #sidebar .brand { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 0 8px; text-decoration: none; color: #fff; border-radius: 12px; }
+    #sidebar .brand .logoTile { box-sizing: border-box; width: 150px; background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 6px 16px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.2); line-height: 0; }
+    #sidebar .brand img { width: 100%; height: auto; display: block; }
     #sidebar .brand .brandSub { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5); padding-left: 2px; }
     #roleBadge { align-self: flex-start; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: rgba(249,115,22,.14); color: #FDBA74; border: 1px solid rgba(249,115,22,.28); padding: 4px 10px; border-radius: 999px; margin: 0 8px 18px; line-height: 1.3; }
     .navGroup { margin-bottom: 16px; }
@@ -375,7 +375,7 @@ function renderSidebar() {
   // ── Desktop sidebar ──
   let html = `
     <a class="brand" href="index.html" aria-label="VIPL Internal — Overview">
-      <span class="logoTile"><img src="../logo-footer.png" alt="Vaaralabbayi India Private Limited" width="150" height="82"></span>
+      <span class="logoTile"><img src="../logo-footer.png" alt="Vaaralabbayi India Private Limited" width="130" height="71"></span>
       <span class="brandSub">VIPL Internal</span>
     </a>
     <div id="roleBadge">${escHtml(ROLE_LABELS[role] || role)}</div>
