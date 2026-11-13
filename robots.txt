@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /vipl/
+Disallow: /api/
+
+Sitemap: https://vaaralabbayi.com/sitemap.xml

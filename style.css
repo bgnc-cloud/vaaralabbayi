@@ -4,7 +4,6 @@
    Update this file to change colours/fonts site-wide
 ═══════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&display=swap');
 
 /* ── COLOUR VARIABLES ── */
 :root {
@@ -382,4 +381,11 @@ body.te .eng { display: none; }
   .plans-grid, .levels-grid, .market-grid, .contact-grid, .footer-grid,
   .values-grid, .legal-grid, .portals-grid, .calc-grid { grid-template-columns: 1fr; }
   .section { padding: 56px 4%; }
+}
+
+/* ── KEYBOARD FOCUS ── visible outline only for keyboard users */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible,
+[role="radio"]:focus-visible,
+.form-input:focus-visible, .form-select:focus-visible, .form-textarea:focus-visible, .calc-select:focus-visible {
+  outline: 3px solid #F97316; outline-offset: 2px;
 }

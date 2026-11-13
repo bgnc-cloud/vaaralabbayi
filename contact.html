@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Contact — Cloud Super Market</title>
 <meta name="description" content="Contact Cloud Super Market — Vaaralabbayi India Private Limited. Subscribe, open a store, join the FBC team or enquire about investment.">
+<link rel="canonical" href="https://vaaralabbayi.com/contact.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cloud Super Market">
+<meta property="og:title" content="Contact — Cloud Super Market">
+<meta property="og:description" content="Contact Cloud Super Market — Vaaralabbayi India Private Limited. Subscribe, open a store, join the FBC team or enquire about investment.">
+<meta property="og:url" content="https://vaaralabbayi.com/contact.html">
+<meta property="og:image" content="https://vaaralabbayi.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="logo.jpg">
+<link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
 
@@ -25,7 +38,7 @@
       <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
     </div>
     <a class="nav-investor" href="vipl/index.html">Portal Login →</a>
-    <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+    <button class="nav-hamburger" onclick="toggleMenu(this)" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu">☰</button>
   </div>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
@@ -61,61 +74,61 @@
       <h3 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:700;margin-bottom:22px" class="tel" style="display:none">మాకు సందేశం పంపండి</h3>
 
       <div class="form-group">
-        <label class="form-label eng">Full Name *</label>
-        <label class="form-label tel" style="display:none">పూర్తి పేరు *</label>
+        <label class="form-label eng" for="fName">Full Name *</label>
+        <label class="form-label tel" for="fName" style="display:none">పూర్తి పేరు *</label>
         <input class="form-input" type="text" id="fName" placeholder="Your full name" maxlength="120" required>
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">Mobile Number *</label>
-        <label class="form-label tel" style="display:none">మొబైల్ నంబర్ *</label>
+        <label class="form-label eng" for="fMobile">Mobile Number *</label>
+        <label class="form-label tel" for="fMobile" style="display:none">మొబైల్ నంబర్ *</label>
         <input class="form-input" type="tel" id="fMobile" placeholder="+91 XXXXX XXXXX" maxlength="20" required>
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">Village</label>
-        <label class="form-label tel" style="display:none">గ్రామం</label>
+        <label class="form-label eng" for="fVillage">Village</label>
+        <label class="form-label tel" for="fVillage" style="display:none">గ్రామం</label>
         <input class="form-input" type="text" id="fVillage" placeholder="Village name" maxlength="120">
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">City / District</label>
-        <label class="form-label tel" style="display:none">నగరం / జిల్లా</label>
+        <label class="form-label eng" for="fCityDistrict">City / District</label>
+        <label class="form-label tel" for="fCityDistrict" style="display:none">నగరం / జిల్లా</label>
         <input class="form-input" type="text" id="fCityDistrict" placeholder="City or District" maxlength="120">
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">State</label>
-        <label class="form-label tel" style="display:none">రాష్ట్రం</label>
+        <label class="form-label eng" for="fState">State</label>
+        <label class="form-label tel" for="fState" style="display:none">రాష్ట్రం</label>
         <input class="form-input" type="text" id="fState" placeholder="State" maxlength="60">
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">I am enquiring about... *</label>
-        <label class="form-label tel" style="display:none">నేను ఏ విషయంలో విచారిస్తున్నాను...</label>
+        <div class="form-label eng" id="enqLblEn">I am enquiring about... *</div>
+        <div class="form-label tel" id="enqLblTe" style="display:none">నేను ఏ విషయంలో విచారిస్తున్నాను... *</div>
 
-        <div class="enquiry-tiles" id="enquiryTiles">
-          <div class="enquiry-tile" data-value="subscribe" onclick="selectEnquiry('subscribe')">
+        <div class="enquiry-tiles" id="enquiryTiles" role="radiogroup" aria-labelledby="enqLblEn enqLblTe" aria-required="true">
+          <div class="enquiry-tile" data-value="subscribe" role="radio" aria-checked="false" tabindex="0" onclick="selectEnquiry('subscribe')">
             <span class="dot" style="background:#4A7A9E;"></span>
             <span class="eng">📦 Subscriber / Household</span>
             <span class="tel" style="display:none">📦 సభ్యత్వ విచారణ</span>
           </div>
-          <div class="enquiry-tile" data-value="store" onclick="selectEnquiry('store')">
+          <div class="enquiry-tile" data-value="store" role="radio" aria-checked="false" tabindex="0" onclick="selectEnquiry('store')">
             <span class="dot" style="background:#6B8E4E;"></span>
             <span class="eng">🏪 Digital Store Operator</span>
             <span class="tel" style="display:none">🏪 డిజిటల్ స్టోర్ దరఖాస్తు</span>
           </div>
-          <div class="enquiry-tile" data-value="fbc" onclick="selectEnquiry('fbc')">
+          <div class="enquiry-tile" data-value="fbc" role="radio" aria-checked="false" tabindex="0" onclick="selectEnquiry('fbc')">
             <span class="dot" style="background:#C98A2B;"></span>
             <span class="eng">🎯 FBC Team — RM/BDM/MM</span>
             <span class="tel" style="display:none">🎯 FBC టీమ్ చేరిక</span>
           </div>
-          <div class="enquiry-tile" data-value="investor" onclick="selectEnquiry('investor')">
+          <div class="enquiry-tile" data-value="investor" role="radio" aria-checked="false" tabindex="0" onclick="selectEnquiry('investor')">
             <span class="dot" style="background:#2B5F6B;"></span>
             <span class="eng">📊 Investment Enquiry</span>
             <span class="tel" style="display:none">📊 పెట్టుబడి విచారణ</span>
           </div>
-          <div class="enquiry-tile" data-value="general" onclick="selectEnquiry('general')">
+          <div class="enquiry-tile" data-value="general" role="radio" aria-checked="false" tabindex="0" onclick="selectEnquiry('general')">
             <span class="dot" style="background:#8A7A6A;"></span>
             <span class="eng">💬 General Question</span>
             <span class="tel" style="display:none">💬 సాధారణ ప్రశ్న</span>
@@ -149,8 +162,8 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label eng">Message</label>
-        <label class="form-label tel" style="display:none">సందేశం</label>
+        <label class="form-label eng" for="fMessage">Message</label>
+        <label class="form-label tel" for="fMessage" style="display:none">సందేశం</label>
         <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..." maxlength="2000"></textarea>
       </div>
 
@@ -265,9 +278,20 @@
 function selectEnquiry(value) {
   document.getElementById('fEnquiry').value = value;
   document.querySelectorAll('.enquiry-tile').forEach(t => {
-    t.classList.toggle('selected', t.dataset.value === value);
+    const on = t.dataset.value === value;
+    t.classList.toggle('selected', on);
+    t.setAttribute('aria-checked', on ? 'true' : 'false');
   });
 }
+
+// Keyboard: Enter/Space selects the focused tile; arrow keys move between tiles.
+document.querySelectorAll('.enquiry-tile').forEach((tile, i, all) => {
+  tile.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectEnquiry(tile.dataset.value); return; }
+    const step = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : 0;
+    if (step) { e.preventDefault(); all[(i + step + all.length) % all.length].focus(); }
+  });
+});
 
 // Campaign/source capture from the URL, e.g.
 // contact.html?campaign=Aug26_FO_Drive or ?utm_campaign=...
@@ -332,7 +356,7 @@ async function handleSubmit(e) {
     setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
     ['fName','fMobile','fVillage','fCityDistrict','fState','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('fConsent').checked = false;
-    document.querySelectorAll('.enquiry-tile').forEach(t => t.classList.remove('selected'));
+    document.querySelectorAll('.enquiry-tile').forEach(t => { t.classList.remove('selected'); t.setAttribute('aria-checked', 'false'); });
   } catch (err) {
     errBox.textContent = 'Something went wrong. Please try again, or call us on +91 99858 31114.';
     errBox.style.display = 'block';
