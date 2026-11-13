@@ -365,6 +365,41 @@ function escHtml(s) {
 // Shared with pages (e.g. Overview cards) so icons stay consistent.
 window.VIPL_ICONS = { svg: svgIcon, byHref: ICON_BY_HREF };
 
+// ── P&L FIGURES (single source of truth) ────────────
+// Used by the Overview, Investor Portal and Financial Dashboard so their
+// numbers cannot drift apart. Input: rows of the category_totals view.
+//   Revenue (net)          = Revenue.total_credit - Revenue.total_debit
+//   Expense per category   = max(total_debit - total_credit, 0), excluding
+//                            Revenue and the balance-sheet categories below
+//   Total expenses         = sum of those per-category values
+window.VIPL_PL = (function () {
+  const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
+  const num = v => Number(v || 0);
+  const isExpenseCategory = c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category);
+  const expenseNet = c => Math.max(num(c.total_debit) - num(c.total_credit), 0);
+  function revenueNet(cats) {
+    const r = (cats || []).find(c => c.category === 'Revenue');
+    return r ? num(r.total_credit) - num(r.total_debit) : 0;
+  }
+  // [{ category, net }] sorted by net descending; categories with net 0 kept last
+  function expenseRows(cats) {
+    return (cats || []).filter(isExpenseCategory)
+      .map(c => ({ category: c.category, net: expenseNet(c) }))
+      .sort((a, b) => b.net - a.net || a.category.localeCompare(b.category));
+  }
+  function totalExpenses(cats) {
+    return (cats || []).filter(isExpenseCategory).reduce((s, c) => s + expenseNet(c), 0);
+  }
+  // Balance-sheet movements, shown separately (never in expenses): money in / out / net
+  function nonPlRows(cats) {
+    return NON_PL_CATEGORIES.map(name => {
+      const c = (cats || []).find(x => x.category === name);
+      return { category: name, credit: c ? num(c.total_credit) : 0, debit: c ? num(c.total_debit) : 0, found: !!c };
+    });
+  }
+  return Object.freeze({ NON_PL_CATEGORIES, isExpenseCategory, expenseNet, revenueNet, expenseRows, totalExpenses, nonPlRows });
+})();
+
 function renderSidebar() {
   const role = window.VIPL.profile ? window.VIPL.profile.role : 'viewer';
   const email = window.VIPL.user ? window.VIPL.user.email : '';
@@ -450,8 +485,12 @@ function renderBottomNav(role, email, customerId) {
 
   // Bottom bar tabs
   bottomNav.setAttribute('aria-label', 'Main');
+  // Short labels for the bottom tab bar only (sidebar and More sheet keep full names).
+  const TAB_SHORT_LABELS = { 'investor-portal.html': 'Investors' };
   bottomNav.innerHTML = primaryTabs.map(item => {
-    const { text, iconName } = navItemParts(item);
+    const parts = navItemParts(item);
+    const iconName = parts.iconName;
+    const text = TAB_SHORT_LABELS[item.href] || parts.text;
     const isActive = currentPage === item.href;
     return `<a class="bnItem${isActive ? ' active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}><span class="bnIcon">${svgIcon(iconName, '')}</span>${text}</a>`;
   }).join('') + `<button class="bnItem" type="button" onclick="openMoreSheet()"><span class="bnIcon">${svgIcon('more', '')}</span>More</button>`;

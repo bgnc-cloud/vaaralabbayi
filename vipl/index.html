@@ -196,8 +196,7 @@
   // (SINGLE_ROW_ROLES there), so the full capital split is only for the roles that
   // already see the whole table today.
   const FULL_CAP_TABLE_ROLES = ['super_admin','accountant','auditor_team'];
-  // Exactly as investor-portal.html: balance-sheet categories are not expenses.
-  const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
+  // Balance-sheet categories and the expense rule live in VIPL_PL (shell.js).
 
   const PALETTE = ['#1565C0','#0E9488','#B7791F','#0891B2','#42A5F5','#F97316','#94A3B8'];
   const COMPANY_COLOR = '#5B4FCF';
@@ -297,15 +296,10 @@
     let body;
     if (err) body = `<div class="chartErr">${esc(err.message)}</div>`;
     else {
-      // Same filter and the same per-category value as investor-portal.html's
-      // "Total Expenses": net = max(total_debit - total_credit, 0), so the bars
-      // add up to exactly that total.
-      const expenseCats = (cats || []).filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category));
-      const netOf = c => Math.max(Number(c.total_debit) - Number(c.total_credit), 0);
-      const totalExpenses = expenseCats.reduce((s, c) => s + netOf(c), 0);
-      const sorted = expenseCats.map(c => ({ label: c.category, val: netOf(c) }))
-        .filter(x => x.val > 0)
-        .sort((a, b) => b.val - a.val);
+      // Shared P&L rule (VIPL_PL in shell.js), same as Investor Portal and
+      // Financial Dashboard: bars are net per category and add up to the total.
+      const totalExpenses = VIPL_PL.totalExpenses(cats);
+      const sorted = VIPL_PL.expenseRows(cats).filter(x => x.net > 0).map(x => ({ label: x.category, val: x.net }));
       const top = sorted.slice(0, 6);
       if (sorted.length > 6) top.push({ label: 'Other', val: sorted.slice(6).reduce((s, x) => s + x.val, 0), other: true });
       const max = Math.max(...top.map(x => x.val), 1);

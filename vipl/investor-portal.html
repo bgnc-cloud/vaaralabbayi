@@ -96,6 +96,30 @@
     th, td { padding: 9px 10px; }
   }
 
+  .expTotal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13.5px; font-weight: 700; }
+  .expTotal span:last-child { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  /* Phone: cap table rows become stacked cards (desktop table unchanged) */
+  @media (max-width: 600px) {
+    .capTable, .capTable tbody, .capTable tr, .capTable td { display: block; width: 100%; box-sizing: border-box; }
+    .capTable thead { display: none; }
+    .capTable tr { border: 1px solid var(--border); border-radius: 12px; padding: 4px 14px; margin-bottom: 10px; background: #fff; }
+    .capTable tbody tr:last-child td { border-bottom: 1px solid var(--border); }
+    .capTable tbody tr td:last-child { border-bottom: none; }
+    .capTable td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; text-align: right; background: transparent !important; box-shadow: none !important; }
+    .capTable td::before { content: attr(data-label); font-size: 10.5px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase; color: var(--g3); text-align: left; flex-shrink: 0; }
+    .capTable td.nameTd { justify-content: flex-start; text-align: left; padding: 12px 0 10px; }
+    .capTable td.nameTd::before { display: none; }
+    .capTable tr.companyRow { background: #EDECFC; box-shadow: inset 4px 0 0 #5B4FCF; border-color: #D9D6F7; }
+    .capTable tr.myRow { background: #E3F5F3; }
+    .capTable tr.msgRow td { display: block; text-align: center; }
+    .capTable tr.msgRow td::before { display: none; }
+    .capTable .pctCell { justify-content: flex-end; }
+    .capTable tbody tr:not(.companyRow):not(.myRow):hover { background: #fff; }
+    .capTable tbody tr.companyRow:hover { background: #EDECFC; }
+    .capTable tbody tr.myRow:hover { background: #E3F5F3; }
+  }
+
   .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
 
   .plRow { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -164,7 +188,7 @@
       <div class="card">
         <h2>Shareholder Cap Table</h2>
         <div class="sub">Ownership, capital invested, and each shareholder's proportional share of the company's net profit/loss to date.</div>
-        <div style="overflow-x:auto"><table>
+        <div style="overflow-x:auto"><table class="capTable">
           <thead><tr><th>Shareholder</th><th>Invested</th><th>Ownership %</th><th>Share of P&amp;L</th><th>Notes</th></tr></thead>
           <tbody id="shareholderBody"></tbody>
         </table></div>
@@ -181,7 +205,7 @@
         <h2>Expense Breakdown</h2>
         <div class="sub">All-time expenses by category (excludes loan movement and investment inflows, which are balance-sheet items, not P&amp;L).</div>
         <div id="expenseBars"></div>
-        <div class="note">Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div>
+        <div class="note">Net of refunds and credits. Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div>
       </div>
     `;
     loadAll();
@@ -203,12 +227,10 @@
     const totalCashInvested = Number(totalsRow.total_cash_invested || 0);
     const companyShareAmount = Number(totalsRow.company_share_amount || 0);
 
-    const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
-    const revenueCat = cats.find(c => c.category === 'Revenue');
-    const totalRevenue = revenueCat ? Number(revenueCat.total_credit) - Number(revenueCat.total_debit) : 0;
-
-    const expenseCats = cats.filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category));
-    const totalExpenses = expenseCats.reduce((s, c) => s + Math.max(Number(c.total_debit) - Number(c.total_credit), 0), 0);
+    // Shared P&L rule (VIPL_PL in shell.js) — same figures as the Overview and
+    // Financial Dashboard. Same formulas this page always used.
+    const totalRevenue = VIPL_PL.revenueNet(cats);
+    const totalExpenses = VIPL_PL.totalExpenses(cats);
 
     const netPL = totalRevenue - totalExpenses;
     const loanOutstanding = loans.length ? Number(loans[loans.length - 1].running_balance) : 0;
@@ -237,28 +259,28 @@
     }
 
     document.getElementById('shareholderBody').innerHTML = myRowMissing
-      ? `<tr><td colspan="5" style="color:var(--g3);text-align:center;padding:20px">Your investment record hasn't been linked to your login yet. Contact VIPL to get this connected.</td></tr>`
+      ? `<tr class="msgRow"><td colspan="5" style="color:var(--g3);text-align:center;padding:20px">Your investment record hasn't been linked to your login yet. Contact VIPL to get this connected.</td></tr>`
       : mergeCompanyRows(visibleInvestors).map(i => {
       const pct = i.ownership_percentage ? Number(i.ownership_percentage) : 0;
       const shareOfPL = pct / 100 * netPL;
       if (i.merged) {
         const notes = companyNotesHtml(i);
         return `<tr class="companyRow">
-        <td><div class="nameCell"><div class="avatar companyAvatar">CO</div><div><div class="companyName">Company Share (40%) <span class="companyBadge">Structural</span></div>${i.director_labels.length ? `<div class="companySub">${esc(i.director_labels.join(' & '))}</div>` : ''}</div></div></td>
-        <td class="balPos numCell">—</td>
-        <td>${pct ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${pct}%</div>` : '—'}</td>
-        <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
-        <td>${notes}</td>
+        <td class="nameTd" data-label="Shareholder"><div class="nameCell"><div class="avatar companyAvatar">CO</div><div><div class="companyName">Company Share (40%) <span class="companyBadge">Structural</span></div>${i.director_labels.length ? `<div class="companySub">${esc(i.director_labels.join(' & '))}</div>` : ''}</div></div></td>
+        <td class="balPos numCell" data-label="Invested">—</td>
+        <td data-label="Ownership %">${pct ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${pct}%</div>` : '—'}</td>
+        <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}" data-label="Share of P&amp;L">${fmt(shareOfPL)}</td>
+        <td data-label="Notes">${notes}</td>
       </tr>`;
       }
       const isCompany = i.investor_type === 'company_share';
       const isMe = isSingleInvestorView && myRowIds.has(i.id);
       return `<tr class="${isCompany ? 'companyRow' : ''} ${isMe ? 'myRow' : ''}">
-        <td><div class="nameCell"><div class="avatar ${isCompany ? 'companyAvatar' : ''}">${isCompany ? 'CO' : initials(i.investor_name)}</div>${i.investor_name}${isMe ? '<span class="youTag">YOU</span>' : ''}${isCompany ? '<span class="companyBadge">Structural</span>' : ''}</div></td>
-        <td class="balPos numCell">${isCompany ? '—' : fmt(i.total_invested)}</td>
-        <td>${i.ownership_percentage ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${i.ownership_percentage}%</div>` : '—'}</td>
-        <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(shareOfPL)}</td>
-        <td>${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>
+        <td class="nameTd" data-label="Shareholder"><div class="nameCell"><div class="avatar ${isCompany ? 'companyAvatar' : ''}">${isCompany ? 'CO' : initials(i.investor_name)}</div>${i.investor_name}${isMe ? '<span class="youTag">YOU</span>' : ''}${isCompany ? '<span class="companyBadge">Structural</span>' : ''}</div></td>
+        <td class="balPos numCell" data-label="Invested">${isCompany ? '—' : fmt(i.total_invested)}</td>
+        <td data-label="Ownership %">${i.ownership_percentage ? `<div class="pctCell"><div class="pctTrack"><div class="pctFill" style="width:${Math.min(pct*1.3,48)}px"></div></div>${i.ownership_percentage}%</div>` : '—'}</td>
+        <td class="numCell ${shareOfPL >= 0 ? 'balPos' : 'balNeg'}" data-label="Share of P&amp;L">${fmt(shareOfPL)}</td>
+        <td data-label="Notes">${i.notes || (isCompany ? 'Structural share, not cash' : '—')}</td>
       </tr>`;
     }).join('');
 
@@ -268,13 +290,14 @@
       <div class="plRow"><span>Net Profit / Loss</span><span class="${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</span></div>
     `;
 
-    const sortedExpenses = expenseCats.slice().sort((a, b) => Number(b.total_debit) - Number(a.total_debit));
-    const maxVal = Math.max(...sortedExpenses.map(c => Number(c.total_debit)), 1);
-    document.getElementById('expenseBars').innerHTML = sortedExpenses.map(c => {
-      const val = Number(c.total_debit);
-      const pct = (val / maxVal * 100);
-      return `<div class="barRow"><div class="barLabel">${c.category}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(val)}</div></div>`;
-    }).join('');
+    // Net per category (max(debit - credit, 0)), sorted by net — the bars add up to Total Expenses.
+    const sortedExpenses = VIPL_PL.expenseRows(cats).filter(c => c.net > 0);
+    const maxVal = Math.max(...sortedExpenses.map(c => c.net), 1);
+    document.getElementById('expenseBars').innerHTML = (sortedExpenses.length ? sortedExpenses.map(c => {
+      const pct = (c.net / maxVal * 100);
+      return `<div class="barRow"><div class="barLabel">${esc(c.category)}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(c.net)}</div></div>`;
+    }).join('') : '<div style="color:var(--g3);font-size:13px;padding:8px 0">No expense entries yet.</div>')
+      + `<div class="expTotal"><span>Total expenses</span><span>${fmt(totalExpenses)}</span></div>`;
   }
 </script>
 </body>

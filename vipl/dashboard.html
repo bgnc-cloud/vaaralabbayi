@@ -63,6 +63,8 @@
   }
 
   .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
+  .expTotal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13.5px; font-weight: 700; }
+  .expTotal span:last-child { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .officialBadge {
     font-size: 9.5px; font-weight: 800; letter-spacing: .3px; color: #0E9488; background: #E3F5F3;
     padding: 2px 8px; border-radius: 5px; margin-left: 8px;
@@ -141,9 +143,17 @@
       <div class="summaryGrid" id="topSummary"></div>
       <div class="card">
         <h2>Category Breakdown</h2>
-        <div class="sub">All-time totals, auto-categorized from entry descriptions.</div>
+        <div class="sub">All-time P&amp;L expenses by category, auto-categorized from entry descriptions. Same figures as the Investor Portal.</div>
         <div id="categoryBars"></div>
-        <div class="note">Categories are inferred automatically from free-text descriptions and may not perfectly match a formal chart of accounts.</div>
+        <div class="note">Net of refunds and credits. Categories are inferred automatically from free-text descriptions and may not perfectly match a formal chart of accounts.</div>
+      </div>
+      <div class="card">
+        <h2>Balance-sheet movements (not P&amp;L)</h2>
+        <div class="sub">Loans, investments and director withdrawals move money in and out, but are not income or expenses, so they are kept out of the totals above.</div>
+        <div style="overflow-x:auto"><table>
+          <thead><tr><th>Category</th><th>Money in</th><th>Money out</th><th>Net</th></tr></thead>
+          <tbody id="bsBody"></tbody>
+        </table></div>
       </div>
       <div class="card">
         <h2>Loan Tracker</h2>
@@ -195,19 +205,29 @@
       .filter(i => i.investor_type !== 'company_share')
       .reduce((s,i) => s + Number(i.total_invested), 0);
     const loanOutstanding = loans.length ? Number(loans[loans.length-1].running_balance) : 0;
-    const revenue = cats.find(c => c.category === 'Revenue');
+    // Shared P&L rule (VIPL_PL in shell.js) — same figures as Overview and Investor Portal.
+    const revenueNet = VIPL_PL.revenueNet(cats);
     document.getElementById('topSummary').innerHTML = `
       <div class="summaryBox accent-capital"><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
       <div class="summaryBox accent-loan"><div class="val balNeg">${fmt(loanOutstanding)}</div><div class="lbl">Loan Outstanding</div></div>
-      <div class="summaryBox accent-revenue"><div class="val balPos">${fmt(revenue ? revenue.total_credit : 0)}</div><div class="lbl">Total Revenue</div></div>
+      <div class="summaryBox accent-revenue"><div class="val ${revenueNet >= 0 ? 'balPos' : 'balNeg'}">${fmt(revenueNet)}</div><div class="lbl">Total Revenue (net)</div></div>
     `;
 
-    const maxVal = Math.max(...cats.map(c => Math.max(Number(c.total_credit), Number(c.total_debit))));
-    document.getElementById('categoryBars').innerHTML = cats.map(c => {
-      const val = Math.max(Number(c.total_credit), Number(c.total_debit));
-      const pct = maxVal ? (val / maxVal * 100) : 0;
-      const color = c.net >= 0 ? 'var(--green)' : 'var(--blue)';
-      return `<div class="barRow"><div class="barLabel">${c.category}</div><div class="barTrack"><div class="barFill" style="width:${pct}%;background:${color}"></div></div><div class="barVal">${fmt(val)}</div></div>`;
+    // P&L expenses only: net per category, sorted descending; bars add up to the total.
+    const expenseRows = VIPL_PL.expenseRows(cats).filter(c => c.net > 0);
+    const totalExpenses = VIPL_PL.totalExpenses(cats);
+    const maxVal = Math.max(...expenseRows.map(c => c.net), 1);
+    document.getElementById('categoryBars').innerHTML = (expenseRows.length ? expenseRows.map(c => {
+      const pct = c.net / maxVal * 100;
+      return `<div class="barRow"><div class="barLabel">${esc(c.category)}</div><div class="barTrack"><div class="barFill" style="width:${pct}%;background:#C0392B"></div></div><div class="barVal">${fmt(c.net)}</div></div>`;
+    }).join('') : '<div style="color:var(--g3);font-size:13px;padding:8px 0">No expense entries yet.</div>')
+      + `<div class="expTotal"><span>Total expenses</span><span>${fmt(totalExpenses)}</span></div>`;
+
+    // Balance-sheet movements, kept apart from the expenses.
+    document.getElementById('bsBody').innerHTML = VIPL_PL.nonPlRows(cats).map(r => {
+      const net = r.credit - r.debit;
+      return `<tr><td><strong>${esc(r.category)}</strong></td><td>${fmt(r.credit)}</td><td>${fmt(r.debit)}</td>
+        <td class="${net >= 0 ? 'balPos' : 'balNeg'}">${fmt(net)}</td></tr>`;
     }).join('');
 
     document.getElementById('loanBody').innerHTML = loans.map(l => `
