@@ -166,7 +166,10 @@ nav.scrolled { box-shadow: 0 4px 20px rgba(13,35,64,.08); }
 .card:hover { border-color: var(--blue3); box-shadow: 0 8px 24px rgba(13,35,64,.08); }
 
 /* ── PRODUCT GRID ── */
-.prod-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 16px; margin-top: 44px; }
+.prod-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 44px; }
+/* 6 cards: 3 x 2 on desktop/tablet, 2 x 3 on phones, 1 column on very narrow screens (no lone card) */
+@media (max-width: 768px) { .prod-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 340px) { .prod-grid { grid-template-columns: 1fr; } }
 .prod-card { border: 1px solid var(--border); border-radius: 16px; padding: 26px 18px; text-align: center; transition: all .25s; background: #fff; }
 .prod-card:hover { border-color: var(--blue3); box-shadow: 0 8px 22px rgba(13,35,64,.08); }
 .prod-icon { font-size: 42px; margin-bottom: 12px; }
@@ -388,4 +391,18 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 [role="radio"]:focus-visible,
 .form-input:focus-visible, .form-select:focus-visible, .form-textarea:focus-visible, .calc-select:focus-visible {
   outline: 3px solid #F97316; outline-offset: 2px;
+}
+
+/* ── HOME IMAGE SLOTS (images/home/) ── removed by onerror if the file is missing */
+.prod-img { display: block; width: calc(100% + 36px); max-width: none; height: auto; aspect-ratio: 16 / 9; object-fit: cover; margin: -26px -18px 16px; border-radius: 15px 15px 0 0; background: #EEF3F9; }
+.step-img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 10px; margin-bottom: 14px; background: #EEF3F9; }
+/* With a photo: the step number becomes an orange badge on the photo's top-right corner.
+   (Without a photo the original faint number is used.) Card padding is 28px 22px. */
+.step-img ~ .step-num {
+  top: 36px; right: 30px; z-index: 1;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--orange); color: #fff; opacity: 1;
+  font-size: 15px; font-weight: 800; line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 3px 10px rgba(0,0,0,.28);
 }
