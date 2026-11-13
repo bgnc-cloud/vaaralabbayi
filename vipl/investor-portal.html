@@ -96,6 +96,10 @@
     th, td { padding: 9px 10px; }
   }
 
+  .expTotal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 13.5px; font-weight: 700; }
+  .expTotal span:last-child { font-family:'Plus Jakarta Sans',sans-serif; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+
   .note { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.5; }
 
   .plRow { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
@@ -181,7 +185,7 @@
         <h2>Expense Breakdown</h2>
         <div class="sub">All-time expenses by category (excludes loan movement and investment inflows, which are balance-sheet items, not P&amp;L).</div>
         <div id="expenseBars"></div>
-        <div class="note">Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div>
+        <div class="note">Net of refunds and credits. Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div>
       </div>
     `;
     loadAll();
@@ -203,12 +207,10 @@
     const totalCashInvested = Number(totalsRow.total_cash_invested || 0);
     const companyShareAmount = Number(totalsRow.company_share_amount || 0);
 
-    const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
-    const revenueCat = cats.find(c => c.category === 'Revenue');
-    const totalRevenue = revenueCat ? Number(revenueCat.total_credit) - Number(revenueCat.total_debit) : 0;
-
-    const expenseCats = cats.filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category));
-    const totalExpenses = expenseCats.reduce((s, c) => s + Math.max(Number(c.total_debit) - Number(c.total_credit), 0), 0);
+    // Shared P&L rule (VIPL_PL in shell.js) — same figures as the Overview and
+    // Financial Dashboard. Same formulas this page always used.
+    const totalRevenue = VIPL_PL.revenueNet(cats);
+    const totalExpenses = VIPL_PL.totalExpenses(cats);
 
     const netPL = totalRevenue - totalExpenses;
     const loanOutstanding = loans.length ? Number(loans[loans.length - 1].running_balance) : 0;
@@ -268,13 +270,14 @@
       <div class="plRow"><span>Net Profit / Loss</span><span class="${netPL >= 0 ? 'balPos' : 'balNeg'}">${fmt(netPL)}</span></div>
     `;
 
-    const sortedExpenses = expenseCats.slice().sort((a, b) => Number(b.total_debit) - Number(a.total_debit));
-    const maxVal = Math.max(...sortedExpenses.map(c => Number(c.total_debit)), 1);
-    document.getElementById('expenseBars').innerHTML = sortedExpenses.map(c => {
-      const val = Number(c.total_debit);
-      const pct = (val / maxVal * 100);
-      return `<div class="barRow"><div class="barLabel">${c.category}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(val)}</div></div>`;
-    }).join('');
+    // Net per category (max(debit - credit, 0)), sorted by net — the bars add up to Total Expenses.
+    const sortedExpenses = VIPL_PL.expenseRows(cats).filter(c => c.net > 0);
+    const maxVal = Math.max(...sortedExpenses.map(c => c.net), 1);
+    document.getElementById('expenseBars').innerHTML = (sortedExpenses.length ? sortedExpenses.map(c => {
+      const pct = (c.net / maxVal * 100);
+      return `<div class="barRow"><div class="barLabel">${esc(c.category)}</div><div class="barTrack"><div class="barFill" style="width:${pct}%"></div></div><div class="barVal">${fmt(c.net)}</div></div>`;
+    }).join('') : '<div style="color:var(--g3);font-size:13px;padding:8px 0">No expense entries yet.</div>')
+      + `<div class="expTotal"><span>Total expenses</span><span>${fmt(totalExpenses)}</span></div>`;
   }
 </script>
 </body>
