@@ -36,6 +36,13 @@ function applyLang(lang) {
   document.querySelectorAll('.tel').forEach(el => el.style.display = te ? 'block' : 'none');
   document.querySelectorAll('.eng').forEach(el => el.style.display = te ? 'none' : '');
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === (te ? 'te' : 'en')));
+  // Image alt text follows the language (data-alt-en / data-alt-te).
+  try {
+    document.querySelectorAll('img[data-alt-en]').forEach(img => {
+      const alt = te ? (img.dataset.altTe || img.dataset.altEn) : img.dataset.altEn;
+      if (alt) img.alt = alt;
+    });
+  } catch (_) { /* alt text stays as it was */ }
 }
 
 function setLang(lang, e) {

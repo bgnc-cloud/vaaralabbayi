@@ -389,3 +389,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .form-input:focus-visible, .form-select:focus-visible, .form-textarea:focus-visible, .calc-select:focus-visible {
   outline: 3px solid #F97316; outline-offset: 2px;
 }
+
+/* ── HOME IMAGE SLOTS (images/home/) ── removed by onerror if the file is missing */
+.prod-img { display: block; width: calc(100% + 36px); max-width: none; height: auto; aspect-ratio: 4 / 3; object-fit: cover; margin: -26px -18px 16px; border-radius: 15px 15px 0 0; background: #EEF3F9; }
+.step-img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; margin-bottom: 14px; background: #EEF3F9; }
+.step-img ~ .step-num { z-index: 1; }
