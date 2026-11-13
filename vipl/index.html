@@ -12,68 +12,124 @@
 <link rel="icon" href="../logo.jpg">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
-  #mainArea .lead { font-size: 14px; color: var(--g3); margin-bottom: 28px; margin-top: -12px; }
+  /* This page only: fill the row so the header/date stays aligned even when sections are short. */
+  #mainArea { flex: 1 1 auto; min-width: 0; box-sizing: border-box; }
 
-  /* ---- Summary stat cards ---- */
-  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; margin-bottom: 28px; }
+  /* ---- A. Header ---- */
+  .ovHead { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; margin-bottom: 26px; }
+  #mainArea .ovHead h1.pageTitle { margin-bottom: 4px; }
+  .ovWelcome { font-size: 14px; color: var(--g3); }
+  .ovWelcome strong { color: var(--ink); font-weight: 700; }
+  .ovDate { font-size: 12.5px; font-weight: 600; color: var(--g3); background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; white-space: nowrap; }
+
+  /* ---- Section headings ---- */
+  .ovSection { margin-bottom: 30px; }
+  .ovSecHd { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--g3); margin: 0 0 12px; }
+
+  /* ---- B. Key figures ---- */
+  .summaryGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 14px; }
   .summaryBox {
-    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 20px;
+    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
     position: relative; overflow: hidden;
   }
-  .summaryBox::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #CBD5E1;
-  }
+  .summaryBox::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #CBD5E1; }
   .summaryBox.accent-cash::before    { background: #94A3B8; }
-  .summaryBox.accent-bank::before    { background: #94A3B8; }
+  .summaryBox.accent-bank::before    { background: var(--blue); }
   .summaryBox.accent-capital::before { background: #0E9488; }
   .summaryBox.accent-loan::before    { background: #B7791F; }
-  .summaryBox .icon {
-    width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    font-size: 14px; margin-bottom: 12px; background: #F1F3F6; color: #475467;
-  }
+  .summaryBox .sbTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .summaryBox .lbl { font-size: 12.5px; font-weight: 600; color: var(--g3); }
+  .summaryBox .icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: #F1F3F6; color: #475467; }
+  .summaryBox .icon svg { width: 18px; height: 18px; }
+  .summaryBox.accent-bank .icon    { background: var(--blue4); color: var(--blue); }
   .summaryBox.accent-capital .icon { background: #E3F5F3; color: #0E9488; }
   .summaryBox.accent-loan .icon    { background: #FBF1DE; color: #B7791F; }
-  .summaryBox .val {
-    font-family:'Plus Jakarta Sans',sans-serif; font-size: 26px; font-weight: 800;
-    font-variant-numeric: tabular-nums; letter-spacing: -0.3px;
-  }
-  .summaryBox .lbl { font-size: 12.5px; color: var(--g3); margin-top: 4px; }
-  .welcomeBox {
-    background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 24px;
-    display: flex; align-items: center; gap: 14px;
-  }
-  .welcomeBox .wave { font-size: 28px; }
-  .welcomeBox .lbl { font-size: 14.5px; color: var(--ink); font-weight: 600; }
+  .summaryBox .val { font-family:'Plus Jakarta Sans',sans-serif; font-size: 25px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.3px; color: var(--ink); }
 
-  /* ---- Quick access cards ---- */
-  .quickGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; }
+  /* ---- C. Charts ---- */
+  .chartGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+  .chartCard { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; min-width: 0; }
+  .chartCard.wide { grid-column: 1 / -1; }
+  .chartCard h2 { font-family:'Plus Jakarta Sans',sans-serif; font-size: 15.5px; font-weight: 800; margin: 0 0 3px; color: var(--ink); }
+  .chartCard .sub { font-size: 12.5px; color: var(--g3); margin-bottom: 16px; line-height: 1.5; }
+  .chartNote { font-size: 12px; color: var(--g3); background: var(--off); border-radius: 8px; padding: 9px 12px; margin-top: 14px; line-height: 1.5; }
+  .chartErr { font-size: 13px; color: #C0392B; }
+  .chartEmpty { font-size: 13px; color: var(--g3); padding: 8px 0; }
+
+  .donutWrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .donutWrap svg { flex-shrink: 0; }
+  .donutCenterVal { font-family:'Plus Jakarta Sans',sans-serif; font-weight: 800; font-size: 13px; fill: var(--ink); }
+  .donutCenterLbl { font-size: 9.5px; font-weight: 700; fill: var(--g3); letter-spacing: .06em; text-transform: uppercase; }
+  .legend { flex: 1; min-width: 170px; max-width: 360px; display: flex; flex-direction: column; gap: 10px; }
+  .legRow { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .legDot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .legName { flex: 1; color: var(--g4); font-weight: 600; }
+  .legVal { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .legPct { width: 44px; text-align: right; font-size: 12px; color: var(--g3); font-variant-numeric: tabular-nums; }
+
+  .hbar { display: grid; grid-template-columns: minmax(110px, 34%) 1fr auto; align-items: center; gap: 12px; padding: 7px 0; }
+  .hbarLbl { font-size: 13px; font-weight: 600; color: var(--g4); line-height: 1.35; overflow-wrap: anywhere; }
+  .hbarLbl .hbarSub { display: block; font-size: 11px; font-weight: 600; color: var(--g3); }
+  .hbarTrack { height: 10px; background: #EEF1F5; border-radius: 6px; overflow: hidden; min-width: 40px; }
+  .hbarFill { height: 100%; border-radius: 6px; }
+  .hbarVal { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; min-width: 84px; }
+  .hbarVal small { display: block; font-size: 11px; font-weight: 600; color: var(--g3); }
+  .hbar.company .hbarLbl { color: #5B4FCF; font-weight: 800; }
+  .companyBadge { font-size: 9px; font-weight: 800; letter-spacing: .3px; color: #5B4FCF; background: #EDECFC; padding: 1px 6px; border-radius: 5px; margin-left: 4px; vertical-align: 1px; }
+
+  /* ---- D/E. People & geography tiles ---- */
+  .tileGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .tile { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .tile .tLbl { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--g3); }
+  .tile .tVal { font-family:'Plus Jakarta Sans',sans-serif; font-size: 24px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 6px; line-height: 1.1; }
+  .tile .tSub { font-size: 12px; color: var(--g3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .tile .tBar { height: 5px; background: #EEF1F5; border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .tile .tBar > div { height: 100%; background: var(--blue); border-radius: 3px; }
+  .tile.muted { background: #FAFBFC; border-style: dashed; }
+  .tile.muted .tVal { font-size: 14px; font-weight: 700; color: var(--g3); font-family: inherit; margin-top: 10px; }
+  .secNote { font-size: 12px; color: var(--g3); margin-top: 10px; line-height: 1.5; }
+  .secErr { font-size: 13px; color: #C0392B; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 12px 14px; }
+  .geoGrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; align-items: start; }
+  .geoGrid .tileGrid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .rankList { list-style: none; margin: 0; padding: 0; }
+  .rankList li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .rankList li:last-child { border-bottom: none; }
+  .rankNo { width: 24px; height: 24px; border-radius: 50%; background: var(--blue4); color: var(--blue); font-size: 11.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+  .rankName { font-size: 13.5px; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+  .rankName .hbarTrack { margin-top: 6px; height: 6px; }
+  .rankVal { text-align: right; font-size: 13px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .rankVal small { display: block; font-size: 11px; font-weight: 600; color: var(--g3); }
+  @media (max-width: 900px) { .geoGrid { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---- Modules ---- */
+  .quickGrid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; }
   .quickCard {
-    background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px;
-    text-decoration: none; color: var(--ink); transition: all .18s; display: flex; flex-direction: column; gap: 4px;
+    background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px;
+    text-decoration: none; color: var(--ink); transition: border-color .18s, box-shadow .18s, transform .18s; display: flex; flex-direction: column; gap: 4px;
   }
   .quickCard:hover { border-color: var(--blue); box-shadow: 0 8px 20px rgba(13,35,64,.08); transform: translateY(-1px); }
-  .quickCard .icon {
-    width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-    font-size: 19px; margin-bottom: 10px; background: #F1F3F6;
-  }
-  .quickCard .title { font-weight: 800; font-size: 15px; margin-bottom: 2px; }
-  .quickCard .desc { font-size: 13px; color: var(--g3); line-height: 1.5; }
-  .quickCard .goArrow {
-    margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--blue); display: flex; align-items: center; gap: 4px;
-    opacity: 0; transform: translateX(-4px); transition: all .18s;
-  }
-  .quickCard:hover .goArrow { opacity: 1; transform: translateX(0); }
+  .quickCard:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+  .quickCard .icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; background: #F1F3F6; color: var(--ink); }
+  .quickCard .icon svg { width: 19px; height: 19px; }
+  .quickCard .title { font-weight: 800; font-size: 14.5px; margin-bottom: 2px; }
+  .quickCard .desc { font-size: 12.5px; color: var(--g3); line-height: 1.5; }
+  .quickCard .goArrow { margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--blue); opacity: 0; transform: translateX(-4px); transition: all .18s; }
+  .quickCard:hover .goArrow, .quickCard:focus-visible .goArrow { opacity: 1; transform: translateX(0); }
   .quickCard.soonCard { opacity: .55; cursor: default; }
   .quickCard.soonCard:hover { border-color: var(--border); box-shadow: none; transform: none; }
-  .quickCard .soonTag {
-    display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase;
-    background: #F1F3F6; color: var(--g3); padding: 2px 7px; border-radius: 5px; margin-top: 8px; width: fit-content;
-  }
+  .quickCard .soonTag { display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .4px; text-transform: uppercase; background: #F1F3F6; color: var(--g3); padding: 2px 7px; border-radius: 999px; margin-top: 8px; width: fit-content; }
 
+  .skel { background: linear-gradient(90deg,#EEF1F5 25%,#F6F8FA 50%,#EEF1F5 75%); background-size: 200% 100%; animation: skel 1.2s infinite; border-radius: 8px; height: 14px; margin: 8px 0; }
+  @keyframes skel { to { background-position: -200% 0; } }
+
+  @media (max-width: 900px) { .chartGrid { grid-template-columns: minmax(0,1fr); } }
   @media (max-width: 600px) {
     .summaryGrid, .quickGrid { gap: 10px; }
-    .summaryBox, .quickCard { padding: 16px; }
+    .summaryBox, .quickCard, .chartCard { padding: 16px; }
     .summaryBox .val { font-size: 21px; }
+    .hbar { grid-template-columns: 1fr auto; gap: 4px 10px; }
+    .hbarTrack { grid-column: 1 / -1; order: 3; }
+    .ovDate { white-space: normal; }
   }
 </style>
 </head>
@@ -84,89 +140,382 @@
 <div id="appShell">
   <div id="sidebar"></div>
   <div id="mainArea">
-    <h1 class="pageTitle">Overview</h1>
-    <div class="lead">Welcome to VIPL Internal. Live snapshot of the business below.</div>
-    <div class="summaryGrid" id="topSummary"></div>
-    <div class="quickGrid" id="quickGrid"></div>
+    <!-- A. Header -->
+    <div class="ovHead">
+      <div>
+        <h1 class="pageTitle">Overview</h1>
+        <div class="ovWelcome" id="ovWelcome">Welcome to VIPL Internal.</div>
+      </div>
+      <div class="ovDate" id="ovDate"></div>
+    </div>
+
+    <!-- B. Key figures (finance roles) -->
+    <section class="ovSection" id="secFigures" hidden aria-labelledby="hdFigures">
+      <h2 class="ovSecHd" id="hdFigures">Key figures</h2>
+      <div class="summaryGrid" id="topSummary"></div>
+    </section>
+
+    <!-- C. Charts (finance roles) -->
+    <section class="ovSection" id="secCharts" hidden aria-labelledby="hdCharts">
+      <h2 class="ovSecHd" id="hdCharts">Charts</h2>
+      <div class="chartGrid" id="chartGrid"></div>
+    </section>
+
+    <!-- D. People and roles (FBC view roles) -->
+    <section class="ovSection" id="secPeople" hidden aria-labelledby="hdPeople" aria-busy="true">
+      <h2 class="ovSecHd" id="hdPeople">People and roles</h2>
+      <div id="peopleBody"></div>
+    </section>
+
+    <!-- E. Geography (FBC view roles) -->
+    <section class="ovSection" id="secGeo" hidden aria-labelledby="hdGeo" aria-busy="true">
+      <h2 class="ovSecHd" id="hdGeo">Geography</h2>
+      <div id="geoBody"></div>
+    </section>
+
+    <!-- Modules -->
+    <section class="ovSection" aria-labelledby="hdModules">
+      <h2 class="ovSecHd" id="hdModules">Modules</h2>
+      <div class="quickGrid" id="quickGrid"></div>
+    </section>
   </div>
 </div>
 
 <script src="shell.js"></script>
 <script>
   function fmt(n) { return '₹' + Number(n||0).toLocaleString('en-IN', {maximumFractionDigits:0}); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function icon(name) { return window.VIPL_ICONS ? VIPL_ICONS.svg(name, '') : ''; }
 
-  const CARD_META = {
-    'command-center.html':  { icon:'🖥️', bg:'#F0F7FF' },
-    'audit-feed.html':      { icon:'📋', bg:'#F0F7FF' },
-    'ledger.html':          { icon:'📒', bg:'#E3F5F3' },
-    'dashboard.html':       { icon:'📊', bg:'#EDECFC' },
-    'investor-portal.html': { icon:'📈', bg:'#E3F5F3' },
-    'loan-portal.html':     { icon:'💳', bg:'#FBF1DE' },
-    'statements.html':      { icon:'🧾', bg:'#F0F7FF' },
-    'gst-audit.html':       { icon:'🧮', bg:'#FBF1DE' },
-    'invoices.html':        { icon:'📄', bg:'#F0F7FF' },
-    'receipts.html':        { icon:'💰', bg:'#EAF3DE' },
-  };
+  // Same roles as before: each page's own ALLOWED_ROLES, kept in sync with shell.js NAV_CONFIG.
+  const FINANCE_ROLES = ['super_admin','accountant','investor','director_1','director_2','auditor_team'];
+  // investor-portal.html shows investor/director roles only their own cap-table row
+  // (SINGLE_ROW_ROLES there), so the full capital split is only for the roles that
+  // already see the whole table today.
+  const FULL_CAP_TABLE_ROLES = ['super_admin','accountant','auditor_team'];
+  // Exactly as investor-portal.html: balance-sheet categories are not expenses.
+  const NON_PL_CATEGORIES = ['Loan Movement', 'Investment', 'Director Withdrawal'];
+
+  const PALETTE = ['#1565C0','#0E9488','#B7791F','#0891B2','#42A5F5','#F97316','#94A3B8'];
+  const COMPANY_COLOR = '#5B4FCF';
+
+  // Copied from investor-portal.html: merge the per-director company_share rows into
+  // one "Company Share (40%)" row, placed last; no personal names carried over.
+  function mergeCompanyRows(rows) {
+    const company = rows.filter(r => r.investor_type === 'company_share');
+    if (!company.length) return rows;
+    const avail = company.map(r => r.available_to_withdraw).filter(v => v !== null && v !== undefined && v !== '');
+    const merged = {
+      id: 'company-share', investor_type: 'company_share', merged: true,
+      director_labels: [...new Set(company.map(r => r.director_label).filter(Boolean))].sort(),
+      ownership_percentage: Math.round(company.reduce((s, r) => s + Number(r.ownership_percentage || 0), 0) * 100) / 100,
+      available_to_withdraw: avail.length ? avail.reduce((s, v) => s + Number(v), 0) : null,
+      withdrawals_open: company.every(r => r.withdrawals_open === true),
+      is_fallback: company.every(r => r.withdrawals_open == null),
+    };
+    return rows.filter(r => r.investor_type !== 'company_share').concat(merged);
+  }
+
+  // ── Chart helpers (inline SVG / CSS only) ──
+  function donutSvg(segments, centerVal, centerLbl) {
+    const size = 132, r = 52, c = 2 * Math.PI * r, total = segments.reduce((s, x) => s + x.value, 0) || 1;
+    let offset = 0;
+    const arcs = segments.map(sg => {
+      const len = sg.value / total * c;
+      const el = `<circle cx="66" cy="66" r="${r}" fill="none" stroke="${sg.color}" stroke-width="16" stroke-dasharray="${len} ${c - len}" stroke-dashoffset="${-offset}" transform="rotate(-90 66 66)"><title>${esc(sg.label)}</title></circle>`;
+      offset += len;
+      return el;
+    }).join('');
+    return `<svg width="${size}" height="${size}" viewBox="0 0 132 132" role="img" aria-label="${esc(segments.map(s => s.label + ' ' + Math.round(s.value / total * 100) + '%').join(', '))}">
+      <circle cx="66" cy="66" r="${r}" fill="none" stroke="#EEF1F5" stroke-width="16"/>${arcs}
+      <text x="66" y="64" text-anchor="middle" class="donutCenterVal">${esc(centerVal)}</text>
+      <text x="66" y="79" text-anchor="middle" class="donutCenterLbl">${esc(centerLbl)}</text></svg>`;
+  }
+  function hbar(label, sub, val, valSub, pct, color, extraCls) {
+    return `<div class="hbar ${extraCls || ''}">
+      <div class="hbarLbl" title="${esc(label)}">${label}${sub ? `<span class="hbarSub">${sub}</span>` : ''}</div>
+      <div class="hbarTrack"><div class="hbarFill" style="width:${Math.max(0, Math.min(100, pct))}%;background:${color}"></div></div>
+      <div class="hbarVal">${val}${valSub ? `<small>${valSub}</small>` : ''}</div></div>`;
+  }
+  function compactINR(n) {
+    const a = Math.abs(n), s = n < 0 ? '−₹' : '₹';
+    if (a >= 1e7) return s + (a / 1e7).toFixed(a >= 1e8 ? 0 : 1) + ' Cr';
+    if (a >= 1e5) return s + (a / 1e5).toFixed(a >= 1e6 ? 0 : 1) + ' L';
+    return s + Math.round(a).toLocaleString('en-IN');
+  }
+
+  function cashBankChart(cash, bank) {
+    let body;
+    if (cash >= 0 && bank >= 0 && cash + bank > 0) {
+      const total = cash + bank;
+      const cashPct = Math.round(cash / total * 100), bankPct = 100 - cashPct; // always sums to 100
+      body = `<div class="donutWrap">${donutSvg([{ label: 'Cash', value: cash, color: '#94A3B8' }, { label: 'Bank', value: bank, color: '#1565C0' }], compactINR(total), 'Total')}
+        <div class="legend">
+          <div class="legRow"><span class="legDot" style="background:#94A3B8"></span><span class="legName">Cash</span><span class="legVal">${fmt(cash)}</span><span class="legPct">${cashPct}%</span></div>
+          <div class="legRow"><span class="legDot" style="background:#1565C0"></span><span class="legName">Bank</span><span class="legVal">${fmt(bank)}</span><span class="legPct">${bankPct}%</span></div>
+        </div></div>`;
+    } else {
+      // A negative balance can't be shown as a share, so fall back to plain bars.
+      const max = Math.max(Math.abs(cash), Math.abs(bank), 1);
+      body = hbar('Cash', '', fmt(cash), '', Math.abs(cash) / max * 100, cash < 0 ? '#C0392B' : '#94A3B8')
+           + hbar('Bank', '', fmt(bank), '', Math.abs(bank) / max * 100, bank < 0 ? '#C0392B' : '#1565C0');
+    }
+    return `<div class="chartCard"><h2>Cash vs Bank</h2><div class="sub">Current balances, from the ledger.</div>${body}</div>`;
+  }
+
+  function capitalChart(investors, err) {
+    let body;
+    if (err) body = `<div class="chartErr">${esc(err.message)}</div>`;
+    else {
+      const rows = mergeCompanyRows(investors || []).filter(r => Number(r.ownership_percentage) > 0);
+      if (!rows.length) body = '<div class="chartEmpty">No cap table records yet.</div>';
+      else {
+        const max = Math.max(...rows.map(r => Number(r.ownership_percentage)), 1);
+        let ci = 0;
+        body = rows.map(r => {
+          const pct = Number(r.ownership_percentage);
+          if (r.merged || r.investor_type === 'company_share') {
+            return hbar(`Company Share (40%)<span class="companyBadge">Structural</span>`,
+              r.director_labels && r.director_labels.length ? esc(r.director_labels.join(' & ')) : 'Not a cash investment',
+              pct + '%', '—', pct / max * 100, COMPANY_COLOR, 'company');
+          }
+          return hbar(esc(r.investor_name), '', pct + '%', fmt(r.total_invested), pct / max * 100, PALETTE[ci++ % (PALETTE.length - 1)]);
+        }).join('');
+      }
+    }
+    return `<div class="chartCard"><h2>Investor capital split</h2><div class="sub">Ownership % from the official cap table, with capital invested.</div>${body}
+      <div class="chartNote">Company Share (40%) is held by the directors; it is not a cash investment, so it shows no invested amount.</div></div>`;
+  }
+
+  function expenseChart(cats, err) {
+    let body;
+    if (err) body = `<div class="chartErr">${esc(err.message)}</div>`;
+    else {
+      // Same filter and ordering as investor-portal.html's Expense Breakdown.
+      const expenseCats = (cats || []).filter(c => c.category !== 'Revenue' && !NON_PL_CATEGORIES.includes(c.category));
+      const sorted = expenseCats.slice().sort((a, b) => Number(b.total_debit) - Number(a.total_debit));
+      const top = sorted.slice(0, 6).map(c => ({ label: c.category, val: Number(c.total_debit) }));
+      const rest = sorted.slice(6).reduce((s, c) => s + Number(c.total_debit), 0);
+      if (sorted.length > 6) top.push({ label: 'Other', val: rest, other: true });
+      const total = top.reduce((s, x) => s + x.val, 0);
+      const max = Math.max(...top.map(x => x.val), 1);
+      body = top.length
+        ? top.map(x => hbar(esc(x.label), '', fmt(x.val), total ? Math.round(x.val / total * 100) + '%' : '', x.val / max * 100, x.other ? '#94A3B8' : '#C0392B')).join('')
+        : '<div class="chartEmpty">No expense entries yet.</div>';
+    }
+    return `<div class="chartCard wide"><h2>Expenses by category</h2><div class="sub">All-time, top 6 categories plus Other. Excludes loan movement, investment inflows and director withdrawals (balance-sheet items, not P&amp;L).</div>${body}
+      <div class="chartNote">Categories are inferred automatically from free-text ledger descriptions and may not perfectly match a formal chart of accounts.</div></div>`;
+  }
+
+  // ── D/E. FBC people & geography ─────────────────────────────
+  // Same roles as fbc-dashboard.html / fbc-crm-dashboard.html / fbc-states.html.
+  const FBC_VIEW_ROLES = ['super_admin', 'admin', 'hr_manager', 'investor', 'director_1', 'director_2'];
+  const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
+  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
+  const TEAM_ROLES = ['BD', 'ZM', 'RM', 'BDM', 'FO'];
+  const FETCH_PAGE_SIZE = 1000;
+
+  // Same idea as fetchAllRows() on the FBC pages (PostgREST caps a request at
+  // 1000 rows), but the first page also returns the total so the remaining
+  // pages can be fetched in parallel. Read-only selects only.
+  async function fetchAllRowsFast(buildQuery) {
+    const first = await buildQuery({ count: 'exact' }).range(0, FETCH_PAGE_SIZE - 1);
+    if (first.error) throw first.error;
+    const rows = first.data || [];
+    const total = typeof first.count === 'number' ? first.count : rows.length;
+    const pages = [];
+    for (let from = FETCH_PAGE_SIZE; from < total; from += FETCH_PAGE_SIZE) {
+      pages.push(buildQuery().range(from, from + FETCH_PAGE_SIZE - 1));
+    }
+    for (const res of await Promise.all(pages)) {
+      if (res.error) throw res.error;
+      rows.push(...(res.data || []));
+    }
+    return rows;
+  }
+
+  function n(v) { return Number(v || 0).toLocaleString('en-IN'); }
+  function tile(lbl, val, sub, pct) {
+    return `<div class="tile"><div class="tLbl">${lbl}</div><div class="tVal">${val}</div>${sub ? `<div class="tSub">${sub}</div>` : ''}${pct != null ? `<div class="tBar"><div style="width:${Math.max(0, Math.min(100, pct))}%"></div></div>` : ''}</div>`;
+  }
+  function soonTile(lbl, why) {
+    return `<div class="tile muted" title="${esc(why)}"><div class="tLbl">${lbl}</div><div class="tVal">Coming soon</div><div class="tSub">${why}</div></div>`;
+  }
+
+  async function loadFbcSections() {
+    const secP = document.getElementById('secPeople'), secG = document.getElementById('secGeo');
+    const peopleBody = document.getElementById('peopleBody'), geoBody = document.getElementById('geoBody');
+    secP.hidden = false; secG.hidden = false;
+    const skel = '<div class="tileGrid">' + '<div class="tile"><div class="skel" style="width:40%"></div><div class="skel"></div></div>'.repeat(5) + '</div>';
+    peopleBody.innerHTML = skel; geoBody.innerHTML = skel;
+
+    let positions, districts;
+    try {
+      // Client is created only here, so roles without FBC access never touch it.
+      const fbcSb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
+      [positions, districts] = await Promise.all([
+        // Seat data only — no roster / employee details are requested.
+        fetchAllRowsFast(opts => fbcSb.from('fbc_positions').select('status, state_id, district_id, village_id, fbc_roles(code)', opts)),
+        fbcSb.from('districts').select('id, name').then(r => { if (r.error) throw r.error; return r.data || []; }),
+      ]);
+    } catch (e) {
+      const msg = `<div class="secErr">Couldn't load FBC data: ${esc(e && e.message ? e.message : 'unknown error')}</div>`;
+      peopleBody.innerHTML = msg; geoBody.innerHTML = msg;
+      secP.removeAttribute('aria-busy'); secG.removeAttribute('aria-busy');
+      return;
+    }
+
+    // ── D. People and roles: filled seats per role (counts only)
+    const byRole = {};
+    TEAM_ROLES.forEach(r => { byRole[r] = { seats: 0, filled: 0 }; });
+    positions.forEach(p => {
+      const code = p.fbc_roles ? p.fbc_roles.code : '';
+      if (!byRole[code]) return;
+      byRole[code].seats++;
+      if (p.status === 'active') byRole[code].filled++;
+    });
+    const anySeats = TEAM_ROLES.some(r => byRole[r].seats);
+    peopleBody.innerHTML = `
+      <div class="tileGrid">
+        ${TEAM_ROLES.map(r => tile(r, n(byRole[r].filled), `filled of ${n(byRole[r].seats)} seats`, byRole[r].seats ? byRole[r].filled / byRole[r].seats * 100 : 0)).join('')}
+        ${soonTile('Subscribers', 'No count-only source yet')}
+        ${soonTile('Digital Stores', 'Not tracked in the portal yet')}
+      </div>
+      <div class="secNote">${anySeats ? 'Filled = seats with an active appointment, as on the FBC Dashboard. Counts only.' : 'No FBC seats have been set up yet.'}</div>`;
+    secP.removeAttribute('aria-busy');
+
+    // ── E. Geography: where FBC seats exist, and top districts by field team (FO) seats
+    const states = new Set(), dists = new Set(), villages = new Set();
+    const foByDistrict = {};
+    positions.forEach(p => {
+      if (p.state_id) states.add(p.state_id);
+      if (p.district_id) dists.add(p.district_id);
+      if (p.village_id) villages.add(p.village_id);
+      if (p.district_id && p.fbc_roles && p.fbc_roles.code === 'FO') {
+        const d = foByDistrict[p.district_id] || (foByDistrict[p.district_id] = { seats: 0, filled: 0 });
+        d.seats++;
+        if (p.status === 'active') d.filled++;
+      }
+    });
+    const nameById = {};
+    districts.forEach(d => { nameById[d.id] = d.name; });
+    const top = Object.entries(foByDistrict)
+      .map(([id, v]) => ({ name: nameById[id] || 'Unnamed district', ...v }))
+      .sort((a, b) => b.seats - a.seats || b.filled - a.filled || a.name.localeCompare(b.name))
+      .slice(0, 5);
+    const maxSeats = Math.max(...top.map(t => t.seats), 1);
+    geoBody.innerHTML = `
+      <div class="geoGrid">
+        <div>
+          <div class="tileGrid">
+            ${tile('States', n(states.size), 'with FBC seats')}
+            ${tile('Districts', n(dists.size), districts.length ? `of ${n(districts.length)} with FBC seats` : 'with FBC seats')}
+            ${tile('Villages', n(villages.size), 'with FBC seats')}
+          </div>
+          <div class="secNote">Planned coverage: places where FBC seats exist (filled or vacant).</div>
+        </div>
+        <div class="chartCard">
+          <h2>Top districts by field team</h2>
+          <div class="sub">Ranked by FO (field officer) seats; filled count alongside.</div>
+          ${top.length ? `<ol class="rankList">${top.map((t, i) => `
+            <li><span class="rankNo">${i + 1}</span>
+              <div class="rankName">${esc(t.name)}<div class="hbarTrack"><div class="hbarFill" style="width:${t.seats / maxSeats * 100}%;background:var(--blue)"></div></div></div>
+              <div class="rankVal">${n(t.seats)} FO seats<small>${n(t.filled)} filled</small></div></li>`).join('')}</ol>`
+            : '<div class="chartEmpty">No FO seats set up yet.</div>'}
+        </div>
+      </div>`;
+    secG.removeAttribute('aria-busy');
+  }
 
   window.onVIPLReady = async function() {
     const role = VIPL.profile.role;
-    // Matches the roles each page itself actually allows (its own ALLOWED_ROLES) — kept in sync
-    // with shell.js's nav config so the Overview page never falls behind what the sidebar shows.
-    const canSeeFinance = ['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role);
+    const name = VIPL.profile.full_name || VIPL.user.email;
+    // D/E run alongside the finance data; only for roles that already see FBC pages.
+    const fbcPromise = FBC_VIEW_ROLES.includes(role) ? loadFbcSections().catch(() => {}) : Promise.resolve();
 
+    // A. Header
+    document.getElementById('ovWelcome').innerHTML = `Welcome back, <strong>${esc(name)}</strong>.`;
+    document.getElementById('ovDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+    const canSeeFinance = FINANCE_ROLES.includes(role);
     if (canSeeFinance) {
-      const [{ data: balances }, { data: totalsRow }, { data: loans }] = await Promise.all([
+      const fullCap = FULL_CAP_TABLE_ROLES.includes(role);
+      document.getElementById('secFigures').hidden = false;
+      document.getElementById('secCharts').hidden = false;
+      document.getElementById('topSummary').innerHTML = '<div class="summaryBox"><div class="skel"></div><div class="skel" style="width:60%"></div></div>'.repeat(4);
+      document.getElementById('chartGrid').innerHTML = '<div class="chartCard"><div class="skel"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div>'.repeat(2);
+
+      const [balRes, totRes, loanRes, catRes, capRes] = await Promise.all([
         VIPL.sb.from('current_balances').select('cash_balance,bank_balance').single(),
         VIPL.sb.from('investor_totals').select('*').single(),
-        VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1)
+        VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1),
+        VIPL.sb.from('category_totals').select('*'),
+        fullCap ? VIPL.sb.from('investor_cap_table').select('*').order('total_invested', { ascending: false, nullsFirst: false }) : Promise.resolve(null),
       ]);
-      const cash = balances ? balances.cash_balance : 0;
-      const bank = balances ? balances.bank_balance : 0;
+      const balances = balRes.data, totalsRow = totRes.data, loans = loanRes.data;
+      const cash = balances ? Number(balances.cash_balance) : 0;
+      const bank = balances ? Number(balances.bank_balance) : 0;
       const totalInvested = totalsRow ? totalsRow.total_cash_invested : 0;
       const loanBal = loans && loans[0] ? loans[0].running_balance : 0;
-      document.getElementById('topSummary').innerHTML = `
-        <div class="summaryBox accent-cash"><div class="icon">₹</div><div class="val">${fmt(cash)}</div><div class="lbl">Cash Balance</div></div>
-        <div class="summaryBox accent-bank"><div class="icon">🏦</div><div class="val">${fmt(bank)}</div><div class="lbl">Bank Balance</div></div>
-        <div class="summaryBox accent-capital"><div class="icon">📈</div><div class="val">${fmt(totalInvested)}</div><div class="lbl">Total Investor Capital</div></div>
-        <div class="summaryBox accent-loan"><div class="icon">💳</div><div class="val">${fmt(loanBal)}</div><div class="lbl">Loan Outstanding</div></div>
-      `;
-    } else {
-      document.getElementById('topSummary').innerHTML = `
-        <div class="welcomeBox"><div class="wave">👋</div><div class="lbl">Welcome, ${VIPL.profile.full_name || VIPL.user.email}</div></div>
-      `;
+
+      // B. Key figures — same four figures and sources as before
+      const box = (cls, ic, val, lbl) => `<div class="summaryBox ${cls}"><div class="sbTop"><div class="lbl">${lbl}</div><div class="icon">${icon(ic)}</div></div><div class="val">${fmt(val)}</div></div>`;
+      document.getElementById('topSummary').innerHTML =
+        box('accent-cash', 'cash', cash, 'Cash Balance') +
+        box('accent-bank', 'bank', bank, 'Bank Balance') +
+        box('accent-capital', 'trending', totalInvested, 'Total Investor Capital') +
+        box('accent-loan', 'card', loanBal, 'Loan Outstanding');
+
+      // C. Charts
+      document.getElementById('chartGrid').innerHTML =
+        cashBankChart(cash, bank) +
+        (fullCap ? capitalChart(capRes && capRes.data, capRes && capRes.error) : '') +
+        expenseChart(catRes.data, catRes.error);
+      if (!fullCap) {
+        // No capital chart for this role: give Cash vs Bank the full row instead of half a row.
+        document.querySelector('#chartGrid .chartCard').classList.add('wide');
+      }
     }
 
+    // Modules — same cards and the same role gates as before
     const cards = [];
     if (role === 'super_admin')
-      cards.push({ href:'command-center.html', icon:'🖥️', title:'Health Monitor', desc:'Status across every domain — VIPL Core, FBC Network, and what\'s next.' });
+      cards.push({ href:'command-center.html', title:'Health Monitor', desc:'Status across every domain — VIPL Core, FBC Network, and what\'s next.' });
     if (role === 'super_admin')
-      cards.push({ href:'audit-feed.html', icon:'📋', title:'Audit Feed', desc:'One unified activity timeline across all domains.' });
+      cards.push({ href:'audit-feed.html', title:'Audit Feed', desc:'One unified activity timeline across all domains.' });
     if (['super_admin','accountant','entry','auditor_team'].includes(role))
-      cards.push({ href:'ledger.html', icon:'📒', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
+      cards.push({ href:'ledger.html', title:'Ledger Entry', desc:'Add daily cash/bank transactions and view the full ledger.' });
     if (['super_admin','accountant','auditor_team'].includes(role))
-      cards.push({ href:'dashboard.html', icon:'📊', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
+      cards.push({ href:'dashboard.html', title:'Financial Dashboard', desc:'Category breakdown, loan tracker, investor capital.' });
     if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
-      cards.push({ href:'investor-portal.html', icon:'📈', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
+      cards.push({ href:'investor-portal.html', title:'Investor Portal', desc:'Cap table, investor share, expenses, profit/loss.' });
     if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
-      cards.push({ href:'loan-portal.html', icon:'💳', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
+      cards.push({ href:'loan-portal.html', title:'Loan Portal', desc:'Director and external loans, repayment tracking, contacts.' });
     if (['super_admin','accountant','investor','director_1','director_2','auditor_team'].includes(role))
-      cards.push({ href:'statements.html', icon:'🧾', title:'Statements', desc:'Generate a statement for yourself, anyone, or the whole company.' });
+      cards.push({ href:'statements.html', title:'Statements', desc:'Generate a statement for yourself, anyone, or the whole company.' });
     if (['super_admin','accountant','auditor_team'].includes(role))
-      cards.push({ href:'gst-audit.html', icon:'🧮', title:'GST / Audit', desc:'Tag entries with GST details and export for filing.' });
+      cards.push({ href:'gst-audit.html', title:'GST / Audit', desc:'Tag entries with GST details and export for filing.' });
     if (['super_admin','accountant','auditor_team'].includes(role))
-      cards.push({ href:'invoices.html', icon:'📄', title:'Invoices', desc:'Create GST tax invoices for customers and buyers.' });
+      cards.push({ href:'invoices.html', title:'Invoices', desc:'Create GST tax invoices for customers and buyers.' });
     if (['super_admin','accountant','auditor_team'].includes(role))
-      cards.push({ href:'receipts.html', icon:'💰', title:'Payment Receipts', desc:'Record investments, loans, and interest received.' });
+      cards.push({ href:'receipts.html', title:'Payment Receipts', desc:'Record investments, loans, and interest received.' });
     if (role === 'super_admin') {
-      cards.push({ soon:true, icon:'🏪', title:'Stores Module', desc:'Digital Store operations — coming next.' });
+      cards.push({ soon:true, iconName:'store', title:'Stores Module', desc:'Digital Store operations — coming next.' });
     }
+    const CARD_BG = {
+      'command-center.html':'#F0F7FF', 'audit-feed.html':'#F0F7FF', 'ledger.html':'#E3F5F3', 'dashboard.html':'#EDECFC',
+      'investor-portal.html':'#E3F5F3', 'loan-portal.html':'#FBF1DE', 'statements.html':'#F0F7FF', 'gst-audit.html':'#FBF1DE',
+      'invoices.html':'#F0F7FF', 'receipts.html':'#EAF3DE',
+    };
+    const byHref = window.VIPL_ICONS ? VIPL_ICONS.byHref : {};
     document.getElementById('quickGrid').innerHTML = cards.map(c => {
       if (c.soon) {
-        return `<div class="quickCard soonCard"><div class="icon">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><span class="soonTag">Soon</span></div>`;
+        return `<div class="quickCard soonCard"><div class="icon">${icon(c.iconName)}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><span class="soonTag">Soon</span></div>`;
       }
-      const meta = CARD_META[c.href] || { bg:'#F1F3F6' };
-      return `<a class="quickCard" href="${c.href}"><div class="icon" style="background:${meta.bg}">${c.icon}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><div class="goArrow">Open →</div></a>`;
+      return `<a class="quickCard" href="${c.href}"><div class="icon" style="background:${CARD_BG[c.href] || '#F1F3F6'}">${icon(byHref[c.href])}</div><div class="title">${c.title}</div><div class="desc">${c.desc}</div><div class="goArrow">Open →</div></a>`;
     }).join('');
+    if (!cards.length) document.getElementById('hdModules').parentElement.hidden = true;
+    await fbcPromise;
   };
 </script>
 </body>
