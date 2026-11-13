@@ -485,8 +485,12 @@ function renderBottomNav(role, email, customerId) {
 
   // Bottom bar tabs
   bottomNav.setAttribute('aria-label', 'Main');
+  // Short labels for the bottom tab bar only (sidebar and More sheet keep full names).
+  const TAB_SHORT_LABELS = { 'investor-portal.html': 'Investors' };
   bottomNav.innerHTML = primaryTabs.map(item => {
-    const { text, iconName } = navItemParts(item);
+    const parts = navItemParts(item);
+    const iconName = parts.iconName;
+    const text = TAB_SHORT_LABELS[item.href] || parts.text;
     const isActive = currentPage === item.href;
     return `<a class="bnItem${isActive ? ' active' : ''}" href="${item.href}"${isActive ? ' aria-current="page"' : ''}><span class="bnIcon">${svgIcon(iconName, '')}</span>${text}</a>`;
   }).join('') + `<button class="bnItem" type="button" onclick="openMoreSheet()"><span class="bnIcon">${svgIcon('more', '')}</span>More</button>`;
