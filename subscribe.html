@@ -5,8 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Subscribe — Cloud Super Market</title>
 <meta name="description" content="Subscribe to Cloud Super Market from ₹100/year. Doorstep delivery, full product access, simple annual plans.">
+<link rel="canonical" href="https://vaaralabbayi.com/subscribe.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cloud Super Market">
+<meta property="og:title" content="Subscribe — Cloud Super Market">
+<meta property="og:description" content="Subscribe to Cloud Super Market from ₹100/year. Doorstep delivery, full product access, simple annual plans.">
+<meta property="og:url" content="https://vaaralabbayi.com/subscribe.html">
+<meta property="og:image" content="https://vaaralabbayi.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="logo.jpg">
+<link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
 
@@ -25,7 +38,7 @@
       <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
     </div>
     <a class="nav-investor" href="vipl/index.html">Portal Login →</a>
-    <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+    <button class="nav-hamburger" onclick="toggleMenu(this)" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu">☰</button>
   </div>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
@@ -47,10 +60,10 @@
       <span class="tel" style="display:none">మీ ప్రణాళిక ఎంచుకోండి. <span style="color:#F97316">పొదుపు ప్రారంభించండి.</span></span>
     </h1>
     <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:520px;line-height:1.75" class="eng">Doorstep delivery and full access to every product category through your local Digital Store — from ₹100/year.</p>
-    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:520px;line-height:1.75" class="tel" style="display:none">మీ స్థానిక డిజిటల్ స్టోర్ ద్వారా డోర్‌స్టెప్ డెలివరీ మరియు అన్ని ఉత్పత్తి వర్గాలకు పూర్తి యాక్సెస్ — సంవత్సరానికి ₹100 నుండి.</p>
+    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:520px;line-height:1.75;display:none" class="tel">మీ స్థానిక డిజిటల్ స్టోర్ ద్వారా డోర్‌స్టెప్ డెలివరీ మరియు అన్ని ఉత్పత్తి వర్గాలకు పూర్తి యాక్సెస్ — సంవత్సరానికి ₹100 నుండి.</p>
     <div class="hero-stats" style="margin-top:28px">
       <div class="h-stat"><div class="h-stat-val">₹100</div><div class="h-stat-lbl eng">Starting fee/year</div><div class="h-stat-lbl tel" style="display:none">సంవత్సరానికి ప్రారంభ రుసుము</div></div>
-      <div class="h-stat"><div class="h-stat-val">2 Years</div><div class="h-stat-lbl eng">Plan validity</div><div class="h-stat-lbl tel" style="display:none">ప్రణాళిక చెల్లుబాటు</div></div>
+      <div class="h-stat"><div class="h-stat-val eng">1 Year</div><div class="h-stat-val tel" style="display:none">1 సంవత్సరం</div><div class="h-stat-lbl eng">Plan validity</div><div class="h-stat-lbl tel" style="display:none">ప్రణాళిక చెల్లుబాటు</div></div>
       <div class="h-stat"><div class="h-stat-val">All</div><div class="h-stat-lbl eng">Product categories</div><div class="h-stat-lbl tel" style="display:none">ఉత్పత్తి వర్గాలు</div></div>
       <div class="h-stat"><div class="h-stat-val">Doorstep</div><div class="h-stat-lbl eng">Delivery included</div><div class="h-stat-lbl tel" style="display:none">డెలివరీ చేర్చబడింది</div></div>
     </div>
@@ -60,7 +73,7 @@
 <!-- SUBSCRIPTION PLANS -->
 <section class="section sec-light">
   <div class="eyebrow eng">Subscription Plans</div><div class="eyebrow tel" style="display:none">సభ్యత్వ ప్రణాళికలు</div>
-  <h2 class="sec-title"><span class="eng">Three plans. <span class="hl">One simple price.</span></span><span class="tel" style="display:none">మూడు ప్రణాళికలు. <span class="hl">సరళమైన ధర.</span></span></h2>
+  <h2 class="sec-title"><span class="eng">Three plans. <span class="hl">One simple fee.</span></span><span class="tel" style="display:none">మూడు ప్రణాళికలు. <span class="hl">ఒకే సరళమైన రుసుము.</span></span></h2>
   <p class="sec-sub eng">All plans include doorstep delivery and full access to every product category.</p>
   <p class="sec-sub tel" style="display:none">అన్ని ప్రణాళికలలో డోర్‌స్టెప్ డెలివరీ మరియు అన్ని ఉత్పత్తి వర్గాలకు పూర్తి యాక్సెస్ ఉంటుంది.</p>
   <div class="plans-grid">
@@ -71,7 +84,7 @@
       <div class="plan-price" style="color:#2DD4BF">₹100</div>
       <div class="plan-period eng">per year</div><div class="plan-period tel" style="display:none">సంవత్సరానికి</div>
       <div class="plan-div"></div>
-      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val">2 years</span></div>
+      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val"><span class="eng">1 year</span><span class="tel" style="display:none">1 సంవత్సరం</span></span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Products</span><span class="plan-row-lbl tel" style="display:none">ఉత్పత్తులు</span><span class="plan-row-val eng">All categories</span><span class="plan-row-val tel" style="display:none">అన్ని వర్గాలు</span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Delivery</span><span class="plan-row-lbl tel" style="display:none">డెలివరీ</span><span class="plan-row-val eng">Doorstep</span><span class="plan-row-val tel" style="display:none">ఇంటి వద్దకు</span></div>
       <button class="plan-cta" style="background:#2DD4BF;color:#0D2340" onclick="window.location.href='contact.html'"><span class="eng">Subscribe Now</span><span class="tel" style="display:none">ఇప్పుడే సభ్యత్వం</span></button>
@@ -84,7 +97,7 @@
       <div class="plan-price" style="color:#FCD34D">₹500</div>
       <div class="plan-period eng">per year</div><div class="plan-period tel" style="display:none">సంవత్సరానికి</div>
       <div class="plan-div"></div>
-      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val">2 years</span></div>
+      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val"><span class="eng">1 year</span><span class="tel" style="display:none">1 సంవత్సరం</span></span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Products</span><span class="plan-row-lbl tel" style="display:none">ఉత్పత్తులు</span><span class="plan-row-val eng">All categories</span><span class="plan-row-val tel" style="display:none">అన్ని వర్గాలు</span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Delivery</span><span class="plan-row-lbl tel" style="display:none">డెలివరీ</span><span class="plan-row-val eng">Doorstep</span><span class="plan-row-val tel" style="display:none">ఇంటి వద్దకు</span></div>
       <button class="plan-cta" style="background:#F97316;color:#fff" onclick="window.location.href='contact.html'"><span class="eng">Subscribe Now</span><span class="tel" style="display:none">ఇప్పుడే సభ్యత్వం</span></button>
@@ -96,14 +109,14 @@
       <div class="plan-price" style="color:#A78BFA">₹1,000</div>
       <div class="plan-period eng">per year</div><div class="plan-period tel" style="display:none">సంవత్సరానికి</div>
       <div class="plan-div"></div>
-      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val">2 years</span></div>
+      <div class="plan-row"><span class="plan-row-lbl eng">Validity</span><span class="plan-row-lbl tel" style="display:none">చెల్లుబాటు</span><span class="plan-row-val"><span class="eng">1 year</span><span class="tel" style="display:none">1 సంవత్సరం</span></span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Products</span><span class="plan-row-lbl tel" style="display:none">ఉత్పత్తులు</span><span class="plan-row-val eng">All categories</span><span class="plan-row-val tel" style="display:none">అన్ని వర్గాలు</span></div>
       <div class="plan-row"><span class="plan-row-lbl eng">Delivery</span><span class="plan-row-lbl tel" style="display:none">డెలివరీ</span><span class="plan-row-val eng">Doorstep</span><span class="plan-row-val tel" style="display:none">ఇంటి వద్దకు</span></div>
       <button class="plan-cta" style="background:#A78BFA;color:#fff" onclick="window.location.href='contact.html'"><span class="eng">Subscribe Now</span><span class="tel" style="display:none">ఇప్పుడే సభ్యత్వం</span></button>
     </div>
   </div>
-  <p class="plan-note eng">No hidden charges · 2-year validity · Renewable on expiry</p>
-  <p class="plan-note tel" style="display:none">దాచిన ఛార్జీలు లేవు · 2 సంవత్సరాల చెల్లుబాటు · గడువుపై పునరుద్ధరణ</p>
+  <p class="plan-note eng">No hidden charges · 1-year validity · Renewable on expiry</p>
+  <p class="plan-note tel" style="display:none">దాచిన ఛార్జీలు లేవు · 1 సంవత్సరం చెల్లుబాటు · గడువుపై పునరుద్ధరణ</p>
 </section>
 
 <!-- HOW IT WORKS -->
@@ -112,7 +125,7 @@
   <h2 class="sec-title"><span class="eng">Subscribe. Order. <span class="hl">Receive.</span></span><span class="tel" style="display:none">సభ్యత్వం. ఆర్డర్. <span class="hl">స్వీకరించు.</span></span></h2>
   <div class="steps-grid">
     <div class="step fade-up"><div class="step-num">1</div><div class="step-icon" style="background:#FFF7ED">💳</div><div class="step-title eng">Pay Annual Subscription</div><div class="step-title tel" style="display:none">వార్షిక సభ్యత్వం చెల్లించండి</div><div class="step-desc eng">Pay ₹100/₹500/₹1,000 per year to activate your Cloud Super Market account.</div><div class="step-desc tel" style="display:none">మీ క్లౌడ్ సూపర్ మార్కెట్ ఖాతాను సక్రియం చేయడానికి సంవత్సరానికి ₹100/₹500/₹1,000 చెల్లించండి.</div></div>
-    <div class="step fade-up" style="transition-delay:.1s"><div class="step-num">2</div><div class="step-icon" style="background:#E3F2FD">🛒</div><div class="step-title eng">Browse & Order Products</div><div class="step-title tel" style="display:none">ఉత్పత్తులు బ్రౌజ్ & ఆర్డర్ చేయండి</div><div class="step-desc eng">Use the app or visit your local Digital Store to order groceries, FMCG, electronics and more.</div><div class="step-desc tel" style="display:none">కిరాణా, FMCG, ఎలక్ట్రానిక్స్ మరియు మరిన్ని ఆర్డర్ చేయడానికి యాప్ లేదా స్థానిక డిజిటల్ స్టోర్ సందర్శించండి.</div></div>
+    <div class="step fade-up" style="transition-delay:.1s"><div class="step-num">2</div><div class="step-icon" style="background:#E3F2FD">🛒</div><div class="step-title eng">Browse & Order Products</div><div class="step-title tel" style="display:none">ఉత్పత్తులు బ్రౌజ్ & ఆర్డర్ చేయండి</div><div class="step-desc eng">Order through your local Digital Store: groceries, FMCG, electronics and more.</div><div class="step-desc tel" style="display:none">మీ స్థానిక డిజిటల్ స్టోర్ ద్వారా ఆర్డర్ చేయండి: కిరాణా, FMCG, ఎలక్ట్రానిక్స్ మరియు మరిన్ని.</div></div>
     <div class="step fade-up" style="transition-delay:.2s"><div class="step-num">3</div><div class="step-icon" style="background:#EAF3DE">📅</div><div class="step-title eng">Pay As You Order</div><div class="step-title tel" style="display:none">ఆర్డర్ చేసినప్పుడు చెల్లించండి</div><div class="step-desc eng">Pay for each order at the time of purchase through the Digital Store — simple and transparent.</div><div class="step-desc tel" style="display:none">కొనుగోలు సమయంలో డిజిటల్ స్టోర్ ద్వారా ప్రతి ఆర్డర్‌కు చెల్లించండి — సరళమైన మరియు పారదర్శకమైన విధానం.</div></div>
     <div class="step fade-up" style="transition-delay:.3s"><div class="step-num">4</div><div class="step-icon" style="background:#F3E8FF">🚚</div><div class="step-title eng">Doorstep Delivery</div><div class="step-title tel" style="display:none">ఇంటి వద్ద డెలివరీ</div><div class="step-desc eng">All orders delivered to your home through the village Digital Store. No trips to town needed.</div><div class="step-desc tel" style="display:none">అన్ని ఆర్డర్లు గ్రామ డిజిటల్ స్టోర్ ద్వారా మీ ఇంటికి డెలివరీ. పట్టణానికి పర్యటనలు అక్కరలేదు.</div></div>
   </div>
@@ -144,10 +157,10 @@
 
 <footer>
   <div class="footer-grid">
-    <div><div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div><p class="footer-tagline eng">Rural subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p><p class="footer-tagline tel" style="display:none">AP &amp; తెలంగాణలో గ్రామీణ సభ్యత్వ ఆధారిత కిరాణా వాణిజ్యం. త్వరలో ప్రారంభం.</p><div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div></div>
+    <div><div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div><p class="footer-tagline eng">Rural &amp; semi-urban subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p><p class="footer-tagline tel" style="display:none">AP &amp; తెలంగాణలో గ్రామీణ సభ్యత్వ ఆధారిత కిరాణా వాణిజ్యం. త్వరలో ప్రారంభం.</p><div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div></div>
     <div><div class="footer-col-title">Platform</div><ul class="footer-links"><li><a href="index.html">Home</a></li><li><a href="subscribe.html">Subscribe</a></li><li><a href="store.html">Open a Store</a></li><li><a href="about.html">About</a></li></ul></div>
     <div><div class="footer-col-title">Portals</div><ul class="footer-links"><li><a href="subscribe.html">Subscriber Portal</a></li><li><a href="store.html">Store Operator</a></li><li><a href="contact.html">FBC Team</a></li><li><a href="vipl/index.html">Investor Zone</a></li></ul></div>
-    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
+    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a href="privacy.html"><span class="eng">Privacy Policy</span><span class="tel" style="display:none">గోప్యతా విధానం</span></a></li><li><a href="tel:+919985831114"><span class="eng">Phone: +91 99858 31114</span><span class="tel" style="display:none">ఫోన్: +91 99858 31114</span></a></li><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
   </div>
   <div class="footer-bottom"><p>© 2026 Vaaralabbayi India Private Limited. All rights reserved.</p><div class="footer-badges"><span class="footer-badge" style="color:#42A5F5">Startup India ✓</span><span class="footer-badge" style="color:#F97316">Launching Soon</span></div></div>
 </footer>

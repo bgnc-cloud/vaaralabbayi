@@ -4,48 +4,61 @@
    Handles: nav, language toggle, animations
 ═══════════════════════════════════════════════════ */
 
+// ── SAFE STORAGE ──────────────────────────────────
+// localStorage can throw (private mode, blocked site data), so every
+// access goes through these and simply falls back to "nothing saved".
+function readPref(key) {
+  try { return window.localStorage.getItem(key); } catch (_) { return null; }
+}
+function writePref(key, value) {
+  try { window.localStorage.setItem(key, value); } catch (_) { /* not saved; fine */ }
+}
+
 // ── NAVBAR SCROLL EFFECT ──────────────────────────
 window.addEventListener('scroll', () => {
-  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 30);
+  const nav = document.getElementById('nav');
+  if (nav) nav.classList.toggle('scrolled', window.scrollY > 30);
 });
 
+// ── MOBILE MENU ───────────────────────────────────
+function toggleMenu(btn) {
+  const menu = document.getElementById('mobileMenu');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 // ── LANGUAGE TOGGLE ───────────────────────────────
+function applyLang(lang) {
+  const te = lang === 'te';
+  document.documentElement.lang = te ? 'te' : 'en';
+  document.body.classList.toggle('te', te);
+  document.querySelectorAll('.tel').forEach(el => el.style.display = te ? 'block' : 'none');
+  document.querySelectorAll('.eng').forEach(el => el.style.display = te ? 'none' : '');
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === (te ? 'te' : 'en')));
+}
+
 function setLang(lang, e) {
-  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  if (lang === 'te') {
-    document.body.classList.add('te');
-    document.querySelectorAll('.tel').forEach(el => el.style.display = 'block');
-    document.querySelectorAll('.eng').forEach(el => el.style.display = 'none');
-  } else {
-    document.body.classList.remove('te');
-    document.querySelectorAll('.eng').forEach(el => el.style.display = '');
-    document.querySelectorAll('.tel').forEach(el => el.style.display = 'none');
-  }
-  // Save preference
-  localStorage.setItem('vipl-lang', lang);
+  applyLang(lang);
+  writePref('vipl-lang', lang);
 }
 
 // ── RESTORE LANGUAGE PREFERENCE ──────────────────
 function restoreLang() {
-  const saved = localStorage.getItem('vipl-lang');
-  if (saved === 'te') {
-    document.body.classList.add('te');
-    document.querySelectorAll('.tel').forEach(el => el.style.display = 'block');
-    document.querySelectorAll('.eng').forEach(el => el.style.display = 'none');
-    const tBtn = document.querySelector('.lang-btn[data-lang="te"]');
-    const eBtn = document.querySelector('.lang-btn[data-lang="en"]');
-    if (tBtn) tBtn.classList.add('active');
-    if (eBtn) eBtn.classList.remove('active');
-  }
+  if (readPref('vipl-lang') === 'te') applyLang('te');
 }
 
 // ── SCROLL ANIMATIONS ────────────────────────────
 function observeAnims() {
+  const els = document.querySelectorAll('.fade-up');
+  if (!('IntersectionObserver' in window)) {
+    els.forEach(el => el.classList.add('vis'));
+    return;
+  }
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
   }, { threshold: 0.1 });
-  document.querySelectorAll('.fade-up').forEach(el => {
+  els.forEach(el => {
     el.classList.remove('vis');
     obs.observe(el);
   });
@@ -64,8 +77,13 @@ function setActiveNav() {
 }
 
 // ── INIT ON PAGE LOAD ────────────────────────────
+// Each step is isolated so one failure can't stop the others — in
+// particular observeAnims must always run, or .fade-up sections stay hidden.
 document.addEventListener('DOMContentLoaded', () => {
-  restoreLang();
-  setActiveNav();
-  observeAnims();
+  try { restoreLang(); } catch (err) { console.error('restoreLang failed', err); }
+  try { setActiveNav(); } catch (err) { console.error('setActiveNav failed', err); }
+  try { observeAnims(); } catch (err) {
+    console.error('observeAnims failed', err);
+    document.querySelectorAll('.fade-up').forEach(el => el.classList.add('vis'));
+  }
 });

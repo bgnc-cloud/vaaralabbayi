@@ -4,9 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Open a Digital Store — Cloud Super Market</title>
-<meta name="description" content="Become a Cloud Super Market Digital Store operator. Earn guaranteed monthly royalty from VIPL. No stock risk. Full training provided.">
+<meta name="description" content="Become a Cloud Super Market Digital Store operator. Earn a monthly royalty on your store's turnover. No stock purchase needed. Training provided.">
+<link rel="canonical" href="https://vaaralabbayi.com/store.html">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cloud Super Market">
+<meta property="og:title" content="Open a Digital Store — Cloud Super Market">
+<meta property="og:description" content="Become a Cloud Super Market Digital Store operator. Earn a monthly royalty on your store's turnover. No stock purchase needed. Training provided.">
+<meta property="og:url" content="https://vaaralabbayi.com/store.html">
+<meta property="og:image" content="https://vaaralabbayi.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="logo.jpg">
+<link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
 
@@ -25,7 +38,7 @@
       <button class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
     </div>
     <a class="nav-investor" href="vipl/index.html">Portal Login →</a>
-    <button class="nav-hamburger" onclick="document.getElementById('mobileMenu').classList.toggle('open')" aria-label="Menu">☰</button>
+    <button class="nav-hamburger" onclick="toggleMenu(this)" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu">☰</button>
   </div>
 </nav>
 <div class="mobile-menu" id="mobileMenu">
@@ -43,17 +56,19 @@
   <div class="page-hero-content">
     <div class="eyebrow white eng">Open a Digital Store</div><div class="eyebrow white tel" style="display:none">డిజిటల్ స్టోర్ తెరవండి</div>
     <h1 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(28px,4.5vw,50px);font-weight:800;color:#fff;line-height:1.15;margin-bottom:14px">
-      <span class="eng">Earn guaranteed royalty <span style="color:#F97316">from VIPL.</span></span>
-      <span class="tel" style="display:none">VIPL నుండి హామీ రాయల్టీ <span style="color:#F97316">సంపాదించండి.</span></span>
+      <span class="eng">Earn a monthly royalty <span style="color:#F97316">from VIPL.</span></span>
+      <span class="tel" style="display:none">VIPL నుండి నెలవారీ రాయల్టీ <span style="color:#F97316">పొందండి.</span></span>
     </h1>
-    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:540px;line-height:1.75" class="eng">Become a Cloud Super Market Digital Store operator in your village. No stock investment risk. Full training and platform support. Monthly royalty paid directly by VIPL on store turnover.</p>
-    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:540px;line-height:1.75" class="tel" style="display:none">మీ గ్రామంలో క్లౌడ్ సూపర్ మార్కెట్ డిజిటల్ స్టోర్ ఆపరేటర్ అవ్వండి. స్టాక్ పెట్టుబడి ప్రమాదం లేదు. పూర్తి శిక్షణ మరియు ప్లాట్‌ఫారమ్ సపోర్ట్.</p>
+    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:540px;line-height:1.75" class="eng">Become a Cloud Super Market Digital Store operator in your village. No stock purchase required. Full training and platform support. Monthly royalty paid directly by VIPL on store turnover.</p>
+    <p style="font-size:17px;color:rgba(255,255,255,.75);max-width:540px;line-height:1.75;display:none" class="tel">మీ గ్రామంలో క్లౌడ్ సూపర్ మార్కెట్ డిజిటల్ స్టోర్ ఆపరేటర్ అవ్వండి. స్టాక్ కొనుగోలు అవసరం లేదు. పూర్తి శిక్షణ మరియు ప్లాట్‌ఫారమ్ సపోర్ట్.</p>
     <div class="hero-stats" style="margin-top:28px">
-      <div class="h-stat"><div class="h-stat-val">₹7,500+</div><div class="h-stat-lbl eng">Monthly royalty (Level 1)</div><div class="h-stat-lbl tel" style="display:none">నెలవారీ రాయల్టీ (స్థాయి 1)</div></div>
-      <div class="h-stat"><div class="h-stat-val">₹80,000</div><div class="h-stat-lbl eng">Max monthly income (Level 3)</div><div class="h-stat-lbl tel" style="display:none">గరిష్ట నెలవారీ ఆదాయం</div></div>
-      <div class="h-stat"><div class="h-stat-val">0</div><div class="h-stat-lbl eng">Stock investment risk</div><div class="h-stat-lbl tel" style="display:none">స్టాక్ ప్రమాదం</div></div>
-      <div class="h-stat"><div class="h-stat-val">100%</div><div class="h-stat-lbl eng">Deposit refundable</div><div class="h-stat-lbl tel" style="display:none">డిపాజిట్ తిరిగి ఇవ్వబడుతుంది</div></div>
+      <div class="h-stat"><div class="h-stat-val">₹7,500+</div><div class="eng" style="font-size:11.5px;color:rgba(255,255,255,.5);margin-top:2px">at 60 subscribers (Level 1)</div><div class="tel" style="font-size:11.5px;color:rgba(255,255,255,.5);margin-top:2px;display:none">60 సభ్యుల వద్ద (స్థాయి 1)</div><div class="h-stat-lbl eng">Illustrative monthly royalty</div><div class="h-stat-lbl tel" style="display:none">ఉదాహరణ నెలవారీ రాయల్టీ</div></div>
+      <div class="h-stat"><div class="h-stat-val">₹80,000</div><div class="eng" style="font-size:11.5px;color:rgba(255,255,255,.5);margin-top:2px">at full capacity (Level 3)</div><div class="tel" style="font-size:11.5px;color:rgba(255,255,255,.5);margin-top:2px;display:none">పూర్తి సామర్థ్యంలో (స్థాయి 3)</div><div class="h-stat-lbl eng">Illustrative monthly royalty</div><div class="h-stat-lbl tel" style="display:none">ఉదాహరణ నెలవారీ రాయల్టీ</div></div>
+      <div class="h-stat"><div class="h-stat-val eng">No</div><div class="h-stat-val tel" style="display:none">లేదు</div><div class="h-stat-lbl eng">stock purchase required</div><div class="h-stat-lbl tel" style="display:none">స్టాక్ కొనుగోలు అవసరం</div></div>
+      <div class="h-stat"><div class="h-stat-val">100%</div><div class="h-stat-lbl eng">Deposit refundable (no interest)</div><div class="h-stat-lbl tel" style="display:none">డిపాజిట్ తిరిగి ఇవ్వబడుతుంది (వడ్డీ లేకుండా)</div></div>
     </div>
+    <p class="eng" style="font-size:12px;color:rgba(255,255,255,.5);max-width:640px;line-height:1.6;margin-top:14px">Royalty figures are illustrative, based on the subscribers, average monthly purchase and royalty rate shown. Actual royalty depends on your store's actual turnover. Terms are as per your agreement with VIPL.</p>
+    <p class="tel" style="font-size:12px;color:rgba(255,255,255,.5);max-width:640px;line-height:1.6;margin-top:14px;display:none">రాయల్టీ గణాంకాలు ఉదాహరణ కోసం మాత్రమే — చూపిన సభ్యుల సంఖ్య, సగటు నెలవారీ కొనుగోలు మరియు రాయల్టీ రేటు ఆధారంగా. అసలు రాయల్టీ మీ స్టోర్ వాస్తవ టర్నోవర్‌పై ఆధారపడి ఉంటుంది. నిబంధనలు VIPL తో మీ ఒప్పందం ప్రకారం ఉంటాయి.</p>
   </div>
 </section>
 
@@ -61,8 +76,8 @@
 <section class="section sec-light">
   <div class="eyebrow eng">Digital Store Levels</div><div class="eyebrow tel" style="display:none">డిజిటల్ స్టోర్ స్థాయిలు</div>
   <h2 class="sec-title"><span class="eng">Start at Level 1. <span class="hl-o">Grow with subscribers.</span></span><span class="tel" style="display:none">స్థాయి 1 నుండి ప్రారంభించి <span class="hl-o">సభ్యులతో పెరగండి.</span></span></h2>
-  <p class="sec-sub eng">Security deposit is fully refundable. First 3 months turnover exempted. Extra +30 subscribers per ₹1L additional deposit.</p>
-  <p class="sec-sub tel" style="display:none">భద్రత డిపాజిట్ పూర్తిగా తిరిగి ఇవ్వబడుతుంది. మొదటి 3 నెలల టర్నోవర్ మినహాయింపు. ₹1L అదనపు డిపాజిట్‌కు +30 సభ్యులు.</p>
+  <p class="sec-sub eng">Security deposit is fully refundable. First 3 months: subscriber enrolment period. No turnover target. Extra +30 subscribers per ₹1L additional deposit.</p>
+  <p class="sec-sub tel" style="display:none">భద్రత డిపాజిట్ పూర్తిగా తిరిగి ఇవ్వబడుతుంది. మొదటి 3 నెలలు: సభ్యుల నమోదు కాలం. టర్నోవర్ లక్ష్యం లేదు. ₹1L అదనపు డిపాజిట్‌కు +30 సభ్యులు.</p>
   <div class="levels-grid">
 
     <!-- Level 1 -->
@@ -78,9 +93,9 @@
       <div class="level-row"><span class="level-lbl eng">Max Subscribers</span><span class="level-lbl tel" style="display:none">గరిష్ట సభ్యులు</span><span class="level-val">60 households</span></div>
       <div class="level-row"><span class="level-lbl eng">Avg Monthly Turnover</span><span class="level-lbl tel" style="display:none">సగటు నెలవారీ టర్నోవర్</span><span class="level-val">₹1,50,000</span></div>
       <div class="level-row"><span class="level-lbl eng">Royalty from VIPL</span><span class="level-lbl tel" style="display:none">VIPL నుండి రాయల్టీ</span><span class="level-val" style="color:#1565C0;font-size:15px">5% – 7%</span></div>
-      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val">2 or 5 Years</span></div>
+      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val"><span class="eng">2, 3 or 5 Years</span><span class="tel" style="display:none">2, 3 లేదా 5 సంవత్సరాలు</span></span></div>
       <div class="level-income">
-        <div class="level-income-lbl eng">Monthly Income</div><div class="level-income-lbl tel" style="display:none">నెలవారీ ఆదాయం</div>
+        <div class="level-income-lbl eng">Illustrative monthly royalty</div><div class="level-income-lbl tel" style="display:none">ఉదాహరణ నెలవారీ రాయల్టీ</div>
         <div class="level-income-val" style="color:#1565C0">₹7,500 – ₹10,500</div>
       </div>
     </div>
@@ -98,9 +113,9 @@
       <div class="level-row"><span class="level-lbl eng">Max Subscribers</span><span class="level-lbl tel" style="display:none">గరిష్ట సభ్యులు</span><span class="level-val">150 households</span></div>
       <div class="level-row"><span class="level-lbl eng">Avg Monthly Turnover</span><span class="level-lbl tel" style="display:none">సగటు నెలవారీ టర్నోవర్</span><span class="level-val">₹5,00,000</span></div>
       <div class="level-row"><span class="level-lbl eng">Royalty from VIPL</span><span class="level-lbl tel" style="display:none">VIPL నుండి రాయల్టీ</span><span class="level-val" style="color:#F97316;font-size:15px">7% – 9%</span></div>
-      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val">2 or 5 Years</span></div>
+      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val"><span class="eng">2, 3 or 5 Years</span><span class="tel" style="display:none">2, 3 లేదా 5 సంవత్సరాలు</span></span></div>
       <div class="level-income">
-        <div class="level-income-lbl eng">Monthly Income</div><div class="level-income-lbl tel" style="display:none">నెలవారీ ఆదాయం</div>
+        <div class="level-income-lbl eng">Illustrative monthly royalty</div><div class="level-income-lbl tel" style="display:none">ఉదాహరణ నెలవారీ రాయల్టీ</div>
         <div class="level-income-val" style="color:#F97316">₹35,000 – ₹45,000</div>
       </div>
     </div>
@@ -118,29 +133,29 @@
       <div class="level-row"><span class="level-lbl eng">Max Subscribers</span><span class="level-lbl tel" style="display:none">గరిష్ట సభ్యులు</span><span class="level-val">250 households</span></div>
       <div class="level-row"><span class="level-lbl eng">Avg Monthly Turnover</span><span class="level-lbl tel" style="display:none">సగటు నెలవారీ టర్నోవర్</span><span class="level-val">₹8,00,000</span></div>
       <div class="level-row"><span class="level-lbl eng">Royalty from VIPL</span><span class="level-lbl tel" style="display:none">VIPL నుండి రాయల్టీ</span><span class="level-val" style="color:#6D28D9;font-size:15px">8% – 10%</span></div>
-      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val">2 or 5 Years</span></div>
+      <div class="level-row"><span class="level-lbl eng">Agreement</span><span class="level-lbl tel" style="display:none">ఒప్పందం</span><span class="level-val"><span class="eng">2, 3 or 5 Years</span><span class="tel" style="display:none">2, 3 లేదా 5 సంవత్సరాలు</span></span></div>
       <div class="level-income">
-        <div class="level-income-lbl eng">Monthly Income</div><div class="level-income-lbl tel" style="display:none">నెలవారీ ఆదాయం</div>
+        <div class="level-income-lbl eng">Illustrative monthly royalty</div><div class="level-income-lbl tel" style="display:none">ఉదాహరణ నెలవారీ రాయల్టీ</div>
         <div class="level-income-val" style="color:#6D28D9">₹64,000 – ₹80,000</div>
       </div>
     </div>
 
   </div>
-  <p style="text-align:center;font-size:13px;color:#6B7A8D;margin-top:18px" class="eng">Security deposit 100% refundable without interest · First 3 months turnover exempted · Agreement: 2 or 5 years · +30 subscribers per ₹1L additional deposit</p>
-  <p style="text-align:center;font-size:13px;color:#6B7A8D;margin-top:18px" class="tel" style="display:none">భద్రత డిపాజిట్ 100% వడ్డీ లేకుండా తిరిగి ఇవ్వబడుతుంది · ₹1L అదనపు డిపాజిట్‌కు +30 సభ్యులు</p>
+  <p style="text-align:center;font-size:13px;color:#6B7A8D;margin-top:18px" class="eng">Security deposit 100% refundable without interest · First 3 months: subscriber enrolment period, no turnover target · Agreement: 2, 3 or 5 years · +30 subscribers per ₹1L additional deposit</p>
+  <p style="text-align:center;font-size:13px;color:#6B7A8D;margin-top:18px;display:none" class="tel">భద్రత డిపాజిట్ 100% వడ్డీ లేకుండా తిరిగి ఇవ్వబడుతుంది · మొదటి 3 నెలలు: సభ్యుల నమోదు కాలం, టర్నోవర్ లక్ష్యం లేదు · ఒప్పందం: 2, 3 లేదా 5 సంవత్సరాలు · ₹1L అదనపు డిపాజిట్‌కు +30 సభ్యులు</p>
 </section>
 
-<!-- INCOME CALCULATOR -->
+<!-- ROYALTY CALCULATOR -->
 <section class="section sec-white">
-  <div class="eyebrow eng">Income Calculator</div><div class="eyebrow tel" style="display:none">ఆదాయ లెక్కల పరికరం</div>
-  <h2 class="sec-title"><span class="eng">How much will <span class="hl-o">you earn?</span></span><span class="tel" style="display:none">మీరు <span class="hl-o">ఎంత సంపాదిస్తారు?</span></span></h2>
-  <p class="sec-sub eng">Move the sliders to calculate your estimated monthly royalty income based on store level and subscriber count.</p>
-  <p class="sec-sub tel" style="display:none">స్టోర్ స్థాయి మరియు సభ్యుల సంఖ్య ఆధారంగా మీ అంచనా నెలవారీ రాయల్టీ ఆదాయాన్ని లెక్కించడానికి స్లయిడర్లు కదలించండి.</p>
+  <div class="eyebrow eng">Royalty Calculator</div><div class="eyebrow tel" style="display:none">రాయల్టీ లెక్కల పరికరం</div>
+  <h2 class="sec-title"><span class="eng">What could your <span class="hl-o">royalty look like?</span></span><span class="tel" style="display:none">మీ రాయల్టీ <span class="hl-o">ఎంత ఉండవచ్చు?</span></span></h2>
+  <p class="sec-sub eng">Move the sliders to calculate your estimated monthly royalty based on store level and subscriber count.</p>
+  <p class="sec-sub tel" style="display:none">స్టోర్ స్థాయి మరియు సభ్యుల సంఖ్య ఆధారంగా మీ అంచనా నెలవారీ రాయల్టీని లెక్కించడానికి స్లయిడర్లు కదలించండి.</p>
   <div class="calc-wrap">
     <div class="calc-grid">
       <div>
         <div class="calc-label eng">Store Level</div><div class="calc-label tel" style="display:none">స్టోర్ స్థాయి</div>
-        <select class="calc-select" id="calcLevel" onchange="calcIncome()">
+        <select class="calc-select" id="calcLevel" onchange="calcRoyalty()">
           <option value="1" class="eng">Level 1 — Starter (up to 60 households)</option>
           <option value="2" class="eng">Level 2 — Growth (up to 150 households)</option>
           <option value="3" class="eng">Level 3 — Hub (up to 250 households)</option>
@@ -149,20 +164,24 @@
         <div style="margin-top:24px">
           <div class="calc-label eng">Subscribers: <span id="subCount" style="color:#F97316;font-size:16px">30</span></div>
           <div class="calc-label tel" style="display:none">సభ్యుల సంఖ్య: <span id="subCountTe" style="color:#F97316">30</span></div>
-          <input type="range" min="1" max="60" value="30" id="subRange" oninput="calcIncome()">
+          <input type="range" min="1" max="60" value="30" id="subRange" oninput="calcRoyalty()">
         </div>
 
         <div style="margin-top:8px">
           <div class="calc-label eng">Avg Monthly Purchase/HH: ₹<span id="hhSpend">2,000</span></div>
           <div class="calc-label tel" style="display:none">HH కు సగటు నెలవారీ కొనుగోలు: ₹<span id="hhSpendTe">2,000</span></div>
-          <input type="range" min="1000" max="5000" step="100" value="2000" id="hhRange" oninput="calcIncome()">
+          <input type="range" min="1000" max="5000" step="100" value="2000" id="hhRange" oninput="calcRoyalty()">
         </div>
 
         <div style="margin-top:20px;padding:16px;background:#F0F7FF;border-radius:12px;font-size:13px;color:#6B7A8D;line-height:1.65">
           <strong class="eng" style="color:#0D2340">How it works:</strong><br class="eng">
           <span class="eng">VIPL pays you <span id="royPct" style="color:#F97316;font-weight:800">6%</span> royalty on your store's monthly turnover directly into your account. The more subscribers you have, the more you earn.</span>
-          <strong class="tel" style="display:none;color:#0D2340">ఇది ఎలా పనిచేస్తుంది:</strong><br class="tel">
+          <strong class="tel" style="display:none;color:#0D2340">ఇది ఎలా పనిచేస్తుంది:</strong><br class="tel" style="display:none">
           <span class="tel" style="display:none">VIPL మీ స్టోర్ నెలవారీ టర్నోవర్‌పై <span id="royPctTe" style="color:#F97316;font-weight:800">6%</span> రాయల్టీ నేరుగా మీ ఖాతాలో చెల్లిస్తుంది.</span>
+        </div>
+        <div style="margin-top:10px;font-size:12.5px;color:#6B7A8D;line-height:1.6">
+          <span class="eng">In the first 3 months you enrol subscribers. Supply starts once they are enrolled, so no turnover or royalty is expected in this period.</span>
+          <span class="tel" style="display:none">మొదటి 3 నెలల్లో మీరు సభ్యులను నమోదు చేస్తారు. వారు నమోదైన తర్వాతే సరఫరా ప్రారంభమవుతుంది, కాబట్టి ఈ కాలంలో టర్నోవర్ లేదా రాయల్టీ ఆశించబడదు.</span>
         </div>
       </div>
 
@@ -173,8 +192,8 @@
           <div class="calc-result-val" id="turnover">₹60,000</div>
           <div style="font-size:13px;opacity:.65;margin-top:4px" class="eng" id="turnoverNote">30 subscribers × ₹2,000</div>
           <div class="calc-divider"></div>
-          <div class="calc-result-label eng">Your Monthly Royalty</div>
-          <div class="calc-result-label tel" style="display:none">మీ నెలవారీ రాయల్టీ</div>
+          <div class="calc-result-label eng">Estimated monthly royalty</div>
+          <div class="calc-result-label tel" style="display:none">అంచనా నెలవారీ రాయల్టీ</div>
           <div class="calc-result-val" style="color:#FCD34D" id="royalty">₹3,600</div>
           <div style="font-size:13px;opacity:.65;margin-top:4px" class="eng" id="royNote">Paid by VIPL (6% avg)</div>
           <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,.1);border-radius:10px;font-size:13px;opacity:.75" class="eng" id="calcNote">Level 1 · 30 subscribers</div>
@@ -182,6 +201,8 @@
       </div>
     </div>
   </div>
+  <p class="eng" style="text-align:center;font-size:12px;color:#6B7A8D;max-width:720px;margin:16px auto 0;line-height:1.6">Royalty figures are illustrative, based on the subscribers, average monthly purchase and royalty rate shown. Actual royalty depends on your store's actual turnover. Terms are as per your agreement with VIPL.</p>
+  <p class="tel" style="text-align:center;font-size:12px;color:#6B7A8D;max-width:720px;margin:16px auto 0;line-height:1.6;display:none">రాయల్టీ గణాంకాలు ఉదాహరణ కోసం మాత్రమే — చూపిన సభ్యుల సంఖ్య, సగటు నెలవారీ కొనుగోలు మరియు రాయల్టీ రేటు ఆధారంగా. అసలు రాయల్టీ మీ స్టోర్ వాస్తవ టర్నోవర్‌పై ఆధారపడి ఉంటుంది. నిబంధనలు VIPL తో మీ ఒప్పందం ప్రకారం ఉంటాయి.</p>
 </section>
 
 <!-- HOW TO JOIN -->
@@ -190,9 +211,9 @@
   <h2 class="sec-title"><span class="eng">4 steps to <span class="hl">start earning.</span></span><span class="tel" style="display:none">సంపాదించడం ప్రారంభించే <span class="hl">4 దశలు.</span></span></h2>
   <div class="join-steps">
     <div class="join-step fade-up"><div class="join-step-num">1</div><div class="join-step-title eng">Apply Online</div><div class="join-step-title tel" style="display:none">ఆన్‌లైన్‌లో దరఖాస్తు చేయండి</div><div class="join-step-desc eng">Fill the application form with your village and personal details. Our team contacts you within 48 hours.</div><div class="join-step-desc tel" style="display:none">మీ గ్రామం మరియు వ్యక్తిగత వివరాలతో దరఖాస్తు నింపండి. 48 గంటల్లో మా టీమ్ మీకు సంప్రదిస్తుంది.</div></div>
-    <div class="join-step fade-up" style="transition-delay:.1s"><div class="join-step-num">2</div><div class="join-step-title eng">Agreement & Deposit</div><div class="join-step-title tel" style="display:none">ఒప్పందం & డిపాజిట్</div><div class="join-step-desc eng">Sign the Digital Store agreement (2 or 5 years) and pay the refundable security deposit.</div><div class="join-step-desc tel" style="display:none">డిజిటల్ స్టోర్ ఒప్పందంపై సంతకం చేయండి మరియు తిరిగి చెల్లించే భద్రత డిపాజిట్ చెల్లించండి.</div></div>
+    <div class="join-step fade-up" style="transition-delay:.1s"><div class="join-step-num">2</div><div class="join-step-title eng">Agreement & Deposit</div><div class="join-step-title tel" style="display:none">ఒప్పందం & డిపాజిట్</div><div class="join-step-desc eng">Sign the Digital Store agreement (2, 3 or 5 years) and pay the refundable security deposit.</div><div class="join-step-desc tel" style="display:none">డిజిటల్ స్టోర్ ఒప్పందంపై (2, 3 లేదా 5 సంవత్సరాలు) సంతకం చేయండి మరియు తిరిగి చెల్లించే భద్రత డిపాజిట్ చెల్లించండి.</div></div>
     <div class="join-step fade-up" style="transition-delay:.2s"><div class="join-step-num">3</div><div class="join-step-title eng">Training & Setup</div><div class="join-step-title tel" style="display:none">శిక్షణ & సెటప్</div><div class="join-step-desc eng">VIPL FBC team provides full training on the platform, products and operations. Store setup fully supported.</div><div class="join-step-desc tel" style="display:none">VIPL FBC టీమ్ ప్లాట్‌ఫారమ్, ఉత్పత్తులు మరియు కార్యకలాపాలపై పూర్తి శిక్షణ అందిస్తుంది.</div></div>
-    <div class="join-step fade-up" style="transition-delay:.3s"><div class="join-step-num">4</div><div class="join-step-title eng">Go Live & Earn</div><div class="join-step-title tel" style="display:none">ప్రారంభించి సంపాదించండి</div><div class="join-step-desc eng">Your store goes live. Onboard subscribers. VIPL pays royalty directly into your account every month.</div><div class="join-step-desc tel" style="display:none">VIPL ప్రతి నెలా మీ ఖాతాలో నేరుగా రాయల్టీ చెల్లిస్తుంది.</div></div>
+    <div class="join-step fade-up" style="transition-delay:.3s"><div class="join-step-num">4</div><div class="join-step-title eng">Go Live & Start Earning Royalty</div><div class="join-step-title tel" style="display:none">ప్రారంభించి రాయల్టీ సంపాదించడం మొదలుపెట్టండి</div><div class="join-step-desc eng">Your store goes live. Onboard subscribers. VIPL pays royalty directly into your account every month.</div><div class="join-step-desc tel" style="display:none">VIPL ప్రతి నెలా మీ ఖాతాలో నేరుగా రాయల్టీ చెల్లిస్తుంది.</div></div>
   </div>
 </section>
 
@@ -207,10 +228,10 @@
 
 <footer>
   <div class="footer-grid">
-    <div><div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div><p class="footer-tagline eng">Rural subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p><p class="footer-tagline tel" style="display:none">AP &amp; తెలంగాణలో గ్రామీణ సభ్యత్వ ఆధారిత కిరాణా వాణిజ్యం. త్వరలో ప్రారంభం.</p><div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div></div>
+    <div><div class="footer-logo"><a href="index.html"><img src="logo-footer.png" alt="VIPL"></a></div><p class="footer-tagline eng">Rural &amp; semi-urban subscription-based grocery commerce across AP &amp; Telangana. Launching soon.</p><p class="footer-tagline tel" style="display:none">AP &amp; తెలంగాణలో గ్రామీణ సభ్యత్వ ఆధారిత కిరాణా వాణిజ్యం. త్వరలో ప్రారంభం.</p><div class="footer-badges" style="margin-top:14px;display:flex;gap:8px"><span class="footer-badge">DIPP210951</span><span class="footer-badge">AP &amp; TG</span></div></div>
     <div><div class="footer-col-title">Platform</div><ul class="footer-links"><li><a href="index.html">Home</a></li><li><a href="subscribe.html">Subscribe</a></li><li><a href="store.html">Open a Store</a></li><li><a href="about.html">About</a></li></ul></div>
     <div><div class="footer-col-title">Portals</div><ul class="footer-links"><li><a href="subscribe.html">Subscriber Portal</a></li><li><a href="store.html">Store Operator</a></li><li><a href="contact.html">FBC Team</a></li><li><a href="vipl/index.html">Investor Zone</a></li></ul></div>
-    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
+    <div><div class="footer-col-title">Legal</div><ul class="footer-links"><li><a href="privacy.html"><span class="eng">Privacy Policy</span><span class="tel" style="display:none">గోప్యతా విధానం</span></a></li><li><a href="tel:+919985831114"><span class="eng">Phone: +91 99858 31114</span><span class="tel" style="display:none">ఫోన్: +91 99858 31114</span></a></li><li><a>CIN: U46909AP2024PTC117000</a></li><li><a>Startup India: DIPP210951</a></li></ul></div>
   </div>
   <div class="footer-bottom"><p>© 2026 Vaaralabbayi India Private Limited. All rights reserved.</p><div class="footer-badges"><span class="footer-badge" style="color:#42A5F5">Startup India ✓</span><span class="footer-badge" style="color:#F97316">Launching Soon</span></div></div>
 </footer>
@@ -222,7 +243,7 @@ const levelData = {
   2: { max:150, royMin:.07, royMax:.09, label:'Level 2 · Growth'  },
   3: { max:250, royMin:.08, royMax:.10, label:'Level 3 · Hub'     }
 };
-function calcIncome() {
+function calcRoyalty() {
   const lvl     = parseInt(document.getElementById('calcLevel').value);
   const subs    = parseInt(document.getElementById('subRange').value);
   const hhSpend = parseInt(document.getElementById('hhRange').value);
@@ -242,8 +263,8 @@ function calcIncome() {
   document.getElementById('royNote').textContent    = 'Paid by VIPL (' + royPct + '% avg)';
   document.getElementById('calcNote').textContent   = d.label + ' · ' + actualSubs + ' subscribers';
 }
-document.getElementById('subRange').addEventListener('input', calcIncome);
-document.getElementById('hhRange').addEventListener('input', calcIncome);
+document.getElementById('subRange').addEventListener('input', calcRoyalty);
+document.getElementById('hhRange').addEventListener('input', calcRoyalty);
 </script>
 </body>
 </html>

@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
   const {
     fullName, mobileNumber, village, cityDistrict, state,
-    enquiryType, message, companyWebsite, source, campaignName,
+    enquiryType, message, companyWebsite, source, campaignName, consent,
   } = req.body || {};
 
   // Honeypot: a field real users never see or fill (hidden via CSS on the
@@ -105,6 +105,9 @@ export default async function handler(req, res) {
           city_district: cityDistrict ? String(cityDistrict).trim() : null,
           state: state ? String(state).trim() : null,
           message: message ? String(message).trim() : null,
+          // Timestamp set here (server clock), not trusted from the browser.
+          // Older clients that don't send consent are still accepted; they get null.
+          consent_given_at: consent === true ? new Date().toISOString() : null,
         },
       }),
     });
