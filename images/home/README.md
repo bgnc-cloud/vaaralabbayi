@@ -14,7 +14,7 @@ looks the same as it does without images, so you can add photos one at a time.
 - A logo may be in the photo. Use photos you own or are licensed to use.
 - Keep the main subject (and any logo) near the centre; edges may be cropped on some screens.
 
-## What we offer: 5 cards, 800 × 450 px (16:9)
+## What we offer: 6 cards, 800 × 450 px (16:9)
 
 | File | Card |
 |---|---|
@@ -23,6 +23,7 @@ looks the same as it does without images, so you can add photos one at a time.
 | `offer-home-needs.jpg` | Home Needs |
 | `offer-electronics.jpg` | Electronics |
 | `offer-clothing.jpg` | Clothing & Footwear |
+| `offer-footwear.jpg` | Footwear |
 
 ## How it works: 4 steps, 640 × 360 px (16:9)
 
