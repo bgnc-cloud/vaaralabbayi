@@ -21,6 +21,10 @@ const ENQUIRY_TO_LEAD_TYPE = {
   general: 'general_enquiry',
 };
 
+// "Select an option…" (or "..."), any case, is a dropdown placeholder that browser autofill can put
+// into the free-text State box; it is treated as no state given.
+const STATE_PLACEHOLDER_RE = /^select an option\s*(…|\.\.\.)?$/i;
+
 // A filled spam trap only counts as a bot if the form was sent this soon after the page loaded.
 const SPAM_TRAP_MIN_MS = 3000;
 
@@ -146,7 +150,7 @@ export default async function handler(req, res) {
         extra_fields: {
           village: village ? String(village).trim() : null,
           city_district: cityDistrict ? String(cityDistrict).trim() : null,
-          state: state ? String(state).trim() : null,
+          state: state && String(state).trim() && !STATE_PLACEHOLDER_RE.test(String(state).trim()) ? String(state).trim() : null,
           message: message ? String(message).trim() : null,
           // Timestamp set here (server clock), not trusted from the browser.
           // Older clients that don't send consent are still accepted; they get null.
