@@ -161,6 +161,8 @@
   }
   .fl-searchHint { flex-basis: 100%; font-size: 11.5px; color: var(--rot); text-align: right; }
   .fl-searchHint:empty { display: none; }
+  #divisionHint { color: var(--soil-60); }
+  .fl-selects select:disabled { color: var(--soil-40); background: var(--paper); cursor: not-allowed; }
 
   .fl-viewBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: -8px 0 18px; }
   .fl-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--card); }
@@ -315,6 +317,7 @@
     type: '',               // '' = all lead types
     source: '',
     district: '',           // district id
+    division: '',           // revenue division id (only with a district)
     search: '',             // the applied (valid) search text
     attention: '',          // '' | unassigned | waiting_staff | overdue | follow_up_due
     offset: 0,
@@ -324,6 +327,7 @@
   let HAS_MORE = false;
   let COUNTS = null;        // { status: total | null } for the current type + filters
   let CRM_POSITIONS = [];
+  let POSITIONS_STATE = 'loading'; // loading | ready | failed
   let DISTRICTS = [];       // [{ id, name }]
   let DISTRICTS_FROM_GEO = false;
   const SEEN_DISTRICTS = new Map();
@@ -427,6 +431,7 @@
     if (STATE.type) f.lead_type = STATE.type;
     if (STATE.source) f.source = STATE.source;
     if (STATE.district) f.district_id = STATE.district;
+    if (STATE.district && STATE.division) f.revenue_division_id = STATE.division;
     if (STATE.search) f.search = STATE.search;
     if (STATE.attention === 'unassigned' || STATE.attention === 'waiting_staff') f.assigned = STATE.attention;
     if (STATE.attention === 'overdue') f.overdue = true;
@@ -486,8 +491,42 @@
   function refreshAll() { return Promise.all([loadList(), loadCounts()]); }
 
   async function loadPositions() {
+    POSITIONS_STATE = 'loading';
+    fillDivisionSelect();
     const r = await api('list_crm_positions', {});
-    CRM_POSITIONS = r.ok && Array.isArray(r.data.positions) ? r.data.positions : [];
+    const ok = r.ok && Array.isArray(r.data.positions);
+    CRM_POSITIONS = ok ? r.data.positions : [];
+    POSITIONS_STATE = ok ? 'ready' : 'failed';
+    fillDivisionSelect();
+  }
+
+  // A district's revenue divisions, from the CRM_RM seats (one per division, vacant ones included).
+  function divisionsFor(districtId) {
+    const byId = new Map();
+    CRM_POSITIONS.forEach(p => {
+      if (p.role_code === 'CRM_RM' && p.district_id === districtId && p.revenue_division_id && p.revenue_division_name && !byId.has(p.revenue_division_id)) {
+        byId.set(p.revenue_division_id, p.revenue_division_name);
+      }
+    });
+    return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+  }
+  function fillDivisionSelect() {
+    const sel = document.getElementById('filterDivision');
+    const hint = document.getElementById('divisionHint');
+    if (!sel) return;
+    let options = [], hintText = '';
+    if (STATE.district) {
+      if (POSITIONS_STATE === 'loading') hintText = 'Loading divisions…';
+      else if (POSITIONS_STATE === 'failed') hintText = "Divisions couldn't load. Reload the page to try again.";
+      else {
+        options = divisionsFor(STATE.district);
+        if (!options.length) hintText = 'No revenue divisions listed for this district.';
+      }
+    }
+    sel.innerHTML = '<option value="">All divisions</option>' + options.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+    sel.disabled = !options.length;
+    sel.value = options.some(d => d.id === STATE.division) ? STATE.division : '';
+    if (hint) hint.textContent = hintText;
   }
 
   async function loadDistricts() {
@@ -549,6 +588,8 @@
           </select>
           <label class="fl-sr" for="filterDistrict">District</label>
           <select id="filterDistrict"><option value="">All Districts</option></select>
+          <label class="fl-sr" for="filterDivision">Revenue division</label>
+          <select id="filterDivision" disabled aria-describedby="divisionHint"><option value="">All divisions</option></select>
           <label class="fl-sr" for="filterAttention">Needs attention</label>
           <select id="filterAttention">
             <option value="">Needs attention: All</option>
@@ -559,6 +600,7 @@
           </select>
           <label class="fl-sr" for="filterSearch">Search by name or phone</label>
           <input type="search" id="filterSearch" placeholder="Search name or phone" autocomplete="off" aria-describedby="searchHint">
+          <div class="fl-searchHint" id="divisionHint" aria-live="polite"></div>
           <div class="fl-searchHint" id="searchHint" aria-live="polite"></div>
         </div>
       </div>
@@ -580,7 +622,13 @@
       onFiltersChanged();
     }));
     document.getElementById('filterSource').addEventListener('change', e => { STATE.source = e.target.value; onFiltersChanged(); });
-    document.getElementById('filterDistrict').addEventListener('change', e => { STATE.district = e.target.value; onFiltersChanged(); });
+    document.getElementById('filterDistrict').addEventListener('change', e => {
+      STATE.district = e.target.value;
+      STATE.division = '';   // a new district starts with all of its divisions
+      fillDivisionSelect();
+      onFiltersChanged();
+    });
+    document.getElementById('filterDivision').addEventListener('change', e => { STATE.division = e.target.value; onFiltersChanged(); });
     document.getElementById('filterAttention').addEventListener('change', e => { STATE.attention = e.target.value; onFiltersChanged(); });
     const search = document.getElementById('filterSearch');
     search.addEventListener('input', () => { clearTimeout(SEARCH_TIMER); SEARCH_TIMER = setTimeout(applySearch, 400); });
@@ -615,6 +663,7 @@
     });
 
     fillDistrictSelect();
+    fillDivisionSelect();
     syncControls();
     renderStats();
   }
