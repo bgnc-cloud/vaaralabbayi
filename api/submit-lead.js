@@ -21,29 +21,70 @@ const ENQUIRY_TO_LEAD_TYPE = {
   general: 'general_enquiry',
 };
 
+// A filled spam trap only counts as a bot if the form was sent this soon after the page loaded.
+const SPAM_TRAP_MIN_MS = 3000;
+
+// Every dropped submission is logged with a short reason only: never names, phone numbers or messages.
+function logDrop(reason) {
+  console.warn(`submit-lead: dropped (${reason})`);
+}
+
+// Milliseconds between the page loading and the form being sent, or null if unknown.
+// Both times come from the browser's own clock, so a wrong clock on the visitor's device does not
+// matter. If the submit time is missing, the server clock is used instead.
+function msSinceFormLoaded(formLoadedAt, formSubmittedAt) {
+  const loaded = Number(formLoadedAt);
+  if (!Number.isFinite(loaded) || loaded <= 0) return null;
+  const submitted = Number(formSubmittedAt);
+  const now = Number.isFinite(submitted) && submitted > 0 ? submitted : Date.now();
+  return now - loaded;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  const body = req.body || {};
   const {
     fullName, mobileNumber, village, cityDistrict, state,
-    enquiryType, message, companyWebsite, source, campaignName, consent,
-  } = req.body || {};
+    enquiryType, message, source, campaignName, consent,
+    hp_extra, formLoadedAt, formSubmittedAt,
+  } = body;
 
-  // Honeypot: a field real users never see or fill (hidden via CSS on the
-  // form). Bots that blindly fill every input trip this — silently pretend
-  // success so they don't learn they were caught, but never write anything.
-  if (companyWebsite) {
+  // Old spam-trap name (companyWebsite, also accepted as company_website): pages cached from
+  // before the rename still send it. Same behaviour as before: filled means bot, pretend success,
+  // write nothing. Browser autofill could fill this old field, which is why it was renamed.
+  if (body.companyWebsite || body.company_website) {
+    logDrop('old spam-trap field filled');
     return res.status(200).json({ success: true });
   }
 
+  // New spam trap (hp_extra). Real people never see it, but a browser or password manager might
+  // still fill it. Bots fill it instantly, so it only counts as spam if the form came in under
+  // 3 seconds after the page loaded, or without the loaded-at time. Otherwise it is ignored
+  // (never forwarded) and the lead is saved.
+  if (hp_extra && String(hp_extra).trim()) {
+    const elapsed = msSinceFormLoaded(formLoadedAt, formSubmittedAt);
+    if (elapsed === null) {
+      logDrop('spam trap filled, no loaded-at time');
+      return res.status(200).json({ success: true });
+    }
+    if (elapsed < SPAM_TRAP_MIN_MS) {
+      logDrop('spam trap filled, sent under 3s after load');
+      return res.status(200).json({ success: true });
+    }
+    // A person (probably autofill): carry on and save the lead.
+  }
+
   if (!fullName || !mobileNumber || !enquiryType) {
+    logDrop('missing required fields');
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   const lead_type = ENQUIRY_TO_LEAD_TYPE[enquiryType];
   if (!lead_type) {
+    logDrop('invalid enquiry type');
     return res.status(400).json({ error: 'Invalid enquiry type' });
   }
 
@@ -54,6 +95,7 @@ export default async function handler(req, res) {
   const fields = { fullName, mobileNumber, village, cityDistrict, state, message };
   for (const [key, max] of Object.entries(MAX)) {
     if (fields[key] && String(fields[key]).length > max) {
+      logDrop(`${key} too long`);
       return res.status(400).json({ error: `${key} is too long` });
     }
   }
@@ -64,6 +106,7 @@ export default async function handler(req, res) {
   // garbage, not being a strict phone validator.
   const digitsOnly = String(mobileNumber).replace(/[^\d]/g, '');
   if (digitsOnly.length < 10 || digitsOnly.length > 13) {
+    logDrop('invalid phone format');
     return res.status(400).json({ error: 'Please enter a valid mobile number' });
   }
 
@@ -119,16 +162,19 @@ export default async function handler(req, res) {
       const busy = typeof result.error === 'string' && result.error
         ? result.error
         : 'We are receiving a lot of enquiries right now. Please try again in an hour.';
+      logDrop('CRM hourly budget full (429)');
       return res.status(429).json({ error: busy });
     }
     if (!submitRes.ok) {
       console.error('CRM submit-lead error:', result.error);
+      logDrop(`CRM error ${submitRes.status}`);
       return res.status(502).json({ error: 'Failed to save submission' });
     }
 
     return res.status(200).json({ success: true, lead_id: result.lead_id });
   } catch (err) {
     console.error('Submit-lead error:', err);
+    logDrop('server error');
     return res.status(500).json({ error: 'Server error' });
   }
 }

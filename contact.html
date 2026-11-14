@@ -167,14 +167,16 @@
         <textarea class="form-textarea" id="fMessage" placeholder="Tell us more about your enquiry..." maxlength="2000"></textarea>
       </div>
 
-      <!-- Honeypot field — invisible to real visitors, left empty by them. Bots that fill every
-           input on a page blindly will fill this too, which is how we quietly filter them out
-           server-side. Kept out of the visual flow and out of tab order; not display:none since
-           a few bots specifically skip display:none fields, so this uses off-screen positioning
-           instead, which most bots don't check for. -->
+      <!-- Spam trap — invisible to real visitors, left empty by them. Bots that fill every
+           input on a page blindly will fill this too. The name and label are deliberately
+           meaningless so browser autofill and password managers do not recognise them.
+           Off-screen rather than display:none, because some bots skip display:none fields.
+           The server only drops a filled trap if the form was sent within 3 seconds of the page
+           loading (see api/submit-lead.js), so a real person whose browser filled it still gets through. -->
       <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
-        <label for="fCompanyWebsite">Company Website</label>
-        <input type="text" id="fCompanyWebsite" name="companyWebsite" tabindex="-1" autocomplete="off">
+        <label for="hp_extra">Leave this box empty</label>
+        <input type="text" id="hp_extra" name="hp_extra" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <input type="hidden" id="formLoadedAt" name="formLoadedAt" value="">
       </div>
 
       <div class="form-group">
@@ -299,6 +301,10 @@ const _params = new URLSearchParams(window.location.search);
 const _campaignName = _params.get('campaign') || _params.get('utm_campaign') || null;
 const _source = _params.get('source') || _params.get('utm_source') || (_campaignName ? 'meta_ads' : 'website');
 
+// "Form loaded at" time (browser clock), sent with the form. The server uses it together with the
+// submit time (same clock) to tell a bot that fills the spam trap instantly from a real person.
+document.getElementById('formLoadedAt').value = String(Date.now());
+
 async function handleSubmit(e) {
   e.preventDefault();
 
@@ -309,7 +315,8 @@ async function handleSubmit(e) {
   const state = document.getElementById('fState').value.trim();
   const enquiryType = document.getElementById('fEnquiry').value;
   const message = document.getElementById('fMessage').value.trim();
-  const companyWebsite = document.getElementById('fCompanyWebsite').value.trim(); // honeypot — should always be empty for real users
+  const hp_extra = document.getElementById('hp_extra').value.trim(); // spam trap — should always be empty for real users
+  const formLoadedAt = Number(document.getElementById('formLoadedAt').value) || null;
 
   const errBox = document.getElementById('submitErr');
   const msgBox = document.getElementById('submitMsg');
@@ -340,7 +347,7 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, companyWebsite, consent: true, source: _source, campaignName: _campaignName })
+      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, hp_extra, formLoadedAt, formSubmittedAt: Date.now(), consent: true, source: _source, campaignName: _campaignName })
     });
     // 429: hourly enquiry budget is full; show the server's "try again later" text.
     if (res.status === 429) {
