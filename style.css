@@ -406,3 +406,9 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   font-size: 15px; font-weight: 800; line-height: 1;
   box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 3px 10px rgba(0,0,0,.28);
 }
+
+/* ── WIDE PAGE IMAGES ── removed by onerror if the file is missing; spacing then falls back to today's */
+.wide-img { display: block; width: 100%; height: auto; margin: 28px auto 40px; border-radius: 16px; background: #EEF3F9; }
+.wide-img-shadow { box-shadow: 0 10px 30px rgba(13,35,64,.12); }
+.wide-img + .why-grid, .wide-img + .chain { margin-top: 0; }
+.why-wide-img { max-width: 960px; }
