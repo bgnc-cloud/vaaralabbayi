@@ -7,7 +7,6 @@
 <link rel="icon" href="../logo.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   /* ── Same Field Ledger design system as leads-crm.html: this form is
      where a lead gets planted (the "Seed" stage of the pipeline), so it
@@ -77,6 +76,13 @@
 
   .typeFields { display: none; }
   .typeFields.active { display: block; }
+
+  /* Area pickers (../lead-geo.js) */
+  select:disabled { opacity: .6; cursor: not-allowed; }
+  .geoStatus { font-size: 12.5px; color: var(--soil-60); margin-top: 6px; }
+  .geoError { font-size: 13px; color: var(--rot); background: #F6E4E0; border-radius: 10px; padding: 10px 12px; margin-top: 8px; line-height: 1.5; }
+  .geoRetry { margin-left: 4px; padding: 5px 12px; border: 1.5px solid var(--rot); border-radius: 8px; background: var(--card); color: var(--rot); font: inherit; font-weight: 700; cursor: pointer; }
+  .geoRetry:focus-visible { outline: 2px solid var(--soil); outline-offset: 2px; }
 </style>
 </head>
 <body>
@@ -114,11 +120,16 @@
     <label>Email</label>
     <input type="email" id="email" placeholder="you@example.com" maxlength="254">
 
-    <label>District</label>
-    <select id="districtSelect"><option value="">Select district…</option></select>
+    <label for="stateSelect">State</label>
+    <select id="stateSelect" disabled><option value="">Loading…</option></select>
 
-    <label>Revenue Division (if known)</label>
-    <select id="divisionSelect"><option value="">Select division…</option></select>
+    <label for="districtSelect">District *</label>
+    <select id="districtSelect" disabled aria-describedby="geoStatus"><option value="">Loading…</option></select>
+    <div id="geoStatus" hidden></div>
+
+    <label for="mandalSelect">Mandal / City <span class="reqMark" hidden>*</span></label>
+    <select id="mandalSelect" disabled aria-describedby="mandalStatus"><option value="">Choose a district first</option></select>
+    <div id="mandalStatus" hidden></div>
 
     <div class="typeFields" id="fields_fo_dso_recruitment">
       <label>Which village/area are you interested in operating in?</label>
@@ -162,10 +173,9 @@
   </div>
 </div>
 
+<script src="../lead-geo.js"></script>
 <script>
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
-  const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
-  const sb = supabase.createClient(FBC_URL, FBC_ANON_KEY);
   const SUBMIT_ENDPOINT = FBC_URL + '/functions/v1/submit-lead';
 
   const params = new URLSearchParams(window.location.search);
@@ -174,28 +184,37 @@
 
   let SELECTED_TYPE = '';
 
-  async function loadDistricts() {
-    const { data } = await sb.from('districts').select('id, name').order('name');
-    const sel = document.getElementById('districtSelect');
-    (data || []).forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.id; opt.textContent = d.name;
-      sel.appendChild(opt);
-    });
-  }
-
-  document.getElementById('districtSelect').onchange = async (e) => {
-    const districtId = e.target.value;
-    const divSel = document.getElementById('divisionSelect');
-    divSel.innerHTML = '<option value="">Select division…</option>';
-    if (!districtId) return;
-    const { data } = await sb.from('revenue_divisions').select('id, name').eq('district_id', districtId).order('name');
-    (data || []).forEach(d => {
-      const opt = document.createElement('option');
-      opt.value = d.id; opt.textContent = d.name;
-      divSel.appendChild(opt);
-    });
+  // State / District / Mandal-or-City pickers (../lead-geo.js).
+  const GEO_TEXT = {
+    loading: 'Loading…',
+    unavailable: 'Not available',
+    chooseDistrict: 'Choose your district',
+    mandalFirst: 'Choose a district first',
+    chooseMandal: 'Choose your mandal or city',
+    noMandals: 'No mandals listed for this district',
+    otherDivision: 'Other',
+    retry: 'Try again',
+    loadingDistricts: 'Loading districts…',
+    loadingMandals: 'Loading mandals and cities…',
+    districtsFailed: 'We could not load the list of districts, so the form cannot be sent yet.',
+    mandalsFailed: 'We could not load the mandals and cities for this district.',
+    waitDistricts: 'The list of districts is still loading. Please wait a moment.',
+    waitMandals: 'The mandals and cities are still loading. Please wait a moment.',
+    needDistrict: 'Please choose your district.',
+    needMandal: 'Please choose your mandal or city.',
   };
+  const geo = LeadGeo.attach({
+    stateSel: document.getElementById('stateSelect'),
+    districtSel: document.getElementById('districtSelect'),
+    mandalSel: document.getElementById('mandalSelect'),
+    statusEl: document.getElementById('geoStatus'),
+    mandalStatusEl: document.getElementById('mandalStatus'),
+    requiredMarks: document.querySelectorAll('.reqMark'),
+    t: GEO_TEXT,
+    classes: { status: 'geoStatus', error: 'geoError', retry: 'geoRetry' },
+  });
+  // Lead types that must name a mandal or city (the CRM routes them by area). Same rule as the Edge Function.
+  const MANDAL_REQUIRED = new Set(['subscriber_interest', 'fo_dso_recruitment', 'fbc_team_recruitment']);
 
   window.selectType = function(type) {
     SELECTED_TYPE = type;
@@ -203,6 +222,7 @@
     document.querySelectorAll('.typeFields').forEach(el => el.classList.remove('active'));
     const fields = document.getElementById('fields_' + type);
     if (fields) fields.classList.add('active');
+    geo.setMandalRequired(MANDAL_REQUIRED.has(type));
   };
 
   document.getElementById('submitBtn').onclick = async () => {
@@ -210,8 +230,6 @@
     const fullName = document.getElementById('fullName').value.trim();
     const phone = document.getElementById('phone').value.trim();
     const email = document.getElementById('email').value.trim();
-    const districtId = document.getElementById('districtSelect').value;
-    const divisionId = document.getElementById('divisionSelect').value;
     const message = document.getElementById('message').value.trim();
 
     if (!SELECTED_TYPE) { msg.textContent = 'Please select what you\'re interested in.'; return; }
@@ -222,6 +240,9 @@
       msg.textContent = 'Please enter a valid phone number: 10 to 13 digits, for example 98765 43210 or +91 98765 43210.';
       return;
     }
+    const geoProblem = geo.check();
+    if (geoProblem) { msg.textContent = GEO_TEXT[geoProblem]; geo.focusFor(geoProblem); return; }
+    const { district_id, mandal_id } = geo.values();
 
     const extra_fields = { message: message || null };
     if (SELECTED_TYPE === 'fo_dso_recruitment') extra_fields.village_interest = document.getElementById('fo_village').value.trim() || null;
@@ -239,7 +260,7 @@
         body: JSON.stringify({
           lead_type: SELECTED_TYPE, full_name: fullName, phone: phone || null, email: email || null,
           source, campaign_name: campaignName,
-          district_id: districtId || null, revenue_division_id: divisionId || null,
+          district_id, mandal_id,
           extra_fields,
           company_website: document.getElementById('companyWebsite').value.trim(),
         }),
@@ -253,7 +274,6 @@
     }
   };
 
-  loadDistricts();
 </script>
 </body>
 </html>

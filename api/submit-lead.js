@@ -10,7 +10,6 @@
 // up automatically as a serverless function.
 
 const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
-const FBC_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV3b3B0b2hydXVyaGJoYXR3a2l6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU0MzA0OTgsImV4cCI6MjEwMTAwNjQ5OH0.5pPk1JNy1xm2NCD9Xv6rZpDrf-jprFwaXtRk4WshL18';
 
 // contact.html's <select id="fEnquiry"> values -> our leads.lead_type values.
 const ENQUIRY_TO_LEAD_TYPE = {
@@ -21,9 +20,11 @@ const ENQUIRY_TO_LEAD_TYPE = {
   general: 'general_enquiry',
 };
 
-// "Select an option…" (or "..."), any case, is a dropdown placeholder that browser autofill can put
-// into the free-text State box; it is treated as no state given.
-const STATE_PLACEHOLDER_RE = /^select an option\s*(…|\.\.\.)?$/i;
+// Lead types that must name a mandal or city (the CRM routes them by area). The others need a
+// district only; a mandal is sent if the visitor chose one. Same rule as the Edge Function.
+const MANDAL_REQUIRED = new Set(['subscriber_interest', 'fo_dso_recruitment', 'fbc_team_recruitment']);
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // A filled spam trap only counts as a bot if the form was sent this soon after the page loaded.
 const SPAM_TRAP_MIN_MS = 3000;
@@ -51,7 +52,7 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   const {
-    fullName, mobileNumber, village, cityDistrict, state,
+    fullName, mobileNumber, district_id, mandal_id,
     enquiryType, message, source, campaignName, consent,
     hp_extra, formLoadedAt, formSubmittedAt,
   } = body;
@@ -95,8 +96,8 @@ export default async function handler(req, res) {
   // Basic sanity limits — nothing here should legitimately be long. Caps
   // prevent someone from submitting megabyte-sized field values that bloat
   // storage or slow the request.
-  const MAX = { fullName: 120, mobileNumber: 20, village: 120, cityDistrict: 120, state: 60, message: 2000 };
-  const fields = { fullName, mobileNumber, village, cityDistrict, state, message };
+  const MAX = { fullName: 120, mobileNumber: 20, message: 2000 };
+  const fields = { fullName, mobileNumber, message };
   for (const [key, max] of Object.entries(MAX)) {
     if (fields[key] && String(fields[key]).length > max) {
       logDrop(`${key} too long`);
@@ -104,10 +105,28 @@ export default async function handler(req, res) {
     }
   }
 
-  // Loose but real phone-format check — allows +91, spaces, hyphens, 10–13
-  // digits overall. Intentionally not stricter than this: real submissions
+  // Area ids from the State / District / Mandal-or-City pickers (get-lead-geo). Format only here;
+  // the Edge Function checks that they exist and that the mandal is in the district.
+  const districtId = district_id ? String(district_id).trim() : '';
+  const mandalId = mandal_id ? String(mandal_id).trim() : '';
+  if (!districtId || !UUID_RE.test(districtId)) {
+    logDrop(districtId ? 'district_id not a UUID' : 'district_id missing');
+    return res.status(400).json({ error: 'Please choose your district.' });
+  }
+  if (mandalId && !UUID_RE.test(mandalId)) {
+    logDrop('mandal_id not a UUID');
+    return res.status(400).json({ error: 'Please choose your mandal or city.' });
+  }
+  if (!mandalId && MANDAL_REQUIRED.has(lead_type)) {
+    logDrop('mandal_id missing');
+    return res.status(400).json({ error: 'Please choose your mandal or city.' });
+  }
+
+  // First gate only, so obvious garbage never reaches the CRM. Loose but
+  // real phone-format check — allows +91, spaces, hyphens, 10–13 digits overall. Intentionally not stricter than this: real submissions
   // vary (landlines, +91 prefix, etc.) and the goal is filtering obvious
-  // garbage, not being a strict phone validator.
+  // garbage, not being a strict phone validator. The Edge Function does the
+  // final normalization.
   const digitsOnly = String(mobileNumber).replace(/[^\d]/g, '');
   if (digitsOnly.length < 10 || digitsOnly.length > 13) {
     logDrop('invalid phone format');
@@ -115,26 +134,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Best-effort district match: contact.html only has a free-text
-    // "City / District" field, not a real district picker, so try a
-    // case-insensitive exact match against our districts table. If it
-    // doesn't match anything, the lead is submitted unassigned and an
-    // admin routes it manually using the free-text village/district/state
-    // preserved below in extra_fields — this never blocks the submission.
-    let district_id = null;
-    if (cityDistrict && String(cityDistrict).trim()) {
-      try {
-        const districtsRes = await fetch(
-          `${FBC_URL}/rest/v1/districts?select=id,name&name=ilike.${encodeURIComponent(String(cityDistrict).trim())}`,
-          { headers: { apikey: FBC_ANON_KEY, Authorization: `Bearer ${FBC_ANON_KEY}` } }
-        );
-        const districts = await districtsRes.json();
-        if (Array.isArray(districts) && districts.length === 1) district_id = districts[0].id;
-      } catch (e) {
-        // Non-fatal — just proceed unassigned.
-      }
-    }
-
     const submitRes = await fetch(`${FBC_URL}/functions/v1/submit-lead`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -145,12 +144,9 @@ export default async function handler(req, res) {
         email: null,
         source: source || 'website',
         campaign_name: campaignName || null,
-        district_id,
-        revenue_division_id: null,
+        district_id: districtId,
+        mandal_id: mandalId || null,
         extra_fields: {
-          village: village ? String(village).trim() : null,
-          city_district: cityDistrict ? String(cityDistrict).trim() : null,
-          state: state && String(state).trim() && !STATE_PLACEHOLDER_RE.test(String(state).trim()) ? String(state).trim() : null,
           message: message ? String(message).trim() : null,
           // Timestamp set here (server clock), not trusted from the browser.
           // Older clients that don't send consent are still accepted; they get null.
@@ -159,7 +155,8 @@ export default async function handler(req, res) {
       }),
     });
 
-    const result = await submitRes.json();
+    let result = {};
+    try { result = await submitRes.json(); } catch (_) { /* non-JSON reply: handled by status below */ }
     // 429 = the CRM's hourly lead budget is full. Pass its friendly message
     // through so the visitor knows to try again later.
     if (submitRes.status === 429) {
@@ -168,6 +165,14 @@ export default async function handler(req, res) {
         : 'We are receiving a lot of enquiries right now. Please try again in an hour.';
       logDrop('CRM hourly budget full (429)');
       return res.status(429).json({ error: busy });
+    }
+    // 400 = the CRM rejected the details. Its message is written for visitors (it never contains
+    // internal reasons), so pass it through instead of a generic failure.
+    if (submitRes.status === 400) {
+      logDrop('CRM rejected (400)');
+      return res.status(400).json({
+        error: typeof result.error === 'string' && result.error ? result.error : 'Please check your details and try again.',
+      });
     }
     if (!submitRes.ok) {
       console.error('CRM submit-lead error:', result.error);

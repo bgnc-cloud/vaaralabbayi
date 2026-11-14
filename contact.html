@@ -85,23 +85,34 @@
         <input class="form-input" type="tel" id="fMobile" placeholder="+91 XXXXX XXXXX" maxlength="20" required>
       </div>
 
-      <div class="form-group">
-        <label class="form-label eng" for="fVillage">Village</label>
-        <label class="form-label tel" for="fVillage" style="display:none">గ్రామం</label>
-        <input class="form-input" type="text" id="fVillage" placeholder="Village name" maxlength="120">
-      </div>
-
-      <div class="form-group">
-        <label class="form-label eng" for="fCityDistrict">City / District</label>
-        <label class="form-label tel" for="fCityDistrict" style="display:none">నగరం / జిల్లా</label>
-        <input class="form-input" type="text" id="fCityDistrict" placeholder="City or District" maxlength="120">
-      </div>
-
+      <!-- Area: State -> District -> Mandal / City, loaded from get-lead-geo by lead-geo.js. -->
       <div class="form-group">
         <label class="form-label eng" for="fState">State</label>
         <label class="form-label tel" for="fState" style="display:none">రాష్ట్రం</label>
-        <input class="form-input" type="text" id="fState" placeholder="State" maxlength="60">
+        <select class="form-select" id="fState" disabled><option value="">Loading…</option></select>
       </div>
+
+      <div class="form-group">
+        <label class="form-label eng" for="fDistrict">District *</label>
+        <label class="form-label tel" for="fDistrict" style="display:none">జిల్లా *</label>
+        <select class="form-select" id="fDistrict" required disabled aria-describedby="geoStatus"><option value="">Loading…</option></select>
+        <div id="geoStatus" hidden></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label eng" for="fMandal">Mandal / City <span class="req-mark" hidden>*</span></label>
+        <label class="form-label tel" for="fMandal" style="display:none">మండలం / నగరం <span class="req-mark" hidden>*</span></label>
+        <select class="form-select" id="fMandal" disabled aria-describedby="mandalStatus"><option value="">Choose a district first</option></select>
+        <div id="mandalStatus" hidden></div>
+      </div>
+
+      <style>
+        .form-select:disabled { opacity: .6; cursor: not-allowed; }
+        .geo-status { margin-top: 6px; font-size: 13px; color: #3D4B5C; }
+        .geo-error { margin-top: 8px; padding: 10px 12px; background: #FEE2E2; border-radius: 8px; color: #C0392B; font-size: 13.5px; font-weight: 600; line-height: 1.5; }
+        .geo-retry { margin-top: 6px; padding: 6px 14px; border: 1.5px solid #C0392B; border-radius: 8px; background: #fff; color: #C0392B; font: inherit; font-weight: 700; cursor: pointer; }
+        .geo-retry:focus-visible { outline: 2px solid #1565C0; outline-offset: 2px; }
+      </style>
 
       <div class="form-group">
         <div class="form-label eng" id="enqLblEn">I am enquiring about... *</div>
@@ -274,11 +285,44 @@
 </footer>
 
 <script src="main.js"></script>
+<script src="lead-geo.js"></script>
 <script>
+// State / District / Mandal-or-City pickers (lead-geo.js). Messages in both site languages.
+const GEO_TEXT = {
+  loading: { en: 'Loading…', te: 'లోడ్ అవుతోంది…' },
+  unavailable: { en: 'Not available', te: 'అందుబాటులో లేదు' },
+  chooseDistrict: { en: 'Choose your district', te: 'మీ జిల్లాను ఎంచుకోండి' },
+  mandalFirst: { en: 'Choose a district first', te: 'ముందుగా జిల్లాను ఎంచుకోండి' },
+  chooseMandal: { en: 'Choose your mandal or city', te: 'మీ మండలం లేదా నగరాన్ని ఎంచుకోండి' },
+  noMandals: { en: 'No mandals listed for this district', te: 'ఈ జిల్లాకు మండలాలు లేవు' },
+  otherDivision: { en: 'Other', te: 'ఇతర' },
+  retry: { en: 'Try again', te: 'మళ్ళీ ప్రయత్నించండి' },
+  loadingDistricts: { en: 'Loading districts…', te: 'జిల్లాలు లోడ్ అవుతున్నాయి…' },
+  loadingMandals: { en: 'Loading mandals and cities…', te: 'మండలాలు, నగరాలు లోడ్ అవుతున్నాయి…' },
+  districtsFailed: { en: 'We could not load the list of districts, so the form cannot be sent yet.', te: 'జిల్లాల జాబితా లోడ్ కాలేదు, కాబట్టి ఫారమ్ ఇంకా పంపలేము.' },
+  mandalsFailed: { en: 'We could not load the mandals and cities for this district.', te: 'ఈ జిల్లాకు మండలాలు, నగరాలు లోడ్ కాలేదు.' },
+  waitDistricts: { en: 'The list of districts is still loading. Please wait a moment.', te: 'జిల్లాల జాబితా ఇంకా లోడ్ అవుతోంది. దయచేసి కొద్దిసేపు ఆగండి.' },
+  waitMandals: { en: 'The mandals and cities are still loading. Please wait a moment.', te: 'మండలాలు, నగరాలు ఇంకా లోడ్ అవుతున్నాయి. దయచేసి కొద్దిసేపు ఆగండి.' },
+  needDistrict: { en: 'Please choose your district.', te: 'దయచేసి మీ జిల్లాను ఎంచుకోండి.' },
+  needMandal: { en: 'Please choose your mandal or city.', te: 'దయచేసి మీ మండలం లేదా నగరాన్ని ఎంచుకోండి.' },
+};
+const geo = LeadGeo.attach({
+  stateSel: document.getElementById('fState'),
+  districtSel: document.getElementById('fDistrict'),
+  mandalSel: document.getElementById('fMandal'),
+  statusEl: document.getElementById('geoStatus'),
+  mandalStatusEl: document.getElementById('mandalStatus'),
+  requiredMarks: document.querySelectorAll('.req-mark'),
+  t: GEO_TEXT,
+});
+// Enquiry types (tile values) that must name a mandal or city: the CRM routes these by area.
+const MANDAL_REQUIRED = { subscribe: true, store: true, fbc: true };
+
 // Tile selection: keeps the hidden <select id="fEnquiry"> in sync, so
 // handleSubmit() below needs zero changes to the fields it reads.
 function selectEnquiry(value) {
   document.getElementById('fEnquiry').value = value;
+  geo.setMandalRequired(!!MANDAL_REQUIRED[value]);
   document.querySelectorAll('.enquiry-tile').forEach(t => {
     const on = t.dataset.value === value;
     t.classList.toggle('selected', on);
@@ -310,12 +354,6 @@ async function handleSubmit(e) {
 
   const fullName = document.getElementById('fName').value.trim();
   const mobileNumber = document.getElementById('fMobile').value.trim();
-  const village = document.getElementById('fVillage').value.trim();
-  const cityDistrict = document.getElementById('fCityDistrict').value.trim();
-  // Browser autofill can type another site's dropdown placeholder ("Select an option…") into this
-  // free-text box. Treat that as no state given.
-  const stateRaw = document.getElementById('fState').value.trim();
-  const state = /^select an option\s*(…|\.\.\.)?$/i.test(stateRaw) ? '' : stateRaw;
   const enquiryType = document.getElementById('fEnquiry').value;
   const message = document.getElementById('fMessage').value.trim();
   const hp_extra = document.getElementById('hp_extra').value.trim(); // spam trap — should always be empty for real users
@@ -334,6 +372,17 @@ async function handleSubmit(e) {
     return;
   }
 
+  // Area: district always; mandal / city for the area-routed enquiry types. Also blocks sending
+  // while the lists are loading or after they failed to load.
+  const geoProblem = geo.check();
+  if (geoProblem) {
+    errBox.textContent = LeadGeo.textOf(GEO_TEXT[geoProblem]);
+    errBox.style.display = 'block';
+    geo.focusFor(geoProblem);
+    return;
+  }
+  const { district_id, mandal_id } = geo.values();
+
   if (!document.getElementById('fConsent').checked) {
     errBox.textContent = document.body.classList.contains('te')
       ? 'దయచేసి సమ్మతి బాక్స్‌ను టిక్ చేయండి — అది లేకుండా మేము మీ వివరాలను ఉపయోగించలేము.'
@@ -350,10 +399,11 @@ async function handleSubmit(e) {
     const res = await fetch('/api/submit-lead', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fullName, mobileNumber, village, cityDistrict, state, enquiryType, message, hp_extra, formLoadedAt, formSubmittedAt: Date.now(), consent: true, source: _source, campaignName: _campaignName })
+      body: JSON.stringify({ fullName, mobileNumber, district_id, mandal_id, enquiryType, message, hp_extra, formLoadedAt, formSubmittedAt: Date.now(), consent: true, source: _source, campaignName: _campaignName })
     });
-    // 429: hourly enquiry budget is full; show the server's "try again later" text.
-    if (res.status === 429) {
+    // 400: the details were rejected (the message says what to fix). 429: hourly enquiry budget is
+    // full. Either way, show the server's text.
+    if (res.status === 400 || res.status === 429) {
       let busy = '';
       try { busy = (await res.json()).error || ''; } catch (_) { /* fall back below */ }
       errBox.textContent = busy || 'Something went wrong. Please try again, or call us on +91 99858 31114.';
@@ -364,7 +414,9 @@ async function handleSubmit(e) {
 
     msgBox.style.display = 'block';
     setTimeout(() => { msgBox.scrollIntoView({behavior:'smooth'}); }, 100);
-    ['fName','fMobile','fVillage','fCityDistrict','fState','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+    ['fName','fMobile','fEnquiry','fMessage'].forEach(id => document.getElementById(id).value = '');
+    geo.clear();
+    geo.setMandalRequired(false);
     document.getElementById('fConsent').checked = false;
     document.querySelectorAll('.enquiry-tile').forEach(t => { t.classList.remove('selected'); t.setAttribute('aria-checked', 'false'); });
   } catch (err) {
