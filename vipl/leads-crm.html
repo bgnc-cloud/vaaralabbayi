@@ -35,6 +35,12 @@
     --grain-tint: #EDE7D3;
     --ripe: #3F6B4A;
     --rot: #8B3A3A;
+    --rot-tint: #F3E1DE;
+    --berry: #7A4E6B;
+    --berry-tint: #EFE3EB;
+    --slate: #4F5E68;
+    --slate-tint: #E3E8EB;
+    --focus: #2B5F6B;
   }
 
   #mainArea { background: var(--paper); }
@@ -70,8 +76,9 @@
     font-size: 12.5px; font-family: inherit; color: var(--soil);
   }
 
-  .fl-board { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 20px; align-items: flex-start; }
-  .fl-col { flex: 0 0 270px; min-width: 270px; }
+  /* Four open stages side by side; the grid folds to 2 then 1 column so the page never scrolls sideways. */
+  .fl-board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding-bottom: 20px; align-items: start; }
+  .fl-col { min-width: 0; }
   .fl-colHead { display: flex; align-items: center; gap: 8px; padding: 0 4px 10px; }
   .fl-ring { width: 20px; height: 20px; flex-shrink: 0; }
   .fl-colTitle { font-family: 'Fraunces', serif; font-size: 14.5px; font-weight: 600; }
@@ -141,6 +148,106 @@
   }
   .fl-pager button:disabled { opacity: .4; cursor: default; }
   .fl-pageNote { font-size: 11.5px; color: var(--soil-60); margin: -14px 0 18px; }
+
+  /* ── Additions for the manage-leads v4 page ── */
+  .fl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .fl-wrap :focus-visible, .fl-panel :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .fl-card:focus-visible, .fl-closedRow:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  button.fl-typePill { font-family: inherit; }
+  .fl-selects { flex-wrap: wrap; }
+  .fl-selects input[type="search"] {
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card);
+    font-size: 12.5px; font-family: inherit; color: var(--soil); width: 200px; box-sizing: border-box;
+  }
+  .fl-searchHint { flex-basis: 100%; font-size: 11.5px; color: var(--rot); text-align: right; }
+  .fl-searchHint:empty { display: none; }
+
+  .fl-viewBar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: -8px 0 18px; }
+  .fl-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: var(--card); }
+  .fl-seg[hidden], .fl-reasonStep[hidden] { display: none; }
+  .fl-seg button {
+    padding: 7px 13px; border: none; background: none; font-family: inherit; font-size: 12.5px; font-weight: 600;
+    color: var(--soil-60); cursor: pointer; border-right: 1px solid var(--line);
+  }
+  .fl-seg button:last-child { border-right: none; }
+  .fl-seg button[aria-pressed="true"] { background: var(--soil); color: #fff; }
+
+  .fl-listMsg { font-size: 12.5px; margin: 0 0 14px; }
+  .fl-listMsg:empty { display: none; }
+  .fl-listMsg.err { color: var(--rot); }
+  .fl-busy { opacity: .55; transition: opacity .1s; }
+  .fl-colMore { font-size: 11px; color: var(--soil-40); padding: 2px 4px; }
+
+  .fl-badges { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 5px; }
+  .fl-badges:empty { display: none; }
+  .fl-badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10.5px; font-weight: 700; letter-spacing: .01em; }
+  .fl-badge.overdue { background: var(--rot-tint); color: var(--rot); }
+  .fl-badge.due { background: var(--harvest-tint); color: #7A5214; }
+  .fl-badge.vacant { background: var(--grain-tint); color: #5A4C26; }
+  .fl-card .fl-follow { font-size: 10.5px; color: var(--soil-60); margin-top: 3px; }
+  .fl-card .fl-name, .fl-card .fl-meta, .fl-closedRow { overflow-wrap: anywhere; }
+
+  .fl-closedList { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+  .fl-closedRow {
+    display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr) minmax(0, 1fr); gap: 4px 16px; align-items: start;
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--rot); border-radius: 10px; padding: 11px 13px; cursor: pointer;
+  }
+  .fl-closedRow.converted { border-left-color: var(--ripe); }
+  .fl-closedRow:hover { box-shadow: 0 4px 14px rgba(43,35,24,.08); }
+  .fl-closedRow .fl-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 14px; }
+  .fl-closedRow .sub { font-size: 11.5px; color: var(--soil-60); line-height: 1.5; }
+  .fl-closedRow .when { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--soil-60); text-align: right; }
+
+  .fl-panel { visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; }
+  .fl-panel.open { visibility: visible; transition: transform .2s ease, visibility 0s; }
+  .fl-panel .fl-closeBtn { min-width: 36px; min-height: 36px; border-radius: 8px; }
+  .fl-panel h2:focus { outline: none; }
+  .fl-panel .fl-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; font-size: 12.5px; margin: 12px 0; }
+  .fl-panel .fl-facts dt { color: var(--soil-60); }
+  .fl-panel .fl-facts dd { margin: 0; overflow-wrap: anywhere; }
+  .fl-panel .fl-section { border-top: 1px solid var(--line); margin-top: 18px; }
+  .fl-panel .fl-sectionTitle { font-size: 11px; font-weight: 700; color: var(--soil-60); text-transform: uppercase; letter-spacing: .04em; margin: 16px 0 8px; }
+  .fl-panel input[type="text"], .fl-panel input[type="tel"], .fl-panel input[type="email"], .fl-panel input[type="datetime-local"] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px;
+    font-family: inherit; background: var(--paper); box-sizing: border-box; color: var(--soil);
+  }
+  .fl-panel label.fl-inline { margin-top: 10px; }
+  .fl-panel [aria-invalid="true"] { border-color: var(--rot); }
+  .fl-stageBtn { font-family: inherit; }
+  .fl-stageBtn:disabled { cursor: default; }
+  .fl-stageBtn.closing { color: var(--rot); }
+  .fl-btnRow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .fl-btnRow .fl-saveBtn, .fl-btnRow .fl-noteBtn, .fl-btnRow .fl-ghostBtn { margin-top: 10px; }
+  .fl-ghostBtn {
+    padding: 9px 16px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--soil);
+    font-family: inherit; font-weight: 700; font-size: 12.5px; cursor: pointer;
+  }
+  .fl-saveBtn, .fl-noteBtn { font-family: inherit; }
+  .fl-saveBtn:disabled, .fl-noteBtn:disabled, .fl-ghostBtn:disabled { opacity: .45; cursor: default; }
+  .fl-dangerBtn { background: var(--rot); }
+  .fl-reasonStep { background: var(--rot-tint); border-radius: 10px; padding: 4px 12px 12px; margin-top: 10px; }
+  .fl-reasonStep label { margin-top: 10px; }
+  .fl-counter { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--soil-60); text-align: right; margin-top: 3px; }
+  .fl-msg { font-size: 12.5px; margin-top: 8px; line-height: 1.45; }
+  .fl-msg:empty { display: none; }
+  .fl-msg.ok { color: var(--ripe); }
+  .fl-msg.err { color: var(--rot); }
+  .fl-panel details summary { cursor: pointer; font-size: 11px; font-weight: 700; color: var(--soil-60); text-transform: uppercase; letter-spacing: .04em; margin: 16px 0 4px; }
+  .fl-hint { font-size: 11.5px; color: var(--soil-60); margin-top: 4px; }
+
+  @media (max-width: 1100px) { .fl-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 768px) {
+    .fl-selects { margin-left: 0; width: 100%; }
+    .fl-selects select, .fl-selects input[type="search"] { flex: 1 1 160px; min-width: 0; width: auto; }
+    .fl-searchHint { text-align: left; }
+    .fl-closedRow { grid-template-columns: minmax(0, 1fr); }
+    .fl-closedRow .when { text-align: left; }
+  }
+  @media (max-width: 560px) {
+    .fl-board { grid-template-columns: minmax(0, 1fr); }
+    .fl-panel { width: 100vw; max-width: 100vw; padding: 20px 16px; }
+    .fl-stat { padding: 0 14px; }
+  }
 </style>
 </head>
 <body>
@@ -155,7 +262,7 @@
 </div>
 
 <div class="fl-overlay" id="flOverlay" onclick="closeLeadPanel()"></div>
-<div class="fl-panel" id="flPanel"></div>
+<div class="fl-panel" id="flPanel" role="dialog" aria-modal="true" aria-labelledby="flPanelTitle"></div>
 
 <script src="shell.js"></script>
 <script>
@@ -163,344 +270,861 @@
 
   const FBC_URL = 'https://uwoptohruurhbhatwkiz.supabase.co';
   const MANAGE_LEADS_ENDPOINT = FBC_URL + '/functions/v1/manage-leads';
+  // Public, read-only district list (the same one the lead forms use, see ../lead-geo.js).
+  const LEAD_GEO_ENDPOINT = FBC_URL + '/functions/v1/get-lead-geo';
 
   const LEAD_TYPE_META = {
-    fo_dso_recruitment:    { label: 'FO / DSO',      color: 'var(--sprout)',  tint: 'var(--sprout-tint)' },
-    fbc_team_recruitment:  { label: 'FBC Team',       color: 'var(--harvest)', tint: 'var(--harvest-tint)' },
-    admin_staff_recruitment: { label: 'Admin Staff',  color: 'var(--grain)',   tint: 'var(--grain-tint)' },
-    investor:              { label: 'Investor',       color: 'var(--capital)', tint: 'var(--capital-tint)' },
+    fo_dso_recruitment:      { label: 'FO / DSO',            color: 'var(--sprout)',  tint: 'var(--sprout-tint)' },
+    fbc_team_recruitment:    { label: 'FBC Team',            color: 'var(--harvest)', tint: 'var(--harvest-tint)' },
+    admin_staff_recruitment: { label: 'Admin Staff',         color: 'var(--grain)',   tint: 'var(--grain-tint)' },
+    investor:                { label: 'Investor',            color: 'var(--capital)', tint: 'var(--capital-tint)' },
+    subscriber_interest:     { label: 'Subscriber interest', color: 'var(--berry)',   tint: 'var(--berry-tint)' },
+    general_enquiry:         { label: 'General enquiry',     color: 'var(--slate)',   tint: 'var(--slate-tint)' },
   };
 
+  const SOURCE_LABELS = { meta_ads: 'Meta Ads', referral: 'Referral', walk_in: 'Walk-in', website: 'Website', other: 'Other' };
+
+  // Open stages are the board. Converted (Harvest), Rejected and Lost are the "Closed out" view.
   const STAGES = [
     { key: 'new',        label: 'Seed',     ring: 1 },
     { key: 'contacted',  label: 'Sprout',   ring: 2 },
     { key: 'qualified',  label: 'Bud',      ring: 3 },
     { key: 'interested', label: 'Bloom',    ring: 4 },
-    { key: 'converted',  label: 'Harvest',  ring: 5 },
   ];
-  const CLOSED_STATUSES = ['rejected', 'lost'];
+  const CLOSED_VIEWS = [
+    { key: 'lost',      label: 'Lost' },
+    { key: 'rejected',  label: 'Rejected' },
+    { key: 'converted', label: 'Converted' },
+  ];
+  const STATUS_LABELS = { new: 'Seed', contacted: 'Sprout', qualified: 'Bud', interested: 'Bloom', converted: 'Harvest (converted)', rejected: 'Rejected', lost: 'Lost' };
+  const ALL_STATUSES = ['new', 'contacted', 'qualified', 'interested', 'converted', 'rejected', 'lost'];
+  const REASON_STATUSES = ['lost', 'rejected'];
+  const MAX_REASON = 200;
+  const PAGE_SIZE = 25;
+  const GENERIC_ERROR = 'Something went wrong. Please try again.';
 
   // HTML-escape any server value before it goes into innerHTML.
   function esc(v) {
     return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  // Server-side paging: ALL_LEADS holds the current page only.
-  const PAGE_SIZE = 50;
-  let PAGE = 1;
+  // ── State. Filters live here and survive tab and view changes; any filter change goes back to the first page. ──
+  const STATE = {
+    view: 'board',          // 'board' (status=open) | 'closed'
+    closedStatus: 'lost',   // which closed list
+    type: '',               // '' = all lead types
+    source: '',
+    district: '',           // district id
+    search: '',             // the applied (valid) search text
+    attention: '',          // '' | unassigned | waiting_staff | overdue | follow_up_due
+    offset: 0,
+  };
+  let ROWS = [];            // the current page only
   let TOTAL = 0;
-
-  let ALL_LEADS = [];
+  let HAS_MORE = false;
+  let COUNTS = null;        // { status: total | null } for the current type + filters
   let CRM_POSITIONS = [];
-  let ACTIVE_TYPE_FILTER = null;
-  let ACTIVE_SOURCE_FILTER = '';
-  let ACTIVE_DISTRICT_FILTER = '';
-  let OPEN_LEAD_ID = null;
+  let DISTRICTS = [];       // [{ id, name }]
+  let DISTRICTS_FROM_GEO = false;
+  const SEEN_DISTRICTS = new Map();
+  let OPEN_LEAD = null;     // the lead shown in the drawer (a copy, kept if it leaves the current page)
+  let LAST_OPENER = null;
+  let PENDING_CLOSE = null; // 'lost' | 'rejected' while the reason step is open
+  let LIST_TOKEN = 0, COUNT_TOKEN = 0, NOTES_TOKEN = 0;
+  let SEARCH_TIMER = null;
+
+  // ── Server calls. Every error comes back as friendly text; a raw status is never shown. ──
+  async function api(action, payload) {
+    let token = null;
+    try {
+      const { data: { session } } = await VIPL.sb.auth.getSession();
+      token = session && session.access_token;
+    } catch (e) { /* handled below */ }
+    if (!token) return { ok: false, status: 401, error: 'Your session has expired. Please sign in again.' };
+    let res;
+    try {
+      res = await fetch(MANAGE_LEADS_ENDPOINT, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({}, payload, { access_token: token, action })),
+      });
+    } catch (e) {
+      return { ok: false, status: 0, error: "Couldn't reach the server. Check your connection and try again." };
+    }
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* not JSON */ }
+    if (!res.ok) {
+      const msg = data && typeof data.error === 'string' && data.error.trim() ? data.error : GENERIC_ERROR;
+      return { ok: false, status: res.status, error: msg };
+    }
+    return { ok: true, status: res.status, data: data || {} };
+  }
+
+  // ── Formatting (all times shown in India time) ──
+  const IST_OFFSET_MS = 330 * 60 * 1000;
+  function fmtIST(iso, withYear) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const opts = { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' };
+    if (withYear !== false) opts.year = 'numeric';
+    return d.toLocaleString('en-IN', opts);
+  }
+  // ISO instant -> "YYYY-MM-DDTHH:MM" in India time, for <input type="datetime-local">.
+  function isoToIstInput(iso) {
+    const t = Date.parse(iso);
+    if (isNaN(t)) return '';
+    return new Date(t + IST_OFFSET_MS).toISOString().slice(0, 16);
+  }
+  // The picker value is read as India time whatever the browser's own time zone is.
+  function istInputToIso(v) {
+    return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v || '') ? v + ':00+05:30' : null;
+  }
+  function daysAgo(dateStr) {
+    const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+    return d <= 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+  }
+  function areaText(l) {
+    return [l.mandal_name, l.revenue_division_name ? l.revenue_division_name + ' division' : '', l.district_name].filter(Boolean).join(' · ');
+  }
+  function seatText(l) {
+    if (!l.assigned_position_code) return 'Unassigned';
+    const holder = l.assigned_holder_name || l.assigned_occupant_name;
+    return l.assigned_position_code + (holder ? ' — ' + holder : '');
+  }
+  const isVacant = l => !!l.assigned_position_code && l.assigned_seat_status === 'vacant';
+  function badgesHtml(l) {
+    return [
+      l.is_overdue ? '<span class="fl-badge overdue">Overdue</span>' : '',
+      l.follow_up_due ? '<span class="fl-badge due">Follow-up due now</span>' : '',
+      isVacant(l) ? '<span class="fl-badge vacant">Seat vacant, waiting for staff</span>' : '',
+    ].join('');
+  }
+  function typeMeta(t) { return LEAD_TYPE_META[t] || { label: t || 'Lead', color: 'var(--soil)', tint: 'var(--paper)' }; }
 
   function ringSvg(filled, total, color) {
     const r = 8, cx = 10, cy = 10, circ = 2 * Math.PI * r;
     const dash = (filled / total) * circ;
-    return `<svg class="fl-ring" viewBox="0 0 20 20">
+    return `<svg class="fl-ring" viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="3"></circle>
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="3"
         stroke-dasharray="${dash} ${circ}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"></circle>
     </svg>`;
   }
 
-  function daysAgo(dateStr) {
-    const d = Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
-    return d === 0 ? 'today' : d === 1 ? '1 day' : `${d} days`;
+  // ── Search: mirrors the back end's rule (2+ letters of a name, or 3+ digits of a phone). ──
+  function searchProblem(raw) {
+    const cleaned = String(raw || '').normalize('NFC').replace(/[^\p{L}\p{M}\p{N} .'-]/gu, ' ').replace(/\s+/g, ' ').trim();
+    if (!cleaned) return null;
+    const hasLetters = /\p{L}/u.test(cleaned);
+    if (hasLetters && cleaned.replace(/[ .'\-\p{N}]/gu, '').length >= 2) return null;
+    if (!hasLetters && cleaned.replace(/\D/g, '').length >= 3) return null;
+    return 'Type at least 2 letters of a name or 3 digits of a phone number.';
   }
 
-  function filteredLeads() {
-    return ALL_LEADS.filter(l => {
-      if (ACTIVE_TYPE_FILTER && l.lead_type !== ACTIVE_TYPE_FILTER) return false;
-      if (ACTIVE_SOURCE_FILTER && l.source !== ACTIVE_SOURCE_FILTER) return false;
-      if (ACTIVE_DISTRICT_FILTER && l.district_name !== ACTIVE_DISTRICT_FILTER) return false;
-      return true;
+  // ── Request building ──
+  function baseFilters() {
+    const f = {};
+    if (STATE.type) f.lead_type = STATE.type;
+    if (STATE.source) f.source = STATE.source;
+    if (STATE.district) f.district_id = STATE.district;
+    if (STATE.search) f.search = STATE.search;
+    if (STATE.attention === 'unassigned' || STATE.attention === 'waiting_staff') f.assigned = STATE.attention;
+    if (STATE.attention === 'overdue') f.overdue = true;
+    if (STATE.attention === 'follow_up_due') f.follow_up_due = true;
+    return f;
+  }
+  function listRequest() {
+    return Object.assign(baseFilters(), {
+      status: STATE.view === 'board' ? 'open' : STATE.closedStatus,
+      limit: PAGE_SIZE, offset: STATE.offset,
     });
   }
+  const filtersActive = () => Object.keys(baseFilters()).length > 0;
 
-  function leadCardHtml(l) {
-    const meta = LEAD_TYPE_META[l.lead_type] || { label: l.lead_type, color: 'var(--soil)' };
-    const area = l.revenue_division_name || l.district_name || '—';
-    const assigned = l.assigned_occupant_name || l.assigned_position_code || 'Unassigned';
-    return `
-      <div class="fl-card" style="border-left-color:${meta.color};" data-id="${esc(l.id)}" onclick="openLeadPanel(this.dataset.id)">
-        <div class="fl-name">${esc(l.full_name)}</div>
-        <div class="fl-meta">
-          <div class="row">${esc([l.phone, l.email].filter(Boolean).join(' · ') || 'No contact info')}</div>
-          <div class="row">${esc(area)}</div>
-        </div>
-        <div class="fl-age">${esc(daysAgo(l.created_at))} in pipeline</div>
-        <div class="fl-assigned">→ ${esc(assigned)}</div>
-      </div>
-    `;
-  }
-
-  function renderBoard() {
-    const leads = filteredLeads();
+  // ── Loading ──
+  async function loadList() {
+    const mine = ++LIST_TOKEN;
     const board = document.getElementById('flBoard');
-    const totalStages = STAGES.length;
-
-    const activeCols = STAGES.map(stage => {
-      const stageLeads = leads.filter(l => l.status === stage.key);
-      return `
-        <div class="fl-col">
-          <div class="fl-colHead">
-            ${ringSvg(stage.ring, totalStages, 'var(--ripe)')}
-            <div class="fl-colTitle">${stage.label}</div>
-            <div class="fl-colCount">${stageLeads.length}</div>
-          </div>
-          <div class="fl-colBar" style="background:var(--ripe); opacity:${0.3 + (stage.ring / totalStages) * 0.7};"></div>
-          <div class="fl-colBody">
-            ${stageLeads.length ? stageLeads.map(leadCardHtml).join('') : '<div class="fl-empty">Nothing here yet</div>'}
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    const closedLeads = leads.filter(l => CLOSED_STATUSES.includes(l.status));
-    const closedCol = `
-      <div class="fl-col fl-closedCol">
-        <div class="fl-colHead">
-          <div class="fl-colTitle">Closed</div>
-          <div class="fl-colCount">${closedLeads.length}</div>
-        </div>
-        <div class="fl-colBar" style="background:var(--rot); opacity:.5;"></div>
-        <div class="fl-colBody">
-          ${closedLeads.length ? closedLeads.map(leadCardHtml).join('') : '<div class="fl-empty">None closed out</div>'}
-        </div>
-      </div>
-    `;
-
-    board.innerHTML = activeCols + closedCol;
+    if (board) board.classList.add('fl-busy');
+    const r = await api('list', listRequest());
+    if (mine !== LIST_TOKEN) return;
+    if (board) board.classList.remove('fl-busy');
+    if (!r.ok) {
+      ROWS = []; TOTAL = 0; HAS_MORE = false;
+      setListMsg(r.error, true);
+      renderView();
+      return;
+    }
+    const d = r.data;
+    const leads = Array.isArray(d.leads) ? d.leads : [];
+    TOTAL = Number.isFinite(d.total) ? d.total : leads.length;
+    // Page went past the end (e.g. leads moved out of this view): step back to the last page.
+    if (!leads.length && TOTAL > 0 && STATE.offset >= TOTAL) {
+      STATE.offset = Math.floor((TOTAL - 1) / PAGE_SIZE) * PAGE_SIZE;
+      return loadList();
+    }
+    ROWS = leads;
+    HAS_MORE = typeof d.has_more === 'boolean' ? d.has_more : STATE.offset + leads.length < TOTAL;
+    setListMsg('');
+    noteDistricts(leads);
+    renderView();
   }
 
-  window.setTypeFilter = function(type) {
-    ACTIVE_TYPE_FILTER = ACTIVE_TYPE_FILTER === type ? null : type;
-    document.querySelectorAll('.fl-typePill').forEach(p => p.classList.toggle('active', p.dataset.type === ACTIVE_TYPE_FILTER));
-    renderBoard();
-  };
-
-  function panelHtml(l) {
-    const meta = LEAD_TYPE_META[l.lead_type] || { label: l.lead_type, color: 'var(--soil)', tint: 'var(--paper)' };
-    const extra = Object.entries(l.extra_fields || {}).filter(([k,v]) => v);
-    const allStatuses = [...STAGES.map(s => s.key), 'rejected', 'lost'];
-    // The lead id rides on data-lead (read via leadIdOf), never inside an
-    // inline onclick string.
-    const id = esc(l.id);
-    return `
-      <div data-lead="${id}">
-      <button class="fl-closeBtn" onclick="closeLeadPanel()">✕</button>
-      <div style="clear:both;"></div>
-      <h2>${esc(l.full_name)}</h2>
-      <span class="fl-typeTag" style="background:${meta.tint}; color:${meta.color};">${esc(meta.label)}</span>
-      <div class="fl-contactLine">${esc(l.phone || '—')}</div>
-      <div class="fl-contactLine">${esc(l.email || '—')}</div>
-      <div class="fl-contactLine">${esc(l.revenue_division_name || l.district_name || 'No area given')}</div>
-      <div class="fl-contactLine">Source: ${esc(l.source)}${l.campaign_name ? ' · ' + esc(l.campaign_name) : ''}</div>
-      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k,v]) => `<div><strong>${esc(k.replace(/_/g,' '))}:</strong> ${esc(v)}</div>`).join('')}</div>` : ''}
-
-      <label>Move to stage</label>
-      <div class="fl-stageBtns" id="stageBtns-${id}">
-        ${allStatuses.map(s => `<div class="fl-stageBtn ${s === l.status ? 'current' : ''}" data-status="${s}" onclick="quickMove(leadIdOf(this), this.dataset.status)">${s}</div>`).join('')}
-      </div>
-
-      <label>Reassign to</label>
-      <select id="reassignSelect-${id}">
-        <option value="">Unassigned</option>
-        ${CRM_POSITIONS.map(p => `<option value="${esc(p.id)}" ${l.assigned_position_code === p.position_code ? 'selected' : ''}>${esc(p.position_code)} — ${esc(p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name)}</option>`).join('')}
-      </select>
-      <button class="fl-saveBtn" onclick="saveReassign(leadIdOf(this))">Save Assignment</button>
-
-      <label>Add a note</label>
-      <textarea id="noteInput-${id}" placeholder="Call outcome, next step, etc."></textarea>
-      <button class="fl-noteBtn" onclick="addLeadNote(leadIdOf(this))">Add Note</button>
-
-      <div class="fl-notesList" id="notesArea-${id}"><p style="color:var(--soil-40); font-size:12px;">Loading activity…</p></div>
-      </div>
-    `;
+  // Summary counters and column totals: one limit=1 list call per status with the current tab + filters,
+  // reading only "total". Paging does not change them, so they reload only when filters or data change.
+  async function loadCounts() {
+    const mine = ++COUNT_TOKEN;
+    const f = baseFilters();
+    const results = await Promise.all(ALL_STATUSES.map(s => api('list', Object.assign({}, f, { status: s, limit: 1, offset: 0 }))));
+    if (mine !== COUNT_TOKEN) return;
+    COUNTS = {};
+    ALL_STATUSES.forEach((s, i) => { COUNTS[s] = results[i].ok && Number.isFinite(results[i].data.total) ? results[i].data.total : null; });
+    renderStats();
+    renderView();
   }
 
-  window.leadIdOf = function(el) { return el.closest('[data-lead]').dataset.lead; };
+  function refreshAll() { return Promise.all([loadList(), loadCounts()]); }
 
-  window.openLeadPanel = function(leadId) {
-    OPEN_LEAD_ID = leadId;
-    const l = ALL_LEADS.find(x => x.id === leadId);
-    document.getElementById('flPanel').innerHTML = panelHtml(l);
-    document.getElementById('flPanel').classList.add('open');
-    document.getElementById('flOverlay').classList.add('open');
-    loadNotesFor(leadId);
-  };
-  window.closeLeadPanel = function() {
-    OPEN_LEAD_ID = null;
-    document.getElementById('flPanel').classList.remove('open');
-    document.getElementById('flOverlay').classList.remove('open');
-  };
+  async function loadPositions() {
+    const r = await api('list_crm_positions', {});
+    CRM_POSITIONS = r.ok && Array.isArray(r.data.positions) ? r.data.positions : [];
+  }
 
-  async function loadNotesFor(leadId) {
-    const { data: { session } } = await VIPL.sb.auth.getSession();
-    const area = document.getElementById('notesArea-' + leadId);
+  async function loadDistricts() {
     try {
-      const res = await fetch(MANAGE_LEADS_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: session.access_token, action: 'get_notes', lead_id: leadId }),
-      });
-      const result = await res.json();
-      if (!area) return;
-      if (!result.notes || !result.notes.length) { area.innerHTML = `<p style="color:var(--soil-40); font-size:12px;">No activity yet.</p>`; return; }
-      area.innerHTML = result.notes.map(n => `
-        <div class="fl-noteItem">
-          <div class="fl-noteMeta">${esc(n.created_by_name || 'Unknown')} · ${esc(new Date(n.created_at).toLocaleString())}</div>
-          ${n.action_type === 'status_change' ? `Moved ${esc(n.old_value)} → ${esc(n.new_value)}` : esc(n.note || '')}
-        </div>
-      `).join('');
-    } catch (e) {
-      if (area) area.innerHTML = `<p style="color:var(--soil-40); font-size:12px;">Couldn't load activity.</p>`;
+      const res = await fetch(LEAD_GEO_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const d = res.ok ? await res.json() : null;
+      const list = d && Array.isArray(d.districts) ? d.districts.filter(x => x && typeof x.id === 'string' && typeof x.name === 'string' && x.name.trim()) : [];
+      if (list.length) { DISTRICTS = list.slice().sort((a, b) => a.name.localeCompare(b.name, 'en')); DISTRICTS_FROM_GEO = true; }
+    } catch (e) { /* fall back to districts seen on loaded leads */ }
+    fillDistrictSelect();
+  }
+  function noteDistricts(leads) {
+    if (DISTRICTS_FROM_GEO) return;
+    let added = false;
+    leads.forEach(l => { if (l.district_id && l.district_name && !SEEN_DISTRICTS.has(l.district_id)) { SEEN_DISTRICTS.set(l.district_id, l.district_name); added = true; } });
+    if (added) {
+      DISTRICTS = [...SEEN_DISTRICTS].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'en'));
+      fillDistrictSelect();
     }
   }
-
-  window.quickMove = async function(leadId, newStatus) {
-    const { data: { session } } = await VIPL.sb.auth.getSession();
-    try {
-      await fetch(MANAGE_LEADS_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: session.access_token, action: 'update_status', lead_id: leadId, new_status: newStatus }),
-      });
-      await loadLeads();
-      const l = ALL_LEADS.find(x => x.id === leadId);
-      if (l) { document.getElementById('flPanel').innerHTML = panelHtml(l); loadNotesFor(leadId); }
-    } catch (e) { alert('Failed to move lead.'); }
-  };
-
-  window.saveReassign = async function(leadId) {
-    const { data: { session } } = await VIPL.sb.auth.getSession();
-    const newPosition = document.getElementById('reassignSelect-' + leadId).value;
-    try {
-      await fetch(MANAGE_LEADS_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: session.access_token, action: 'reassign', lead_id: leadId, new_position_id: newPosition || null }),
-      });
-      await loadLeads();
-      loadNotesFor(leadId);
-    } catch (e) { alert('Failed to reassign.'); }
-  };
-
-  window.addLeadNote = async function(leadId) {
-    const { data: { session } } = await VIPL.sb.auth.getSession();
-    const input = document.getElementById('noteInput-' + leadId);
-    const note = input.value.trim();
-    if (!note) return;
-    try {
-      await fetch(MANAGE_LEADS_ENDPOINT, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ access_token: session.access_token, action: 'add_note', lead_id: leadId, note }),
-      });
-      input.value = '';
-      loadNotesFor(leadId);
-    } catch (e) { alert('Failed to add note.'); }
-  };
-
-  function pagerHtml() {
-    const totalPages = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
-    const from = TOTAL ? (PAGE - 1) * PAGE_SIZE + 1 : 0;
-    const to = Math.min(TOTAL, PAGE * PAGE_SIZE);
-    return `
-      <div class="fl-pager">
-        <span class="fl-pagerInfo">${from}–${to} of ${TOTAL} leads</span>
-        <span>
-          <button onclick="goToPage(${PAGE - 1})" ${PAGE <= 1 ? 'disabled' : ''}>← Previous</button>
-          <span class="fl-pagerInfo" style="margin:0 8px;">Page ${PAGE} of ${totalPages}</span>
-          <button onclick="goToPage(${PAGE + 1})" ${PAGE >= totalPages ? 'disabled' : ''}>Next →</button>
-        </span>
-      </div>`;
+  function fillDistrictSelect() {
+    const sel = document.getElementById('filterDistrict');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">All Districts</option>' + DISTRICTS.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+    sel.value = STATE.district;
   }
 
-  window.goToPage = function(page) {
-    PAGE = Math.max(1, page);
-    closeLeadPanel();
-    loadLeads();
-  };
+  // ── Rendering ──
+  function setListMsg(text, isErr) {
+    const el = document.getElementById('flListMsg');
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fl-listMsg' + (isErr ? ' err' : '');
+  }
 
   function renderShell() {
     const container = document.getElementById('leadsContent');
-    // Total is the server's count; the stage breakdown, the board and the
-    // filters below only see the leads on the current page.
-    const total = TOTAL;
-    const multiPage = TOTAL > ALL_LEADS.length;
-    const byStatus = {};
-    ALL_LEADS.forEach(l => { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
-    const converted = byStatus.converted || 0;
-    const closed = CLOSED_STATUSES.reduce((s, k) => s + (byStatus[k] || 0), 0);
-    const active = ALL_LEADS.length - converted - closed;
-    const districts = [...new Set(ALL_LEADS.map(l => l.district_name).filter(Boolean))].sort();
-    const onPage = multiPage ? ' (this page)' : '';
-
     container.innerHTML = `
       <div class="fl-head">
         <h1>Leads CRM</h1>
         <p>Recruitment leads (FO/DSO, FBC Team, Admin Staff) and investor interest — from Meta ads and other sources, moving through the pipeline toward a decision.</p>
       </div>
-      <div class="fl-stats">
-        <div class="fl-stat"><div class="n">${total}</div><div class="l">Total Leads</div></div>
-        <div class="fl-stat"><div class="n">${active}</div><div class="l">In Pipeline${onPage}</div></div>
-        <div class="fl-stat"><div class="n">${converted}</div><div class="l">Converted${onPage}</div></div>
-        <div class="fl-stat"><div class="n">${closed}</div><div class="l">Closed Out${onPage}</div></div>
-      </div>
-      ${multiPage ? `<div class="fl-pageNote">Showing ${PAGE_SIZE} leads per page, newest first. Board columns and filters apply to the leads on this page.</div>` : ''}
+      <div class="fl-stats" id="flStats" aria-live="polite"></div>
+      <div class="fl-pageNote" id="flCountNote"></div>
       <div class="fl-filters">
-        ${Object.entries(LEAD_TYPE_META).map(([key, m]) => `
-          <div class="fl-typePill" data-type="${key}" onclick="setTypeFilter('${key}')">
-            <span class="dot" style="background:${m.color};"></span>${m.label}
-          </div>
-        `).join('')}
+        <div role="group" aria-label="Lead type" style="display:contents;">
+          <button type="button" class="fl-typePill" data-type="" aria-pressed="false">All types</button>
+          ${Object.entries(LEAD_TYPE_META).map(([key, m]) => `
+            <button type="button" class="fl-typePill" data-type="${key}" aria-pressed="false">
+              <span class="dot" style="background:${m.color};" aria-hidden="true"></span>${m.label}
+            </button>
+          `).join('')}
+        </div>
         <div class="fl-selects">
+          <label class="fl-sr" for="filterSource">Source</label>
           <select id="filterSource">
             <option value="">All Sources</option>
-            <option value="meta_ads">Meta Ads</option>
-            <option value="referral">Referral</option>
-            <option value="walk_in">Walk-in</option>
-            <option value="website">Website</option>
-            <option value="other">Other</option>
+            ${Object.entries(SOURCE_LABELS).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}
           </select>
-          <select id="filterDistrict">
-            <option value="">All Districts</option>
-            ${districts.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join('')}
+          <label class="fl-sr" for="filterDistrict">District</label>
+          <select id="filterDistrict"><option value="">All Districts</option></select>
+          <label class="fl-sr" for="filterAttention">Needs attention</label>
+          <select id="filterAttention">
+            <option value="">Needs attention: All</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="waiting_staff">Waiting for staff</option>
+            <option value="overdue">Overdue</option>
+            <option value="follow_up_due">Follow-up due</option>
           </select>
+          <label class="fl-sr" for="filterSearch">Search by name or phone</label>
+          <input type="search" id="filterSearch" placeholder="Search name or phone" autocomplete="off" aria-describedby="searchHint">
+          <div class="fl-searchHint" id="searchHint" aria-live="polite"></div>
         </div>
       </div>
-      <div class="fl-board" id="flBoard"></div>
-      ${pagerHtml()}
+      <div class="fl-viewBar">
+        <div class="fl-seg" role="group" aria-label="View">
+          <button type="button" data-view="board">Pipeline board</button>
+          <button type="button" data-view="closed">Closed out</button>
+        </div>
+        <div class="fl-seg" role="group" aria-label="Closed status" id="flClosedSeg"></div>
+      </div>
+      <div class="fl-listMsg" id="flListMsg" role="status"></div>
+      <div id="flBoard"></div>
+      <div id="flPager"></div>
     `;
-    document.getElementById('filterSource').onchange = (e) => { ACTIVE_SOURCE_FILTER = e.target.value; renderBoard(); };
-    document.getElementById('filterDistrict').onchange = (e) => { ACTIVE_DISTRICT_FILTER = e.target.value; renderBoard(); };
-    renderBoard();
+
+    container.querySelectorAll('.fl-typePill').forEach(p => p.addEventListener('click', () => {
+      const t = p.dataset.type;
+      STATE.type = STATE.type === t ? '' : t;
+      onFiltersChanged();
+    }));
+    document.getElementById('filterSource').addEventListener('change', e => { STATE.source = e.target.value; onFiltersChanged(); });
+    document.getElementById('filterDistrict').addEventListener('change', e => { STATE.district = e.target.value; onFiltersChanged(); });
+    document.getElementById('filterAttention').addEventListener('change', e => { STATE.attention = e.target.value; onFiltersChanged(); });
+    const search = document.getElementById('filterSearch');
+    search.addEventListener('input', () => { clearTimeout(SEARCH_TIMER); SEARCH_TIMER = setTimeout(applySearch, 400); });
+    search.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); clearTimeout(SEARCH_TIMER); applySearch(); } });
+    search.addEventListener('search', () => { clearTimeout(SEARCH_TIMER); applySearch(); });
+    container.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => {
+      if (STATE.view === b.dataset.view) return;
+      STATE.view = b.dataset.view; STATE.offset = 0;
+      syncControls(); loadList();
+    }));
+
+    // Cards, closed rows and pager buttons are re-rendered, so their events are delegated.
+    const board = document.getElementById('flBoard');
+    board.addEventListener('click', e => { const el = e.target.closest('[data-id]'); if (el) openLeadPanel(el.dataset.id, el); });
+    board.addEventListener('keydown', e => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const el = e.target.closest('[data-id]');
+      if (el && e.target === el) { e.preventDefault(); openLeadPanel(el.dataset.id, el); }
+    });
+    document.getElementById('flPager').addEventListener('click', e => {
+      const b = e.target.closest('button[data-page]');
+      if (!b || b.disabled) return;
+      STATE.offset = Math.max(0, STATE.offset + (b.dataset.page === 'next' ? PAGE_SIZE : -PAGE_SIZE));
+      closeLeadPanel();
+      loadList();
+    });
+    document.getElementById('flClosedSeg').addEventListener('click', e => {
+      const b = e.target.closest('button[data-closed]');
+      if (!b || STATE.closedStatus === b.dataset.closed) return;
+      STATE.closedStatus = b.dataset.closed; STATE.offset = 0;
+      syncControls(); loadList();
+    });
+
+    fillDistrictSelect();
+    syncControls();
+    renderStats();
   }
 
-  async function loadLeads() {
-    const { data: { session } } = await VIPL.sb.auth.getSession();
-    try {
-      const [leadsRes, posRes] = await Promise.all([
-        fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list', page: PAGE, page_size: PAGE_SIZE }) }),
-        fetch(MANAGE_LEADS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: session.access_token, action: 'list_crm_positions' }) }),
-      ]);
-      const leadsResult = await leadsRes.json();
-      const posResult = await posRes.json();
-      if (!leadsRes.ok) throw new Error(leadsResult.error || 'Failed to load leads');
-      TOTAL = leadsResult.total ?? (leadsResult.leads || []).length;
-      // Page went past the end (e.g. after leads moved): step back to the last page.
-      const lastPage = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
-      if (!(leadsResult.leads || []).length && TOTAL > 0 && PAGE > lastPage) {
-        PAGE = lastPage;
-        return loadLeads();
-      }
-      ALL_LEADS = leadsResult.leads || [];
-      CRM_POSITIONS = posResult.positions || [];
-      renderShell();
-    } catch (e) {
-      document.getElementById('leadsContent').innerHTML = `<div class="fl-accessBox"><p>Couldn't load leads: ${esc(e.message)}</p></div>`;
+  function applySearch() {
+    const input = document.getElementById('filterSearch');
+    const raw = input.value.trim();
+    const problem = searchProblem(raw);
+    document.getElementById('searchHint').textContent = problem || '';
+    input.setAttribute('aria-invalid', problem ? 'true' : 'false');
+    if (problem) return; // keep the last valid search until the text is long enough
+    if (raw === STATE.search) return;
+    STATE.search = raw;
+    onFiltersChanged();
+  }
+
+  function onFiltersChanged() {
+    STATE.offset = 0;
+    closeLeadPanel();
+    syncControls();
+    refreshAll();
+  }
+
+  function syncControls() {
+    document.querySelectorAll('.fl-typePill').forEach(p => {
+      const on = p.dataset.type === STATE.type;
+      p.classList.toggle('active', on);
+      p.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', b.dataset.view === STATE.view ? 'true' : 'false'));
+    renderClosedSeg();
+  }
+
+  function renderClosedSeg() {
+    const seg = document.getElementById('flClosedSeg');
+    if (!seg) return;
+    seg.hidden = STATE.view !== 'closed';
+    seg.innerHTML = CLOSED_VIEWS.map(c => {
+      const n = COUNTS && COUNTS[c.key] != null ? ` (${COUNTS[c.key]})` : '';
+      return `<button type="button" data-closed="${c.key}" aria-pressed="${STATE.closedStatus === c.key}">${c.label}${n}</button>`;
+    }).join('');
+  }
+
+  function renderStats() {
+    const el = document.getElementById('flStats');
+    if (!el) return;
+    const n = k => (COUNTS && COUNTS[k] != null ? COUNTS[k] : null);
+    const sum = keys => { const v = keys.map(n); return v.some(x => x === null) ? '—' : v.reduce((a, b) => a + b, 0); };
+    const shown = v => (v === null ? '—' : v);
+    el.innerHTML = `
+      <div class="fl-stat"><div class="n">${COUNTS ? sum(ALL_STATUSES) : '…'}</div><div class="l">Total Leads</div></div>
+      <div class="fl-stat"><div class="n">${COUNTS ? sum(STAGES.map(s => s.key)) : '…'}</div><div class="l">In Pipeline</div></div>
+      <div class="fl-stat"><div class="n">${COUNTS ? shown(n('converted')) : '…'}</div><div class="l">Converted</div></div>
+      <div class="fl-stat"><div class="n">${COUNTS ? sum(['rejected', 'lost']) : '…'}</div><div class="l">Closed Out</div></div>
+    `;
+    const note = document.getElementById('flCountNote');
+    if (note) note.textContent = filtersActive() ? 'Counts follow the lead type and filters selected below.' : '';
+    renderClosedSeg();
+  }
+
+  function leadCardHtml(l) {
+    const meta = typeMeta(l.lead_type);
+    const fu = l.next_follow_up_at ? `<div class="fl-follow">Follow-up ${esc(fmtIST(l.next_follow_up_at, false))}</div>` : '';
+    return `
+      <div class="fl-card" role="button" tabindex="0" style="border-left-color:${meta.color};" data-id="${esc(l.id)}">
+        <div class="fl-name">${esc(l.full_name)}</div>
+        <div class="fl-badges">${badgesHtml(l)}</div>
+        <div class="fl-meta">
+          <div class="row">${esc([l.phone, l.email].filter(Boolean).join(' · ') || 'No contact info')}</div>
+          <div class="row">${esc(areaText(l) || 'No area given')}</div>
+        </div>
+        ${fu}
+        <div class="fl-age">${esc(daysAgo(l.created_at))} in pipeline</div>
+        <div class="fl-assigned">→ ${esc(seatText(l))}</div>
+      </div>
+    `;
+  }
+
+  function renderBoardView() {
+    const board = document.getElementById('flBoard');
+    board.className = 'fl-board';
+    const totalStages = STAGES.length;
+    board.innerHTML = STAGES.map(stage => {
+      const stageLeads = ROWS.filter(l => l.status === stage.key);
+      const total = COUNTS && COUNTS[stage.key] != null ? COUNTS[stage.key] : null;
+      const elsewhere = total !== null ? total - stageLeads.length : 0;
+      return `
+        <section class="fl-col" aria-label="${stage.label} (${stage.key})">
+          <div class="fl-colHead">
+            ${ringSvg(stage.ring, totalStages, 'var(--ripe)')}
+            <h2 class="fl-colTitle" style="margin:0;">${stage.label}</h2>
+            <div class="fl-colCount" title="Leads in this stage with these filters">${total !== null ? total : stageLeads.length}</div>
+          </div>
+          <div class="fl-colBar" style="background:var(--ripe); opacity:${0.3 + (stage.ring / totalStages) * 0.7};"></div>
+          <div class="fl-colBody">
+            ${stageLeads.length ? stageLeads.map(leadCardHtml).join('') : '<div class="fl-empty">Nothing here on this page</div>'}
+            ${elsewhere > 0 ? `<div class="fl-colMore">${elsewhere} more on other pages</div>` : ''}
+          </div>
+        </section>
+      `;
+    }).join('');
+  }
+
+  function closedRowHtml(l) {
+    const meta = typeMeta(l.lead_type);
+    const when = l.status_changed_at || l.converted_at || l.updated_at;
+    const reason = l.status === 'converted' ? 'Converted' : (l.lost_reason ? 'Reason: ' + l.lost_reason : 'No reason recorded');
+    return `
+      <div class="fl-closedRow ${l.status === 'converted' ? 'converted' : ''}" role="button" tabindex="0" data-id="${esc(l.id)}">
+        <div>
+          <div class="fl-name">${esc(l.full_name)}</div>
+          <div class="sub">${esc(meta.label)} · ${esc(STATUS_LABELS[l.status] || l.status)}</div>
+        </div>
+        <div class="sub">${esc(reason)}<br>${esc(areaText(l) || 'No area given')}</div>
+        <div class="when">Closed ${esc(fmtIST(when) || '—')}</div>
+      </div>
+    `;
+  }
+
+  function renderClosedView() {
+    const board = document.getElementById('flBoard');
+    board.className = 'fl-closedList';
+    const label = (CLOSED_VIEWS.find(c => c.key === STATE.closedStatus) || {}).label || '';
+    board.innerHTML = ROWS.length ? ROWS.map(closedRowHtml).join('')
+      : `<div class="fl-empty">No ${esc(label.toLowerCase())} leads match these filters.</div>`;
+  }
+
+  function renderPager() {
+    const el = document.getElementById('flPager');
+    const totalPages = Math.max(1, Math.ceil(TOTAL / PAGE_SIZE));
+    const page = Math.floor(STATE.offset / PAGE_SIZE) + 1;
+    const from = ROWS.length ? STATE.offset + 1 : 0;
+    const to = STATE.offset + ROWS.length;
+    el.innerHTML = `
+      <div class="fl-pager">
+        <span class="fl-pagerInfo" aria-live="polite">${from}–${to} of ${TOTAL} leads</span>
+        <span>
+          <button type="button" data-page="prev" ${STATE.offset <= 0 ? 'disabled' : ''}>← Previous</button>
+          <span class="fl-pagerInfo" style="margin:0 8px;">Page ${page} of ${totalPages}</span>
+          <button type="button" data-page="next" ${HAS_MORE ? '' : 'disabled'}>Next →</button>
+        </span>
+      </div>`;
+  }
+
+  function renderView() {
+    if (!document.getElementById('flBoard')) return;
+    if (STATE.view === 'board') renderBoardView(); else renderClosedView();
+    renderPager();
+  }
+
+  // ── Lead drawer ──
+  function factsHtml(l) {
+    const rows = [
+      ['Phone', l.phone || '—'],
+      ['Email', l.email || '—'],
+      ['Mandal', l.mandal_name || '—'],
+      ['Revenue division', l.revenue_division_name || '—'],
+      ['District', l.district_name || '—'],
+      ['Source', (SOURCE_LABELS[l.source] || l.source || '—') + (l.campaign_name ? ' · ' + l.campaign_name : '')],
+      ['Assigned seat', seatText(l)],
+      ['Received', fmtIST(l.created_at) || '—'],
+      ['First contact', l.first_contacted_at ? fmtIST(l.first_contacted_at) : 'Not yet'],
+      ['Next follow-up', l.next_follow_up_at ? fmtIST(l.next_follow_up_at) + (l.follow_up_due ? ' — Due now' : '') : 'None set'],
+    ];
+    if (l.status_changed_at) rows.push(['Stage changed', fmtIST(l.status_changed_at)]);
+    if (REASON_STATUSES.includes(l.status) || l.lost_reason) rows.push(['Lost reason', l.lost_reason || 'No reason recorded']);
+    return `<dl class="fl-facts">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+  }
+
+  function panelHtml(l, opts) {
+    opts = opts || {};
+    const meta = typeMeta(l.lead_type);
+    const extra = Object.entries(l.extra_fields || {}).filter(([k, v]) => v);
+    const nowMin = isoToIstInput(new Date().toISOString());
+    return `
+      <div data-lead="${esc(l.id)}">
+      <button type="button" class="fl-closeBtn" data-act="close" aria-label="Close lead details">✕</button>
+      <div style="clear:both;"></div>
+      <h2 id="flPanelTitle" tabindex="-1">${esc(l.full_name)}</h2>
+      <span class="fl-typeTag" style="background:${meta.tint}; color:${meta.color};">${esc(meta.label)}</span>
+      <span class="fl-typeTag" style="background:var(--paper); color:var(--soil);">${esc(STATUS_LABELS[l.status] || l.status)}</span>
+      <div class="fl-badges">${badgesHtml(l)}</div>
+      ${opts.stale ? '<div class="fl-msg err">This lead is not on the current page of this view, so the details below may be out of date. Its latest activity is listed at the bottom.</div>' : ''}
+      ${factsHtml(l)}
+      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k, v]) => `<div><strong>${esc(k.replace(/_/g, ' '))}:</strong> ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</div>`).join('')}</div>` : ''}
+
+      <div class="fl-section">
+        <div class="fl-sectionTitle" id="flStageTitle">Move to stage</div>
+        <div class="fl-stageBtns" role="group" aria-labelledby="flStageTitle">
+          ${ALL_STATUSES.map(s => `<button type="button" class="fl-stageBtn ${s === l.status ? 'current' : ''} ${REASON_STATUSES.includes(s) ? 'closing' : ''}" data-act="stage" data-status="${s}" ${s === l.status ? 'disabled aria-current="true"' : ''}>${esc(STATUS_LABELS[s])}</button>`).join('')}
+        </div>
+        <div id="flReasonStep" class="fl-reasonStep" hidden>
+          <label for="flReasonInput" id="flReasonLabel">Reason</label>
+          <textarea id="flReasonInput" maxlength="${MAX_REASON}" aria-describedby="flReasonCount flReasonErr" placeholder="Why is this lead closing? (required)"></textarea>
+          <div class="fl-counter" id="flReasonCount">0 / ${MAX_REASON}</div>
+          <div class="fl-msg err" id="flReasonErr" role="alert"></div>
+          <div class="fl-btnRow">
+            <button type="button" class="fl-saveBtn fl-dangerBtn" data-act="reason-confirm">Confirm</button>
+            <button type="button" class="fl-ghostBtn" data-act="reason-cancel">Cancel</button>
+          </div>
+        </div>
+        <div class="fl-msg" id="flMsg-stage" role="status"></div>
+      </div>
+
+      <div class="fl-section">
+        <label for="flFollowInput">Next follow-up (India time)</label>
+        <input type="datetime-local" id="flFollowInput" min="${nowMin}" value="${esc(l.next_follow_up_at ? isoToIstInput(l.next_follow_up_at) : '')}">
+        <div class="fl-btnRow">
+          <button type="button" class="fl-saveBtn" data-act="follow-save">Save follow-up</button>
+          <button type="button" class="fl-ghostBtn" data-act="follow-clear" ${l.next_follow_up_at ? '' : 'disabled'}>Clear</button>
+        </div>
+        <div class="fl-msg" id="flMsg-follow" role="status"></div>
+      </div>
+
+      <div class="fl-section">
+        <label for="flReassign">Reassign to</label>
+        <select id="flReassign">
+          <option value="">Unassigned</option>
+          ${CRM_POSITIONS.map(p => {
+            const area = p.role_code === 'CRM_DT' ? p.district_name : p.revenue_division_name;
+            const vacant = p.status && p.status !== 'active' ? ' (vacant)' : '';
+            return `<option value="${esc(p.id)}" ${l.assigned_position_id === p.id ? 'selected' : ''}>${esc(p.position_code)} — ${esc(area || '')}${vacant}</option>`;
+          }).join('')}
+        </select>
+        <div class="fl-btnRow"><button type="button" class="fl-saveBtn" data-act="reassign">Save Assignment</button></div>
+        <div class="fl-msg" id="flMsg-reassign" role="status"></div>
+      </div>
+
+      <div class="fl-section">
+        <details id="flEditDetails" ${opts.editOpen ? 'open' : ''}>
+          <summary>Edit contact details</summary>
+          <label class="fl-inline" for="flEditName">Name</label>
+          <input type="text" id="flEditName" value="${esc(l.full_name || '')}" autocomplete="off">
+          <label class="fl-inline" for="flEditPhone">Phone</label>
+          <input type="tel" id="flEditPhone" value="${esc(l.phone || '')}" autocomplete="off">
+          <label class="fl-inline" for="flEditEmail">Email</label>
+          <input type="email" id="flEditEmail" value="${esc(l.email || '')}" autocomplete="off">
+          <label class="fl-inline" for="flEditCampaign">Campaign</label>
+          <input type="text" id="flEditCampaign" value="${esc(l.campaign_name || '')}" autocomplete="off">
+          <div class="fl-hint">A lead needs a phone number or an email address.</div>
+          <div class="fl-btnRow"><button type="button" class="fl-saveBtn" data-act="edit-save">Save details</button></div>
+          <div class="fl-msg" id="flMsg-edit" role="status"></div>
+        </details>
+      </div>
+
+      <div class="fl-section">
+        <label for="flNoteInput">Add a note</label>
+        <textarea id="flNoteInput" placeholder="Call outcome, next step, etc."></textarea>
+        <div class="fl-btnRow"><button type="button" class="fl-noteBtn" data-act="note">Add Note</button></div>
+        <div class="fl-msg" id="flMsg-note" role="status"></div>
+      </div>
+
+      <div class="fl-sectionTitle">Activity</div>
+      <div class="fl-notesList" id="flNotes"><p style="color:var(--soil-40); font-size:12px;">Loading activity…</p></div>
+      </div>
+    `;
+  }
+
+  function showMsg(section, text, kind) {
+    const el = document.getElementById('flMsg-' + section);
+    if (!el) return;
+    el.textContent = text || '';
+    el.className = 'fl-msg ' + (kind === 'error' ? 'err' : 'ok');
+    if (text) el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+  }
+
+  function renderPanel(opts) {
+    if (!OPEN_LEAD) return;
+    PENDING_CLOSE = null;
+    document.getElementById('flPanel').innerHTML = panelHtml(OPEN_LEAD, opts);
+  }
+
+  window.openLeadPanel = function(leadId, opener) {
+    const l = ROWS.find(x => x.id === leadId);
+    if (!l) return;
+    OPEN_LEAD = Object.assign({}, l);
+    LAST_OPENER = opener || null;
+    renderPanel();
+    document.getElementById('flPanel').classList.add('open');
+    document.getElementById('flOverlay').classList.add('open');
+    document.getElementById('flPanelTitle').focus();
+    loadNotes();
+  };
+  window.closeLeadPanel = function() {
+    const panel = document.getElementById('flPanel');
+    const wasOpen = panel.classList.contains('open');
+    const id = OPEN_LEAD && OPEN_LEAD.id;
+    OPEN_LEAD = null; PENDING_CLOSE = null;
+    panel.classList.remove('open');
+    document.getElementById('flOverlay').classList.remove('open');
+    if (!wasOpen) return;
+    let target = LAST_OPENER && document.body.contains(LAST_OPENER) ? LAST_OPENER : null;
+    if (!target && id) target = [...document.querySelectorAll('#flBoard [data-id]')].find(el => el.dataset.id === id) || null;
+    if (target) target.focus();
+    LAST_OPENER = null;
+  };
+
+  async function loadNotes() {
+    if (!OPEN_LEAD) return;
+    const mine = ++NOTES_TOKEN;
+    const leadId = OPEN_LEAD.id;
+    const r = await api('get_notes', { lead_id: leadId });
+    if (mine !== NOTES_TOKEN || !OPEN_LEAD || OPEN_LEAD.id !== leadId) return;
+    const area = document.getElementById('flNotes');
+    if (!area) return;
+    if (!r.ok) { area.innerHTML = `<p class="fl-msg err">${esc(r.error)}</p>`; return; }
+    const notes = Array.isArray(r.data.notes) ? r.data.notes : [];
+    if (!notes.length) { area.innerHTML = '<p style="color:var(--soil-40); font-size:12px;">No activity yet.</p>'; return; }
+    area.innerHTML = notes.map(n => {
+      const head = n.action_type === 'status_change'
+        ? `<div>Moved ${esc(STATUS_LABELS[n.old_value] || n.old_value)} → ${esc(STATUS_LABELS[n.new_value] || n.new_value)}</div>` : '';
+      return `
+        <div class="fl-noteItem">
+          <div class="fl-noteMeta">${esc(n.created_by_name || 'Unknown')} · ${esc(fmtIST(n.created_at))}</div>
+          ${head}${n.note ? `<div>${esc(n.note)}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // After any change: reload the list and counts (same filters and page), refresh the drawer from the
+  // fresh row when it is still in view, otherwise keep the local copy, then show the message.
+  async function afterChange(section, text, kind, opts) {
+    opts = opts || {};
+    const id = OPEN_LEAD && OPEN_LEAD.id;
+    await refreshAll();
+    if (!id || !OPEN_LEAD || OPEN_LEAD.id !== id) return;
+    const fresh = ROWS.find(x => x.id === id);
+    if (fresh) OPEN_LEAD = Object.assign({}, fresh);
+    else if (opts.patch) Object.assign(OPEN_LEAD, opts.patch);
+    renderPanel({ editOpen: section === 'edit', stale: !fresh && opts.reloaded });
+    showMsg(section, text, kind);
+    loadNotes();
+  }
+
+  function setBusy(btn, on) { if (btn) btn.disabled = on; }
+
+  async function moveStage(newStatus, reason, btn) {
+    const payload = { lead_id: OPEN_LEAD.id, new_status: newStatus };
+    if (reason) payload.lost_reason = reason;
+    setBusy(btn, true);
+    showMsg('stage', 'Saving…', 'ok');
+    const r = await api('update_status', payload);
+    setBusy(btn, false);
+    if (r.ok) {
+      const patch = { status: newStatus, status_changed_at: new Date().toISOString(), lost_reason: REASON_STATUSES.includes(newStatus) ? reason : OPEN_LEAD.lost_reason };
+      return afterChange('stage', `Moved to ${STATUS_LABELS[newStatus]}.`, 'ok', { patch });
     }
+    if (r.status === 409) return afterChange('stage', r.error, 'error', { reloaded: true });
+    showMsg('stage', r.error, 'error');
+  }
+
+  function openReasonStep(status) {
+    PENDING_CLOSE = status;
+    const step = document.getElementById('flReasonStep');
+    step.hidden = false;
+    document.getElementById('flReasonLabel').textContent = `Reason for moving to ${STATUS_LABELS[status]} (required)`;
+    const input = document.getElementById('flReasonInput');
+    input.value = OPEN_LEAD.lost_reason || '';
+    input.setAttribute('aria-invalid', 'false');
+    document.getElementById('flReasonErr').textContent = '';
+    updateReasonCount();
+    showMsg('stage', '');
+    input.focus();
+  }
+  function closeReasonStep() {
+    PENDING_CLOSE = null;
+    const step = document.getElementById('flReasonStep');
+    if (step) step.hidden = true;
+  }
+  function updateReasonCount() {
+    const input = document.getElementById('flReasonInput');
+    document.getElementById('flReasonCount').textContent = `${input.value.length} / ${MAX_REASON}`;
+  }
+
+  async function saveFollowUp(clear, btn) {
+    let value = null;
+    if (!clear) {
+      const input = document.getElementById('flFollowInput');
+      value = istInputToIso(input.value);
+      if (!value) { input.setAttribute('aria-invalid', 'true'); showMsg('follow', 'Pick a date and time first.', 'error'); input.focus(); return; }
+      input.setAttribute('aria-invalid', 'false');
+    }
+    setBusy(btn, true);
+    const r = await api('set_follow_up', { lead_id: OPEN_LEAD.id, next_follow_up_at: value });
+    setBusy(btn, false);
+    if (!r.ok) { showMsg('follow', r.error, 'error'); return; }
+    const saved = r.data.next_follow_up_at !== undefined ? r.data.next_follow_up_at : value;
+    const text = saved ? `Follow-up set for ${fmtIST(saved)}.` : 'Follow-up cleared.';
+    return afterChange('follow', text, 'ok', { patch: { next_follow_up_at: saved, follow_up_due: false } });
+  }
+
+  async function saveReassign(btn) {
+    const v = document.getElementById('flReassign').value || null;
+    setBusy(btn, true);
+    const r = await api('reassign', { lead_id: OPEN_LEAD.id, new_position_id: v });
+    setBusy(btn, false);
+    if (!r.ok) {
+      if (r.status === 409) return afterChange('reassign', r.error, 'error', { reloaded: true });
+      showMsg('reassign', r.error, 'error'); return;
+    }
+    const d = r.data;
+    const pos = CRM_POSITIONS.find(p => p.id === v);
+    const code = d.assigned_position_code || (pos && pos.position_code) || null;
+    const text = code ? `Assigned to ${code}${d.assigned_seat_status === 'vacant' ? ' (seat vacant, waiting for staff)' : ''}.` : 'Lead is now unassigned.';
+    return afterChange('reassign', text, 'ok', { patch: {
+      assigned_position_id: v, assigned_position_code: code, assigned_seat_status: d.assigned_seat_status || null,
+      assigned_holder_name: null, assigned_occupant_name: null,
+    } });
+  }
+
+  async function saveEdit(btn) {
+    const fields = [
+      ['full_name', 'flEditName'], ['phone', 'flEditPhone'], ['email', 'flEditEmail'], ['campaign_name', 'flEditCampaign'],
+    ];
+    const updates = {};
+    for (const [key, id] of fields) {
+      const el = document.getElementById(id);
+      el.setAttribute('aria-invalid', 'false');
+      const now = el.value.trim();
+      const before = (OPEN_LEAD[key] || '').trim();
+      if (now !== before) updates[key] = key === 'full_name' ? now : (now || null);
+    }
+    if ('full_name' in updates && !updates.full_name) {
+      document.getElementById('flEditName').setAttribute('aria-invalid', 'true');
+      showMsg('edit', 'Please enter a name.', 'error'); return;
+    }
+    if (!Object.keys(updates).length) { showMsg('edit', 'Nothing changed.', 'error'); return; }
+    setBusy(btn, true);
+    const r = await api('edit_lead', { lead_id: OPEN_LEAD.id, updates });
+    setBusy(btn, false);
+    if (!r.ok) {
+      // Mark the field(s) the back end's message is about.
+      const t = (r.error || '').toLowerCase();
+      const bad = [];
+      if (/phone|mobile/.test(t)) bad.push('flEditPhone');
+      if (t.includes('email')) bad.push('flEditEmail');
+      if (t.includes('campaign')) bad.push('flEditCampaign');
+      else if (/\bname\b/.test(t)) bad.push('flEditName');
+      bad.forEach(id => document.getElementById(id).setAttribute('aria-invalid', 'true'));
+      showMsg('edit', r.error, 'error'); return;
+    }
+    return afterChange('edit', 'Contact details saved.', 'ok', { patch: updates });
+  }
+
+  async function addNote(btn) {
+    const input = document.getElementById('flNoteInput');
+    const note = input.value.trim();
+    if (!note) { showMsg('note', 'Write a note first.', 'error'); input.focus(); return; }
+    setBusy(btn, true);
+    const r = await api('add_note', { lead_id: OPEN_LEAD.id, note });
+    setBusy(btn, false);
+    if (!r.ok) { showMsg('note', r.error, 'error'); return; }
+    input.value = '';
+    showMsg('note', 'Note added.', 'ok');
+    loadNotes();
+  }
+
+  function wirePanel() {
+    const panel = document.getElementById('flPanel');
+    panel.addEventListener('click', e => {
+      const b = e.target.closest('[data-act]');
+      if (!b || !OPEN_LEAD || b.disabled) return;
+      const act = b.dataset.act;
+      if (act === 'close') return closeLeadPanel();
+      if (act === 'stage') {
+        const s = b.dataset.status;
+        if (REASON_STATUSES.includes(s)) return openReasonStep(s);
+        closeReasonStep();
+        return moveStage(s, null, b);
+      }
+      if (act === 'reason-cancel') {
+        const back = panel.querySelector(`.fl-stageBtn[data-status="${PENDING_CLOSE}"]`);
+        closeReasonStep();
+        showMsg('stage', '');
+        (back || panel.querySelector('.fl-stageBtn:not(:disabled)')).focus();
+        return;
+      }
+      if (act === 'reason-confirm') {
+        const input = document.getElementById('flReasonInput');
+        const reason = input.value.trim();
+        const err = document.getElementById('flReasonErr');
+        if (!reason) { err.textContent = 'Please give a reason before confirming.'; input.setAttribute('aria-invalid', 'true'); input.focus(); return; }
+        if (reason.length > MAX_REASON) { err.textContent = `Please keep the reason to ${MAX_REASON} characters or fewer.`; input.setAttribute('aria-invalid', 'true'); input.focus(); return; }
+        const status = PENDING_CLOSE;
+        return moveStage(status, reason, b);
+      }
+      if (act === 'follow-save') return saveFollowUp(false, b);
+      if (act === 'follow-clear') return saveFollowUp(true, b);
+      if (act === 'reassign') return saveReassign(b);
+      if (act === 'edit-save') return saveEdit(b);
+      if (act === 'note') return addNote(b);
+    });
+    panel.addEventListener('input', e => {
+      if (e.target.id === 'flReasonInput') {
+        updateReasonCount();
+        if (e.target.value.trim()) { e.target.setAttribute('aria-invalid', 'false'); document.getElementById('flReasonErr').textContent = ''; }
+      }
+    });
+    // Escape closes; Tab stays inside the open drawer.
+    document.addEventListener('keydown', e => {
+      if (!panel.classList.contains('open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); closeLeadPanel(); return; }
+      if (e.key !== 'Tab') return;
+      const items = [...panel.querySelectorAll('button, [href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter(el => !el.disabled && el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && (document.activeElement === first || !panel.contains(document.activeElement))) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
   }
 
   window.onVIPLReady = async function() {
@@ -511,7 +1135,10 @@
       return;
     }
     el.innerHTML = `<p style="color:var(--soil-60); font-size:13px;">Loading…</p>`;
-    await loadLeads();
+    renderShell();
+    if (!wirePanel.done) { wirePanel(); wirePanel.done = true; }
+    loadDistricts();
+    await Promise.all([loadPositions(), refreshAll()]);
   };
 </script>
 </body>
