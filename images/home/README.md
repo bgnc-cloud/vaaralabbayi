@@ -34,6 +34,12 @@ looks the same as it does without images, so you can add photos one at a time.
 | `step-3-order.jpg` | 3. Order Anytime |
 | `step-4-delivery.jpg` | 4. Doorstep Delivery |
 
+## Why Cloud Super Market: 1 wide photo, 1200 × 600 px (2:1)
+
+| File | Where |
+|---|---|
+| `concept-store.jpg` | Between the "Built different. For rural India." heading and the six cards. Shown whole (not cropped), up to 960 px wide. JPG under 150 KB. No text inside the picture (it cannot switch to Telugu). |
+
 ## Hero background (optional): 1920 × 1080 px (16:9)
 
 | File | Where |
