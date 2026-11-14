@@ -439,3 +439,5 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
     background: linear-gradient(90deg, rgba(13,35,64,.85) 0%, rgba(13,35,64,.62) 100%), url('images/subscribe/preregister-bg.jpg') right center / cover no-repeat, linear-gradient(135deg, #0D2340, #1565C0);
   }
 }
+/* Store hero: the split row needs the full hero width (the hero chips stay below it, full width). */
+.page-hero-content:has(> .media-split) { width: 100%; }
