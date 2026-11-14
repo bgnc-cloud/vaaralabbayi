@@ -312,7 +312,10 @@ async function handleSubmit(e) {
   const mobileNumber = document.getElementById('fMobile').value.trim();
   const village = document.getElementById('fVillage').value.trim();
   const cityDistrict = document.getElementById('fCityDistrict').value.trim();
-  const state = document.getElementById('fState').value.trim();
+  // Browser autofill can type another site's dropdown placeholder ("Select an option…") into this
+  // free-text box. Treat that as no state given.
+  const stateRaw = document.getElementById('fState').value.trim();
+  const state = /^select an option\s*(…|\.\.\.)?$/i.test(stateRaw) ? '' : stateRaw;
   const enquiryType = document.getElementById('fEnquiry').value;
   const message = document.getElementById('fMessage').value.trim();
   const hp_extra = document.getElementById('hp_extra').value.trim(); // spam trap — should always be empty for real users
