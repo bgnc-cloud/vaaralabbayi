@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Enquire - Vaaralabbayi Cloud Super Market</title>
+<meta name="description" content="Tell us what you are interested in: household plans, a Digital Store, the FBC team or investment. We will call you within 48 hours.">
+<!-- Share page for WhatsApp, email and Facebook: kept out of search results. -->
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cloud Super Market">
+<meta property="og:title" content="Enquire - Vaaralabbayi Cloud Super Market">
+<meta property="og:description" content="Tell us what you are interested in: household plans, a Digital Store, the FBC team or investment. We will call you within 48 hours.">
+<meta property="og:url" content="https://vaaralabbayi.com/enquiry.html">
+<meta property="og:image" content="https://vaaralabbayi.com/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Noto+Sans+Telugu:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  /* Page-only styles. Colours, fonts and the form classes come from style.css. Every text is at
+     least 16px so phones do not zoom in on focus, and every control is at least 44px high. */
+  body { background: var(--off); font-size: 16px; }
+  .enq-wrap { max-width: 480px; margin: 0 auto; padding: 12px 16px 40px; }
+  .enq-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 16px; }
+  .enq-logo img { display: block; height: 44px; width: auto; }
+  .enq-top .lang-btn { font-size: 16px; min-height: 40px; min-width: 44px; padding: 6px 12px; }
+  .enq-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 22px 18px; box-shadow: 0 4px 18px rgba(13,35,64,.05); }
+  .enq-title { font-family: 'Plus Jakarta Sans', 'Noto Sans Telugu', sans-serif; font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 18px; line-height: 1.3; }
+  .enq-card .form-label { font-size: 16px; }
+  .enq-card .form-input, .enq-card .form-select, .enq-card .form-textarea { font-size: 16px; min-height: 48px; }
+  .enq-card .form-textarea { min-height: 96px; }
+  .enq-card .form-input[aria-invalid="true"], .enq-card .form-select[aria-invalid="true"] { border-color: #C0392B; }
+  .form-select:disabled { opacity: .6; cursor: not-allowed; }
+  .field-err { margin-top: 6px; color: #C0392B; font-size: 16px; font-weight: 600; line-height: 1.45; }
+  .geo-status { margin-top: 6px; font-size: 16px; color: #3D4B5C; }
+  .geo-error { margin-top: 8px; padding: 10px 12px; background: #FEE2E2; border-radius: 8px; color: #C0392B; font-size: 16px; font-weight: 600; line-height: 1.5; }
+  .geo-retry { margin-top: 6px; min-height: 44px; padding: 6px 14px; border: 1.5px solid #C0392B; border-radius: 8px; background: #fff; color: #C0392B; font: inherit; font-weight: 700; cursor: pointer; }
+  .consent { display: flex; gap: 12px; align-items: flex-start; font-size: 16px; line-height: 1.55; color: #3D4B5C; cursor: pointer; padding: 4px 0; }
+  .consent input { margin-top: 2px; width: 24px; height: 24px; flex-shrink: 0; accent-color: #15803D; }
+  .consent a { color: #1565C0; font-weight: 700; }
+  .submit-err { margin: 4px 0 12px; padding: 12px 14px; background: #FEE2E2; border-radius: 10px; color: #C0392B; font-size: 16px; font-weight: 700; line-height: 1.5; }
+  .enq-card .form-submit { min-height: 52px; font-size: 17px; }
+  .enq-card .form-submit:disabled { opacity: .7; cursor: wait; }
+  .thanks { text-align: center; padding: 18px 4px; }
+  .thanks-icon { font-size: 44px; line-height: 1; margin-bottom: 12px; }
+  .thanks p { font-size: 18px; font-weight: 700; color: var(--green); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="enq-wrap">
+  <header class="enq-top">
+    <span class="enq-logo"><img src="logo.jpg" alt="Vaaralabbayi India Private Limited" width="81" height="44"></span>
+    <div class="lang-toggle">
+      <button type="button" class="lang-btn active" data-lang="en" onclick="setLang('en',event)">EN</button>
+      <button type="button" class="lang-btn"        data-lang="te" onclick="setLang('te',event)">తె</button>
+    </div>
+  </header>
+
+  <main class="enq-card">
+    <form id="enqForm" novalidate>
+      <h1 class="enq-title"><span class="eng">Send us your enquiry</span><span class="tel">మీ విచారణను పంపండి</span></h1>
+
+      <!-- 1. Interest. Option values are the contact page's enquiry values; api/submit-lead.js maps
+           them to lead_type. Labels switch language from data-en / data-te (an <option> cannot hold
+           the site's .eng / .tel spans). -->
+      <div class="form-group">
+        <label class="form-label" for="fEnquiry"><span class="eng">What are you interested in? *</span><span class="tel">మీకు దేనిపై ఆసక్తి ఉంది? *</span></label>
+        <select class="form-select" id="fEnquiry" required aria-describedby="errEnquiry">
+          <option value="" data-en="Choose one" data-te="ఒకటి ఎంచుకోండి">Choose one</option>
+          <option value="subscribe" data-en="Subscribe to household plans" data-te="గృహ ప్లాన్‌లకు సభ్యత్వం పొందండి">Subscribe to household plans</option>
+          <option value="store" data-en="Open a Digital Store" data-te="డిజిటల్ స్టోర్ తెరవండి">Open a Digital Store</option>
+          <option value="fbc" data-en="Join the FBC team" data-te="FBC టీమ్‌లో చేరండి">Join the FBC team</option>
+          <option value="investor" data-en="Investment enquiry" data-te="పెట్టుబడి విచారణ">Investment enquiry</option>
+          <option value="general" data-en="Other question" data-te="ఇతర ప్రశ్న">Other question</option>
+        </select>
+        <div class="field-err" id="errEnquiry" hidden></div>
+      </div>
+
+      <!-- 2. Name -->
+      <div class="form-group">
+        <label class="form-label" for="fName"><span class="eng">Full name *</span><span class="tel">పూర్తి పేరు *</span></label>
+        <input class="form-input" type="text" id="fName" maxlength="120" autocomplete="name" required aria-describedby="errName"
+               data-ph-en="Your full name" data-ph-te="మీ పూర్తి పేరు" placeholder="Your full name">
+        <div class="field-err" id="errName" hidden></div>
+      </div>
+
+      <!-- 3. Mobile -->
+      <div class="form-group">
+        <label class="form-label" for="fMobile"><span class="eng">Mobile number *</span><span class="tel">మొబైల్ నంబర్ *</span></label>
+        <input class="form-input" type="tel" id="fMobile" maxlength="20" autocomplete="tel" required aria-describedby="errMobile"
+               data-ph-en="+91 XXXXX XXXXX" data-ph-te="+91 XXXXX XXXXX" placeholder="+91 XXXXX XXXXX">
+        <div class="field-err" id="errMobile" hidden></div>
+      </div>
+
+      <!-- State picker: required by lead-geo.js (it fills the one state and its districts) but not
+           asked on this page, so it stays hidden. Its value is never sent, as on the contact page. -->
+      <div hidden>
+        <select id="fState" disabled tabindex="-1" aria-hidden="true"><option value="">Loading…</option></select>
+      </div>
+
+      <!-- 4. District (always required) -->
+      <div class="form-group">
+        <label class="form-label" for="fDistrict"><span class="eng">District *</span><span class="tel">జిల్లా *</span></label>
+        <select class="form-select" id="fDistrict" required disabled aria-describedby="geoStatus errDistrict"><option value="">Loading…</option></select>
+        <div id="geoStatus" hidden></div>
+        <div class="field-err" id="errDistrict" hidden></div>
+      </div>
+
+      <!-- 5. Mandal (shown and required only for household plans, Digital Store and FBC team) -->
+      <div class="form-group" id="mandalGroup" hidden>
+        <label class="form-label" for="fMandal"><span class="eng">Mandal / City <span class="req-mark" hidden>*</span></span><span class="tel">మండలం / నగరం <span class="req-mark" hidden>*</span></span></label>
+        <select class="form-select" id="fMandal" disabled aria-describedby="mandalStatus errMandal"><option value="">Choose a district first</option></select>
+        <div id="mandalStatus" hidden></div>
+        <div class="field-err" id="errMandal" hidden></div>
+      </div>
+
+      <!-- 6. Message (optional) -->
+      <div class="form-group">
+        <label class="form-label" for="fMessage"><span class="eng">Message (optional)</span><span class="tel">సందేశం (ఐచ్ఛికం)</span></label>
+        <textarea class="form-textarea" id="fMessage" rows="3" maxlength="2000"
+                  data-ph-en="Anything you would like us to know" data-ph-te="మేము తెలుసుకోవాల్సినది ఏదైనా" placeholder="Anything you would like us to know"></textarea>
+      </div>
+
+      <!-- Spam trap: same as contact.html. Invisible to real visitors and left empty by them; the
+           server only drops a filled trap if the form was sent within 3 seconds of the page loading
+           (see api/submit-lead.js), so a person whose browser filled it still gets through. -->
+      <div style="position:absolute;left:-9999px;top:-9999px" aria-hidden="true">
+        <label for="hp_extra">Leave this box empty</label>
+        <input type="text" id="hp_extra" name="hp_extra" tabindex="-1" autocomplete="off" aria-hidden="true">
+        <input type="hidden" id="formLoadedAt" name="formLoadedAt" value="">
+      </div>
+
+      <!-- 7. Consent (same wording and link as contact.html) -->
+      <div class="form-group">
+        <label class="consent" for="fConsent">
+          <input type="checkbox" id="fConsent" required aria-describedby="errConsent">
+          <span class="eng">I agree that VIPL may contact me about my enquiry and store my details as described in the <a href="privacy.html" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. *</span>
+          <span class="tel">నా విచారణ గురించి VIPL నన్ను సంప్రదించడానికి మరియు <a href="privacy.html" target="_blank" rel="noopener noreferrer">గోప్యతా విధానం</a>లో వివరించిన విధంగా నా వివరాలను నిల్వ చేయడానికి నేను అంగీకరిస్తున్నాను. *</span>
+        </label>
+        <div class="field-err" id="errConsent" hidden></div>
+      </div>
+
+      <div class="submit-err" id="submitErr" role="alert" hidden></div>
+
+      <button type="submit" class="form-submit" id="submitBtn">
+        <span class="eng">Send</span><span class="tel">పంపండి</span>
+      </button>
+    </form>
+
+    <div class="thanks" id="thanks" hidden tabindex="-1">
+      <div class="thanks-icon" aria-hidden="true">✅</div>
+      <p class="eng">Thank you. We will call you within 48 hours.</p>
+      <p class="tel">ధన్యవాదాలు. మేము 48 గంటల్లో మీకు కాల్ చేస్తాము.</p>
+    </div>
+  </main>
+</div>
+
+<script src="main.js"></script>
+<script src="lead-geo.js"></script>
+<script>
+// Area messages: same text as contact.html.
+const GEO_TEXT = {
+  loading: { en: 'Loading…', te: 'లోడ్ అవుతోంది…' },
+  unavailable: { en: 'Not available', te: 'అందుబాటులో లేదు' },
+  chooseDistrict: { en: 'Choose your district', te: 'మీ జిల్లాను ఎంచుకోండి' },
+  mandalFirst: { en: 'Choose a district first', te: 'ముందుగా జిల్లాను ఎంచుకోండి' },
+  chooseMandal: { en: 'Choose your mandal or city', te: 'మీ మండలం లేదా నగరాన్ని ఎంచుకోండి' },
+  noMandals: { en: 'No mandals listed for this district', te: 'ఈ జిల్లాకు మండలాలు లేవు' },
+  otherDivision: { en: 'Other', te: 'ఇతర' },
+  retry: { en: 'Try again', te: 'మళ్ళీ ప్రయత్నించండి' },
+  loadingDistricts: { en: 'Loading districts…', te: 'జిల్లాలు లోడ్ అవుతున్నాయి…' },
+  loadingMandals: { en: 'Loading mandals and cities…', te: 'మండలాలు, నగరాలు లోడ్ అవుతున్నాయి…' },
+  districtsFailed: { en: 'We could not load the list of districts, so the form cannot be sent yet.', te: 'జిల్లాల జాబితా లోడ్ కాలేదు, కాబట్టి ఫారమ్ ఇంకా పంపలేము.' },
+  mandalsFailed: { en: 'We could not load the mandals and cities for this district.', te: 'ఈ జిల్లాకు మండలాలు, నగరాలు లోడ్ కాలేదు.' },
+  waitDistricts: { en: 'The list of districts is still loading. Please wait a moment.', te: 'జిల్లాల జాబితా ఇంకా లోడ్ అవుతోంది. దయచేసి కొద్దిసేపు ఆగండి.' },
+  waitMandals: { en: 'The mandals and cities are still loading. Please wait a moment.', te: 'మండలాలు, నగరాలు ఇంకా లోడ్ అవుతున్నాయి. దయచేసి కొద్దిసేపు ఆగండి.' },
+  needDistrict: { en: 'Please choose your district.', te: 'దయచేసి మీ జిల్లాను ఎంచుకోండి.' },
+  needMandal: { en: 'Please choose your mandal or city.', te: 'దయచేసి మీ మండలం లేదా నగరాన్ని ఎంచుకోండి.' },
+};
+// Form messages. Consent, phone and "something went wrong" use the contact page / server wording.
+const MSG = {
+  needEnquiry: { en: 'Please choose what you are interested in.', te: 'దయచేసి మీకు దేనిపై ఆసక్తి ఉందో ఎంచుకోండి.' },
+  needName: { en: 'Please enter your name.', te: 'దయచేసి మీ పేరు నమోదు చేయండి.' },
+  needMobile: { en: 'Please enter your mobile number.', te: 'దయచేసి మీ మొబైల్ నంబర్ నమోదు చేయండి.' },
+  badMobile: { en: 'Please enter a valid mobile number', te: 'దయచేసి సరైన మొబైల్ నంబర్ నమోదు చేయండి' },
+  needConsent: { en: 'Please tick the consent box — we can only use your details with your agreement.', te: 'దయచేసి సమ్మతి బాక్స్‌ను టిక్ చేయండి — అది లేకుండా మేము మీ వివరాలను ఉపయోగించలేము.' },
+  checkDetails: { en: 'Please check your details and try again.', te: 'దయచేసి మీ వివరాలను సరిచూసి మళ్ళీ ప్రయత్నించండి.' },
+  busy: { en: 'We are receiving a lot of enquiries right now. Please try again in an hour.', te: 'ప్రస్తుతం మాకు చాలా విచారణలు వస్తున్నాయి. దయచేసి ఒక గంట తర్వాత మళ్ళీ ప్రయత్నించండి.' },
+  failed: { en: 'Something went wrong. Please try again, or call us on +91 99858 31114.', te: 'ఏదో పొరపాటు జరిగింది. దయచేసి మళ్ళీ ప్రయత్నించండి, లేదా +91 99858 31114 కు కాల్ చేయండి.' },
+  sending: { en: 'Sending…', te: 'పంపుతోంది…' },
+};
+
+const $ = id => document.getElementById(id);
+const isTe = () => document.body.classList.contains('te');
+
+const geo = LeadGeo.attach({
+  stateSel: $('fState'),
+  districtSel: $('fDistrict'),
+  mandalSel: $('fMandal'),
+  statusEl: $('geoStatus'),
+  mandalStatusEl: $('mandalStatus'),
+  requiredMarks: document.querySelectorAll('.req-mark'),
+  t: GEO_TEXT,
+});
+
+// Enquiry types that must name a mandal or city (same list as contact.html and the server).
+const MANDAL_REQUIRED = { subscribe: true, store: true, fbc: true };
+const mandalOn = () => !!MANDAL_REQUIRED[$('fEnquiry').value];
+
+function syncMandal() {
+  const on = mandalOn();
+  $('mandalGroup').hidden = !on;
+  geo.setMandalRequired(on);
+  if (!on) setFieldErr('errMandal', 'fMandal', null);
+}
+$('fEnquiry').addEventListener('change', () => { syncMandal(); setFieldErr('errEnquiry', 'fEnquiry', null); });
+
+// ── Messages in both languages ─────────────────────────────────────────────
+// Rendered as .eng / .tel spans, so the site's language toggle (main.js) switches them.
+function renderMsg(el, msg) {
+  el.replaceChildren();
+  if (!msg) { el.hidden = true; return; }
+  const m = typeof msg === 'string' ? { en: msg, te: msg } : msg;
+  const en = document.createElement('span'); en.className = 'eng'; en.textContent = m.en;
+  const te = document.createElement('span'); te.className = 'tel'; te.textContent = m.te || m.en;
+  en.style.display = isTe() ? 'none' : '';
+  te.style.display = isTe() ? 'block' : 'none';
+  el.append(en, te);
+  el.hidden = false;
+}
+function setFieldErr(errId, fieldId, msg) {
+  renderMsg($(errId), msg);
+  const f = $(fieldId);
+  if (msg) f.setAttribute('aria-invalid', 'true'); else f.removeAttribute('aria-invalid');
+}
+
+// Clear a field's message as soon as the visitor fixes it.
+$('fName').addEventListener('input', () => setFieldErr('errName', 'fName', null));
+$('fMobile').addEventListener('input', () => setFieldErr('errMobile', 'fMobile', null));
+$('fDistrict').addEventListener('change', () => { setFieldErr('errDistrict', 'fDistrict', null); setFieldErr('errMandal', 'fMandal', null); });
+$('fMandal').addEventListener('change', () => setFieldErr('errMandal', 'fMandal', null));
+$('fConsent').addEventListener('change', () => setFieldErr('errConsent', 'fConsent', null));
+
+// ── Language switching for text the .eng / .tel spans cannot reach ─────────
+// Dropdown options, placeholders and the area pickers' placeholder rows follow body.te.
+const GEO_PLACEHOLDERS = ['loading', 'unavailable', 'chooseDistrict', 'mandalFirst', 'chooseMandal', 'noMandals'].map(k => GEO_TEXT[k]);
+function applyFormLang() {
+  const te = isTe();
+  document.querySelectorAll('#fEnquiry option').forEach(o => { o.textContent = te ? o.dataset.te : o.dataset.en; });
+  document.querySelectorAll('[data-ph-en]').forEach(el => { el.placeholder = te ? el.dataset.phTe : el.dataset.phEn; });
+  ['fDistrict', 'fMandal'].forEach(id => {
+    const first = $(id).options[0];
+    if (first && first.value === '') {
+      const hit = GEO_PLACEHOLDERS.find(m => first.textContent === m.en || first.textContent === m.te);
+      if (hit) first.textContent = te ? hit.te : hit.en;
+    }
+  });
+  $('fMandal').querySelectorAll('optgroup').forEach(g => {
+    if (g.label === GEO_TEXT.otherDivision.en || g.label === GEO_TEXT.otherDivision.te) g.label = te ? GEO_TEXT.otherDivision.te : GEO_TEXT.otherDivision.en;
+  });
+}
+new MutationObserver(applyFormLang).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+// lead-geo fills the lists later; translate its rows as they arrive.
+['fDistrict', 'fMandal'].forEach(id => new MutationObserver(() => { if (isTe()) applyFormLang(); }).observe($(id), { childList: true }));
+
+// "Form loaded at" time (browser clock), as on contact.html: the server uses it with the spam trap.
+$('formLoadedAt').value = String(Date.now());
+
+// ── Send ───────────────────────────────────────────────────────────────────
+// Server messages that are not worded for visitors are replaced with friendly ones.
+function friendlyServerMsg(status, text) {
+  if (status === 429) return (!text || text === MSG.busy.en) ? MSG.busy : text;
+  if (!text) return MSG.checkDetails;
+  if (text === GEO_TEXT.needDistrict.en) return { field: 'district', msg: GEO_TEXT.needDistrict };
+  if (text === GEO_TEXT.needMandal.en) return { field: 'mandal', msg: GEO_TEXT.needMandal };
+  if (text === MSG.badMobile.en) return { field: 'mobile', msg: MSG.badMobile };
+  if (text === 'Missing required fields' || text === 'Invalid enquiry type' || / is too long$/.test(text) || text === MSG.checkDetails.en) return MSG.checkDetails;
+  return text; // The CRM's own 400 messages are written for visitors, as on contact.html.
+}
+
+let sending = false;
+
+function validate() {
+  const problems = []; // [errId, fieldId, msg]
+  const enquiryType = $('fEnquiry').value;
+  const fullName = $('fName').value.trim();
+  const mobileNumber = $('fMobile').value.trim();
+  const digits = mobileNumber.replace(/[^\d]/g, '');
+
+  if (!enquiryType) problems.push(['errEnquiry', 'fEnquiry', MSG.needEnquiry]);
+  if (!fullName) problems.push(['errName', 'fName', MSG.needName]);
+  if (!mobileNumber) problems.push(['errMobile', 'fMobile', MSG.needMobile]);
+  // Same rule as the server (api/submit-lead.js): 10 to 13 digits; +91, spaces and hyphens allowed.
+  else if (digits.length < 10 || digits.length > 13) problems.push(['errMobile', 'fMobile', MSG.badMobile]);
+
+  // District always; mandal only for the area-routed types. Also blocks sending while the lists load.
+  const geoProblem = geo.check();
+  if (geoProblem) {
+    const onDistrict = geoProblem === 'needDistrict' || geoProblem === 'waitDistricts' || geoProblem === 'districtsFailed';
+    problems.push(onDistrict ? ['errDistrict', 'fDistrict', GEO_TEXT[geoProblem]] : ['errMandal', 'fMandal', GEO_TEXT[geoProblem]]);
+  }
+  if (!$('fConsent').checked) problems.push(['errConsent', 'fConsent', MSG.needConsent]);
+  return problems;
+}
+
+function setSending(on) {
+  sending = on;
+  const btn = $('submitBtn');
+  btn.disabled = on;
+  btn.setAttribute('aria-busy', on ? 'true' : 'false');
+  if (on) { btn.dataset.html = btn.innerHTML; renderMsg(btn, MSG.sending); }
+  else if (btn.dataset.html) btn.innerHTML = btn.dataset.html;
+}
+
+$('enqForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (sending) return; // a second click while the first is on its way does nothing
+
+  ['errEnquiry:fEnquiry', 'errName:fName', 'errMobile:fMobile', 'errDistrict:fDistrict', 'errMandal:fMandal', 'errConsent:fConsent']
+    .forEach(p => { const [a, b] = p.split(':'); setFieldErr(a, b, null); });
+  renderMsg($('submitErr'), null);
+
+  const problems = validate();
+  if (problems.length) {
+    problems.forEach(([errId, fieldId, msg]) => setFieldErr(errId, fieldId, msg));
+    const first = $(problems[0][1]);
+    if (!first.disabled) first.focus();
+    return;
+  }
+
+  setSending(true);
+  const { district_id } = geo.values();
+  const body = {
+    fullName: $('fName').value.trim(),
+    mobileNumber: $('fMobile').value.trim(),
+    district_id,
+    // A hidden mandal is never sent, even if one was chosen before the interest changed.
+    mandal_id: mandalOn() ? geo.values().mandal_id : null,
+    enquiryType: $('fEnquiry').value,
+    message: $('fMessage').value.trim(),
+    hp_extra: $('hp_extra').value.trim(),
+    formLoadedAt: Number($('formLoadedAt').value) || null,
+    formSubmittedAt: Date.now(),
+    consent: true,
+    source: 'website',
+    campaignName: null,
+  };
+
+  let ok = false;
+  try {
+    const res = await fetch('/api/submit-lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 400 || res.status === 429) {
+      let text = '';
+      try { const j = await res.json(); text = typeof j.error === 'string' ? j.error : ''; } catch (_) { /* fall back below */ }
+      const out = friendlyServerMsg(res.status, text);
+      if (out && out.field === 'district') setFieldErr('errDistrict', 'fDistrict', out.msg);
+      else if (out && out.field === 'mandal') setFieldErr('errMandal', 'fMandal', out.msg);
+      else if (out && out.field === 'mobile') setFieldErr('errMobile', 'fMobile', out.msg);
+      else renderMsg($('submitErr'), out);
+      return;
+    }
+    if (!res.ok) { renderMsg($('submitErr'), MSG.failed); return; }
+    ok = true;
+  } catch (_) {
+    renderMsg($('submitErr'), MSG.failed);
+  } finally {
+    if (!ok) setSending(false);
+  }
+  if (!ok) return;
+
+  // Sent: the form is replaced by the thank-you (the button stays disabled, so nothing re-sends).
+  $('enqForm').hidden = true;
+  $('thanks').hidden = false;
+  $('thanks').focus();
+  window.scrollTo(0, 0);
+});
+</script>
+</body>
+</html>
