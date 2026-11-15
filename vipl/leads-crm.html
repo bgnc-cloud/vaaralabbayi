@@ -833,6 +833,13 @@
     return `<dl class="fl-facts">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
   }
 
+  // Extra-details value as shown. consent_given_at is shown in India time like every other time on
+  // the page; if it is not a valid date it is shown as stored. Display only: nothing stored changes.
+  function extraValueText(k, v) {
+    if (k === 'consent_given_at' && typeof v === 'string') return fmtIST(v) || v;
+    return typeof v === 'object' ? JSON.stringify(v) : v;
+  }
+
   function panelHtml(l, opts) {
     opts = opts || {};
     const meta = typeMeta(l.lead_type);
@@ -848,7 +855,7 @@
       <div class="fl-badges">${badgesHtml(l)}</div>
       ${opts.stale ? '<div class="fl-msg err">This lead is not on the current page of this view, so the details below may be out of date. Its latest activity is listed at the bottom.</div>' : ''}
       ${factsHtml(l)}
-      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k, v]) => `<div><strong>${esc(k.replace(/_/g, ' '))}:</strong> ${esc(typeof v === 'object' ? JSON.stringify(v) : v)}</div>`).join('')}</div>` : ''}
+      ${extra.length ? `<div class="fl-extraBox">${extra.map(([k, v]) => `<div><strong>${esc(k.replace(/_/g, ' '))}:</strong> ${esc(extraValueText(k, v))}</div>`).join('')}</div>` : ''}
 
       <div class="fl-section">
         <div class="fl-sectionTitle" id="flStageTitle">Move to stage</div>
