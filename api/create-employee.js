@@ -15,6 +15,11 @@
 import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = 'https://uylkgldmyyvtxxsmkquy.supabase.co';
 
+// Roles only an Admin or Super Admin may assign. An HR Manager may assign any other
+// active role from the roles table. Keep in sync with api/reset-employee-password.js.
+const ADMIN_ONLY_ROLES = ['super_admin', 'admin', 'director_1', 'director_2', 'accountant'];
+const MIN_TEMP_PASSWORD = 10;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -52,8 +57,11 @@ export default async function handler(req, res) {
   if (!fullName || !email || !roleCode || !loginMethod) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  if (loginMethod === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
-    return res.status(400).json({ error: 'Temporary password must be at least 6 characters' });
+  if (!['invite', 'temp_password'].includes(loginMethod)) {
+    return res.status(400).json({ error: 'Invalid login method' });
+  }
+  if (loginMethod === 'temp_password' && (typeof tempPassword !== 'string' || tempPassword.length < MIN_TEMP_PASSWORD)) {
+    return res.status(400).json({ error: `Temporary password must be at least ${MIN_TEMP_PASSWORD} characters` });
   }
 
   // Verify this verified user is actually allowed to create employees (HR Manager / Admin / Super Admin)
@@ -64,6 +72,24 @@ export default async function handler(req, res) {
     .single();
   if (requesterErr || !requester || !['hr_manager', 'admin', 'super_admin'].includes(requester.role)) {
     return res.status(403).json({ error: 'Not authorized to create employee accounts' });
+  }
+
+  // roleCode must be a real, active role — never write an arbitrary string into profiles.role.
+  const { data: roleRow, error: roleErr } = await admin
+    .from('roles')
+    .select('code')
+    .eq('code', roleCode)
+    .eq('is_active', true)
+    .maybeSingle();
+  if (roleErr) {
+    console.error('create-employee: role lookup failed', roleErr);
+    return res.status(500).json({ error: 'Could not create the employee account. Please try again.' });
+  }
+  if (!roleRow) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  if (requester.role === 'hr_manager' && ADMIN_ONLY_ROLES.includes(roleCode)) {
+    return res.status(403).json({ error: 'Only an Admin or Super Admin can assign this role' });
   }
 
   try {
@@ -111,7 +137,11 @@ export default async function handler(req, res) {
       loginMethod
     });
   } catch (err) {
+    // Full detail goes to the server log only; the caller gets a fixed message.
     console.error('create-employee error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to create employee' });
+    if (err && (err.code === 'email_exists' || err.code === 'user_already_exists')) {
+      return res.status(409).json({ error: 'An account with this email already exists' });
+    }
+    return res.status(500).json({ error: 'Could not create the employee account. Please try again.' });
   }
 }

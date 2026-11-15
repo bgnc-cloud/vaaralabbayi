@@ -59,19 +59,11 @@ const ROLE_LABELS = {
   pending: 'Pending Approval'
 };
 
-const REQUESTED_ROLE_OPTIONS = [
-  { value: '', label: 'What access do you need?' },
-  { value: 'investor', label: 'Investor — view my stake & loan exposure' },
-  { value: 'accountant', label: 'Accountant / Bookkeeper' },
-  { value: 'entry', label: 'Ledger Entry Staff' },
-  { value: 'hr_manager', label: 'HR Manager' },
-  { value: 'other', label: 'Other / Not sure' },
-];
-
 // ── SHELL STATE ─────────────────────────────────────
+// There is no public sign-up: accounts are created by HR / Admin via api/create-employee.js.
 window.VIPL = { sb, user: null, profile: null };
 const currentPage = location.pathname.split('/').pop() || 'index.html';
-let authMode = 'signin'; // signin | signup | forgot | reset
+let authMode = 'signin'; // signin | forgot | reset
 
 function injectShellStyles() {
   const style = document.createElement('style');
@@ -90,7 +82,6 @@ function injectShellStyles() {
     .pwWrap { position: relative; margin-bottom: 10px; }
     .pwWrap input { margin-bottom: 0; padding-right: 56px; }
     .pwToggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 12px; font-weight: 700; color: var(--blue); cursor: pointer; user-select: none; }
-    .customerIdBox { font-size: 22px; font-weight: 800; text-align: center; background: var(--off); border-radius: 8px; padding: 16px; margin-bottom: 16px; color: var(--blue); letter-spacing: .03em; }
     .backToSite {
       display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 700;
       color: var(--g3); text-decoration: none; margin-bottom: 18px;
@@ -235,33 +226,10 @@ function renderAuthBox() {
       <div class="forgotLink"><a id="toForgot">Forgot password?</a></div>
       <button id="signInBtn">Sign In</button>
       <div id="authMsg"></div>
-      <div class="authSwitch">New team member? <a id="toSignup">Create an account</a></div>
+      <div class="authSwitch">Accounts are created by your HR or Admin.</div>
     `;
     document.getElementById('signInBtn').onclick = signIn;
-    document.getElementById('toSignup').onclick = () => { authMode = 'signup'; renderAuthBox(); };
     document.getElementById('toForgot').onclick = () => { authMode = 'forgot'; renderAuthBox(); };
-
-  } else if (authMode === 'signup') {
-    box.innerHTML = `
-      <a class="backToSite" href="../index.html">← Back to Cloud Super Market</a>
-      <h1>Create your account</h1>
-      <p>Sign up to request access to VIPL Internal. You'll get a Customer ID you can use to log in later, alongside your email or phone. An admin will review and assign your role before you can see any financial data.</p>
-      <input type="text" id="signupName" placeholder="Full name">
-      <input type="email" id="signupEmail" placeholder="Email address">
-      <input type="tel" id="signupPhone" placeholder="Phone number">
-      <div class="pwWrap">
-        <input type="password" id="signupPass" placeholder="Password (min 6 characters)">
-        <span class="pwToggle" onclick="togglePw('signupPass', this)">Show</span>
-      </div>
-      <select id="signupRequestedRole">
-        ${REQUESTED_ROLE_OPTIONS.map(o => `<option value="${o.value}">${o.label}</option>`).join('')}
-      </select>
-      <button id="signUpBtn">Create Account</button>
-      <div id="authMsg"></div>
-      <div class="authSwitch">Already have an account? <a id="toSignin">Sign in</a></div>
-    `;
-    document.getElementById('signUpBtn').onclick = signUp;
-    document.getElementById('toSignin').onclick = () => { authMode = 'signin'; renderAuthBox(); };
 
   } else if (authMode === 'forgot') {
     box.innerHTML = `
@@ -281,7 +249,7 @@ function renderAuthBox() {
       <h1>Set a new password</h1>
       <p>Choose a new password for your account.</p>
       <div class="pwWrap">
-        <input type="password" id="newPass" placeholder="New password (min 6 characters)">
+        <input type="password" id="newPass" placeholder="New password (min 10 characters)">
         <span class="pwToggle" onclick="togglePw('newPass', this)">Show</span>
       </div>
       <div class="pwWrap">
@@ -587,59 +555,6 @@ async function signIn() {
   await bootstrap();
 }
 
-async function signUp() {
-  const full_name = document.getElementById('signupName').value.trim();
-  const email = document.getElementById('signupEmail').value.trim();
-  const phone = document.getElementById('signupPhone').value.trim();
-  const password = document.getElementById('signupPass').value;
-  const requestedRole = document.getElementById('signupRequestedRole').value;
-  const msg = document.getElementById('authMsg');
-
-  if (!full_name || !email || !phone || !password) {
-    msg.style.color = '#C0392B'; msg.textContent = 'Please fill in all fields.'; return;
-  }
-  if (password.length < 6) {
-    msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 6 characters.'; return;
-  }
-
-  msg.style.color = 'var(--g3)'; msg.textContent = 'Checking your details…';
-
-  // Duplicate check on email OR phone before attempting signup
-  const { data: existing, error: checkErr } = await sb
-    .from('profiles')
-    .select('email, phone')
-    .or(`email.eq.${email},phone.eq.${phone}`);
-
-  if (!checkErr && existing && existing.length) {
-    const emailMatch = existing.some(p => p.email === email);
-    const phoneMatch = existing.some(p => p.phone === phone);
-    msg.style.color = '#C0392B';
-    if (emailMatch && phoneMatch) {
-      msg.textContent = 'An account with this email and phone number already exists. Try signing in instead.';
-    } else if (emailMatch) {
-      msg.textContent = 'An account with this email already exists. Try signing in instead.';
-    } else {
-      msg.textContent = 'An account with this phone number already exists. Try signing in instead.';
-    }
-    return;
-  }
-
-  msg.style.color = 'var(--g3)'; msg.textContent = 'Creating your account…';
-  const { data, error } = await sb.auth.signUp({
-    email, password,
-    options: { data: { full_name, phone, requested_role: requestedRole } }
-  });
-  if (error) { msg.style.color = '#C0392B'; msg.textContent = error.message; return; }
-
-  if (data.session) {
-    await showCustomerIdThenContinue(data.user.id);
-  } else {
-    msg.style.color = 'var(--green)';
-    msg.textContent = 'Account created! Check your email to confirm it, then sign in.';
-    setTimeout(() => { authMode = 'signin'; renderAuthBox(); }, 3000);
-  }
-}
-
 async function sendResetLink() {
   const identifier = document.getElementById('forgotIdentifier').value.trim();
   const msg = document.getElementById('authMsg');
@@ -667,8 +582,8 @@ async function submitNewPassword() {
   const p1 = document.getElementById('newPass').value;
   const p2 = document.getElementById('newPassConfirm').value;
   const msg = document.getElementById('authMsg');
-  if (!p1 || p1.length < 6) {
-    msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 6 characters.'; return;
+  if (!p1 || p1.length < 10) {
+    msg.style.color = '#C0392B'; msg.textContent = 'Password must be at least 10 characters.'; return;
   }
   if (p1 !== p2) {
     msg.style.color = '#C0392B'; msg.textContent = 'Passwords do not match.'; return;
@@ -682,19 +597,6 @@ async function submitNewPassword() {
     history.replaceState(null, '', location.pathname);
     await bootstrap();
   }, 1200);
-}
-
-async function showCustomerIdThenContinue(userId) {
-  const { data: profile } = await sb.from('profiles').select('customer_id').eq('id', userId).single();
-  const box = document.getElementById('authBox');
-  box.innerHTML = `
-    <h1>Account created 🎉</h1>
-    <p>Your Customer ID is:</p>
-    <div class="customerIdBox">${profile?.customer_id || '—'}</div>
-    <p>You can log in next time with your email, phone number, or this Customer ID — save it somewhere safe.</p>
-    <button id="continueBtn">Continue</button>
-  `;
-  document.getElementById('continueBtn').onclick = bootstrap;
 }
 
 async function signOut() {

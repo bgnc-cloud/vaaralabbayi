@@ -159,6 +159,8 @@
     loadAll();
   };
 
+  // Self-view roles (investor, directors): only rows linked to this login are requested —
+  // no company-wide view (loan_tracker, all loan_accounts) is ever queried here.
   async function loadMyLoan() {
     const [{ data: myAccounts, error: laErr }, { data: myTxns, error: txnErr }] = await Promise.all([
       VIPL.sb.from('loan_accounts').select('*').eq('profile_id', VIPL.user.id),
@@ -166,9 +168,9 @@
     ]);
 
     const cardWrap = document.getElementById('myLoanCard');
-    if (laErr) { cardWrap.innerHTML = `<div class="note" style="color:#C0392B">${laErr.message}</div>`; return; }
+    if (laErr) { cardWrap.innerHTML = `<div class="card"><h2>Your Loan</h2><div class="note" style="color:#C0392B">Couldn't load your loan right now. Please try again later.</div></div>`; }
 
-    if (!myAccounts || !myAccounts.length) {
+    else if (!myAccounts || !myAccounts.length) {
       cardWrap.innerHTML = `
         <div class="card">
           <h2>Your Loan</h2>
@@ -189,7 +191,7 @@
     }
 
     const txnBody = document.getElementById('myTxnBody');
-    if (txnErr) { txnBody.innerHTML = `<tr><td colspan="6" style="color:#C0392B">${txnErr.message}</td></tr>`; return; }
+    if (txnErr) { txnBody.innerHTML = `<tr><td colspan="6" style="color:#C0392B;text-align:center;padding:20px">Couldn't load your transactions right now. Please try again later.</td></tr>`; return; }
     txnBody.innerHTML = (myTxns && myTxns.length)
       ? myTxns.map(r => `
         <tr>

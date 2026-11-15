@@ -196,6 +196,41 @@
   // (SINGLE_ROW_ROLES there), so the full capital split is only for the roles that
   // already see the whole table today.
   const FULL_CAP_TABLE_ROLES = ['super_admin','accountant','auditor_team'];
+  // Investors get their own figures only; company-wide views (current_balances,
+  // investor_totals, loan_tracker, category_totals) are never requested for them.
+  const INVESTOR_ROLE = 'investor';
+
+  async function loadInvestorFigures() {
+    const sec = document.getElementById('secFigures');
+    const grid = document.getElementById('topSummary');
+    document.getElementById('hdFigures').textContent = 'Your figures';
+    sec.hidden = false;
+    grid.innerHTML = '<div class="summaryBox"><div class="skel"></div><div class="skel" style="width:60%"></div></div>'.repeat(3);
+    // Charts are company-wide: keep that section hidden for investors.
+    document.getElementById('secCharts').hidden = true;
+
+    const [capRes, loanRes] = await Promise.all([
+      VIPL.sb.from('investor_cap_table').select('investor_type,total_invested,ownership_percentage').eq('profile_id', VIPL.user.id),
+      VIPL.sb.from('loan_accounts').select('balance').eq('profile_id', VIPL.user.id),
+    ]);
+    const capRows = (capRes.error ? [] : (capRes.data || [])).filter(r => r.investor_type !== 'company_share');
+    const loanRows = loanRes.error ? [] : (loanRes.data || []);
+
+    if (!capRows.length && !loanRows.length) {
+      grid.innerHTML = `<div class="summaryBox"><div class="lbl">${capRes.error || loanRes.error
+        ? "Couldn't load your figures right now. Please try again later."
+        : "Your investment record hasn't been linked to your login yet. Contact VIPL to get this connected."}</div></div>`;
+      return;
+    }
+    const invested = capRows.reduce((s, r) => s + Number(r.total_invested || 0), 0);
+    const pct = Math.round(capRows.reduce((s, r) => s + Number(r.ownership_percentage || 0), 0) * 100) / 100;
+    const loanBal = loanRows.reduce((s, r) => s + Number(r.balance || 0), 0);
+    const box = (cls, ic, val, lbl) => `<div class="summaryBox ${cls}"><div class="sbTop"><div class="lbl">${lbl}</div><div class="icon">${icon(ic)}</div></div><div class="val">${val}</div></div>`;
+    grid.innerHTML =
+      (capRows.length ? box('accent-capital', 'trending', fmt(invested), 'Your Capital Invested') : '') +
+      (capRows.length ? box('', 'pie', pct ? pct + '%' : '—', 'Your Ownership') : '') +
+      (loanRows.length ? box('accent-loan', 'card', fmt(loanBal), 'Your Loan Outstanding') : '');
+  }
   // Balance-sheet categories and the expense rule live in VIPL_PL (shell.js).
 
   const PALETTE = ['#1565C0','#0E9488','#B7791F','#0891B2','#42A5F5','#F97316','#94A3B8'];
@@ -436,14 +471,17 @@
     const role = VIPL.profile.role;
     const name = VIPL.profile.full_name || VIPL.user.email;
     // D/E run alongside the finance data; only for roles that already see FBC pages.
-    const fbcPromise = FBC_VIEW_ROLES.includes(role) ? loadFbcSections().catch(() => {}) : Promise.resolve();
+    // Investors see only their own figures, so the company-wide FBC counts are skipped for them.
+    const fbcPromise = FBC_VIEW_ROLES.includes(role) && role !== INVESTOR_ROLE ? loadFbcSections().catch(() => {}) : Promise.resolve();
 
     // A. Header
     document.getElementById('ovWelcome').innerHTML = `Welcome back, <strong>${esc(name)}</strong>.`;
     document.getElementById('ovDate').textContent = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
     const canSeeFinance = FINANCE_ROLES.includes(role);
-    if (canSeeFinance) {
+    if (role === INVESTOR_ROLE) {
+      await loadInvestorFigures();
+    } else if (canSeeFinance) {
       const fullCap = FULL_CAP_TABLE_ROLES.includes(role);
       document.getElementById('secFigures').hidden = false;
       document.getElementById('secCharts').hidden = false;
@@ -451,8 +489,8 @@
       document.getElementById('chartGrid').innerHTML = '<div class="chartCard"><div class="skel"></div><div class="skel"></div><div class="skel" style="width:70%"></div></div>'.repeat(2);
 
       const [balRes, totRes, loanRes, catRes, capRes] = await Promise.all([
-        VIPL.sb.from('current_balances').select('cash_balance,bank_balance').single(),
-        VIPL.sb.from('investor_totals').select('*').single(),
+        VIPL.sb.from('current_balances').select('cash_balance,bank_balance').maybeSingle(),
+        VIPL.sb.from('investor_totals').select('*').maybeSingle(),
         VIPL.sb.from('loan_tracker').select('running_balance').order('month_start',{ascending:false}).limit(1),
         VIPL.sb.from('category_totals').select('*'),
         fullCap ? VIPL.sb.from('investor_cap_table').select('*').order('total_invested', { ascending: false, nullsFirst: false }) : Promise.resolve(null),

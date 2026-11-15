@@ -18,6 +18,11 @@ const SUPABASE_URL = 'https://uylkgldmyyvtxxsmkquy.supabase.co';
 // NOT reliably auto-send the recovery email the way the public resetPasswordForEmail() does
 // — the exact same method already confirmed working elsewhere in this app (the "Forgot
 // password?" flow on the sign-in page uses this same call).
+// Roles an HR Manager may NOT manage (same list as api/create-employee.js). HR may reset
+// passwords only for roles HR may create: active roles in the roles table, not in this list.
+const ADMIN_ONLY_ROLES = ['super_admin', 'admin', 'director_1', 'director_2', 'accountant'];
+const MIN_TEMP_PASSWORD = 10;
+
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5bGtnbGRteXl2dHh4c21rcXV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ2MjA2MzgsImV4cCI6MjEwMDE5NjYzOH0.UQTA1S7_foALSPHBdQbwSVRp50pGTcGAyiyyaB4EjsI';
 
 export default async function handler(req, res) {
@@ -55,8 +60,11 @@ export default async function handler(req, res) {
   if (!employeeId || !method) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
-  if (method === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
-    return res.status(400).json({ error: 'Temporary password must be at least 6 characters' });
+  if (!['invite', 'temp_password'].includes(method)) {
+    return res.status(400).json({ error: 'Invalid method' });
+  }
+  if (method === 'temp_password' && (typeof tempPassword !== 'string' || tempPassword.length < MIN_TEMP_PASSWORD)) {
+    return res.status(400).json({ error: `Temporary password must be at least ${MIN_TEMP_PASSWORD} characters` });
   }
 
   // Verify this verified user is actually allowed to manage employee accounts.
@@ -67,11 +75,11 @@ export default async function handler(req, res) {
     .single();
   if (requesterErr) {
     console.error('reset-employee-password: requester lookup failed', requesterErr);
-    return res.status(403).json({ error: `Could not verify your account: ${requesterErr.message} (code: ${requesterErr.code || 'unknown'})` });
+    return res.status(403).json({ error: 'Not authorized to reset employee passwords' });
   }
   if (!requester || !['hr_manager', 'admin', 'super_admin'].includes(requester.role)) {
-    console.error('reset-employee-password: requester role not permitted', requesterId, requester);
-    return res.status(403).json({ error: `Not authorized to reset employee passwords (your role: ${requester ? requester.role : 'no profile found'})` });
+    console.error('reset-employee-password: requester role not permitted', requesterId, requester && requester.role);
+    return res.status(403).json({ error: 'Not authorized to reset employee passwords' });
   }
 
   // Look up the target employee.
@@ -84,11 +92,24 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Employee not found' });
   }
 
-  // HR Manager cannot reset a Super Admin or Admin's password — same reasoning as the
-  // existing prevent_self_role_escalation protection: HR shouldn't be able to take over a
+  // HR Manager may reset passwords only for roles HR may create — same reasoning as the
+  // prevent_self_role_escalation protection: HR shouldn't be able to take over a
   // higher-privilege account this way. Only a Super Admin or Admin can do that.
-  if (requester.role === 'hr_manager' && ['super_admin', 'admin'].includes(target.role)) {
-    return res.status(403).json({ error: 'HR Managers cannot reset Super Admin or Admin passwords. Ask a Super Admin to do this instead.' });
+  if (requester.role === 'hr_manager') {
+    let hrMayManage = false;
+    if (!ADMIN_ONLY_ROLES.includes(target.role)) {
+      const { data: roleRow, error: roleErr } = await admin
+        .from('roles')
+        .select('code')
+        .eq('code', target.role)
+        .eq('is_active', true)
+        .maybeSingle();
+      if (roleErr) console.error('reset-employee-password: role lookup failed', roleErr);
+      hrMayManage = !roleErr && !!roleRow;
+    }
+    if (!hrMayManage) {
+      return res.status(403).json({ error: 'Only an Admin or Super Admin can reset this password' });
+    }
   }
 
   try {
@@ -107,9 +128,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, method, employeeName: target.full_name || target.email });
     }
 
-    return res.status(400).json({ error: 'Invalid method — expected "temp_password" or "invite"' });
+    return res.status(400).json({ error: 'Invalid method' });
   } catch (err) {
+    // Full detail goes to the server log only; the caller gets a fixed message.
     console.error('reset-employee-password error:', err);
-    return res.status(500).json({ error: err.message || 'Failed to reset password' });
+    return res.status(500).json({ error: 'Could not reset the password. Please try again.' });
   }
 }

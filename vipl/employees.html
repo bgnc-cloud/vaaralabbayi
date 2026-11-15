@@ -117,7 +117,7 @@
     </div>
     <div id="tempPassRow" style="display:none">
       <label>Temporary password</label>
-      <input type="text" id="empTempPass" placeholder="Min 6 characters">
+      <input type="text" id="empTempPass" placeholder="Min 10 characters">
     </div>
     <div id="empFormMsg"></div>
     <div id="empSuccess" style="display:none"></div>
@@ -139,7 +139,7 @@
     </div>
     <div id="resetTempPassRow" style="display:none">
       <label>Temporary password</label>
-      <input type="text" id="resetTempPass" placeholder="Min 6 characters">
+      <input type="text" id="resetTempPass" placeholder="Min 10 characters">
     </div>
     <div id="resetPwMsg"></div>
     <div id="resetPwSuccess" style="display:none"></div>
@@ -197,11 +197,20 @@
     await loadEmployees();
   };
 
+  // Mirrors ADMIN_ONLY_ROLES in api/create-employee.js and api/reset-employee-password.js.
+  // The server enforces this; the UI just avoids offering what would be refused.
+  const ADMIN_ONLY_ROLES = ['super_admin', 'admin', 'director_1', 'director_2', 'accountant'];
+  const MIN_TEMP_PASSWORD = 10;
+  function hrMayManageRole(code) {
+    if (VIPL.profile.role !== 'hr_manager') return true;
+    return !ADMIN_ONLY_ROLES.includes(code) && allRoles.some(r => r.code === code);
+  }
+
   async function loadRolesForSelect() {
     const { data } = await VIPL.sb.from('roles').select('*').eq('is_active', true).order('category').order('sort_order');
     allRoles = data || [];
     document.getElementById('empRole').innerHTML = '<option value="">Select role…</option>' +
-      allRoles.map(r => `<option value="${r.code}">${escapeHtml(r.name)}</option>`).join('');
+      allRoles.filter(r => hrMayManageRole(r.code)).map(r => `<option value="${escapeAttr(r.code)}">${escapeHtml(r.name)}</option>`).join('');
   }
 
   async function loadEmployees() {
@@ -220,9 +229,9 @@
     document.getElementById('empTableBody').innerHTML = allEmployees.map(e => {
       const manager = e.reporting_manager_id ? byId[e.reporting_manager_id] : null;
       const isAdminTier = ['super_admin','admin'].includes(e.role);
-      // HR Managers can't reset a Super Admin/Admin's password — same rule the server enforces.
+      // HR Managers may reset only roles HR may create — same rule the server enforces.
       // Hide the button entirely for that combination rather than showing it and failing later.
-      const hrBlocked = VIPL.profile.role === 'hr_manager' && isAdminTier;
+      const hrBlocked = !hrMayManageRole(e.role);
       const isSelf = e.id === VIPL.user.id;
       const resetBtn = (!hrBlocked && !isSelf)
         ? `<button class="btn btnGhost btnSm" onclick="openResetPwModal('${e.id}','${escapeAttr(e.full_name || e.email)}')">Reset Password</button>`
@@ -273,8 +282,8 @@
     const tempPassword = document.getElementById('empTempPass').value;
 
     if (!fullName || !email || !roleCode) { msg.textContent = 'Name, email, and role are required.'; return; }
-    if (loginMethod === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
-      msg.textContent = 'Temporary password must be at least 6 characters.'; return;
+    if (loginMethod === 'temp_password' && (!tempPassword || tempPassword.length < MIN_TEMP_PASSWORD)) {
+      msg.textContent = `Temporary password must be at least ${MIN_TEMP_PASSWORD} characters.`; return;
     }
 
     const btn = document.getElementById('empSaveBtn');
@@ -335,8 +344,8 @@
 
     const method = document.querySelector('input[name=resetMethod]:checked').value;
     const tempPassword = document.getElementById('resetTempPass').value;
-    if (method === 'temp_password' && (!tempPassword || tempPassword.length < 6)) {
-      msg.textContent = 'Temporary password must be at least 6 characters.'; return;
+    if (method === 'temp_password' && (!tempPassword || tempPassword.length < MIN_TEMP_PASSWORD)) {
+      msg.textContent = `Temporary password must be at least ${MIN_TEMP_PASSWORD} characters.`; return;
     }
 
     const btn = document.getElementById('resetPwSubmitBtn');
