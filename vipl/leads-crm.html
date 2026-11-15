@@ -234,8 +234,22 @@
   .fl-msg:empty { display: none; }
   .fl-msg.ok { color: var(--ripe); }
   .fl-msg.err { color: var(--rot); }
-  .fl-panel details summary { cursor: pointer; font-size: 11px; font-weight: 700; color: var(--soil-60); text-transform: uppercase; letter-spacing: .04em; margin: 16px 0 4px; }
   .fl-hint { font-size: 11.5px; color: var(--soil-60); margin-top: 4px; }
+  /* Phone numbers are tap-to-call. The lead's submitted name, phone and email are display only;
+     the one thing staff can add is an additional number. */
+  .fl-panel .fl-phoneLine { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; }
+  /* 44px tap targets, but the text lines up with the "Phone" label and a one-number row keeps its old height. */
+  .fl-panel .fl-facts .fl-phoneLine:first-child { margin-top: -12px; }
+  .fl-panel .fl-facts .fl-phoneLine:only-child { margin-bottom: -12px; }
+  .fl-panel .fl-tel { display: inline-flex; align-items: center; min-height: 44px; color: var(--capital); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+  .fl-panel .fl-altTag { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 700; background: var(--capital-tint); color: var(--capital); }
+  .fl-linkBtn {
+    display: inline-flex; align-items: center; min-height: 44px; margin-top: 8px; padding: 0 2px; border: none; background: none;
+    font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--capital); text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+  }
+  .fl-panel #flAltEditor[hidden] { display: none; }
+  .fl-panel #flAltInput { min-height: 44px; }
+  #flAltEditor .fl-btnRow .fl-saveBtn, #flAltEditor .fl-btnRow .fl-ghostBtn { min-height: 44px; min-width: 64px; }
 
   @media (max-width: 1100px) { .fl-board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 768px) {
@@ -815,9 +829,34 @@
   }
 
   // ── Lead drawer ──
+  // ── Additional number: same rule as the back end (10-digit Indian mobile starting 6-9, not the lead's phone). ──
+  // Spaces, dashes, brackets and a leading +91 / 91 / 0 are allowed while typing; the 10 digits are what is sent.
+  function tenDigits(raw) {
+    const s = String(raw || '').trim();
+    if (!/^\+?[\d\s().-]+$/.test(s)) return null;
+    let d = s.replace(/\D/g, '');
+    if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+    else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+    return d.length === 10 ? d : null;
+  }
+  function altPhoneProblem(raw, l) {
+    if (!String(raw || '').trim()) return 'Enter a 10-digit mobile number.';
+    const d = tenDigits(raw);
+    if (!d || !/^[6-9]\d{9}$/.test(d)) return 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.';
+    if (l.phone && tenDigits(l.phone) === d) return "That is the lead's main number. Enter a different number.";
+    return null;
+  }
+  function telHref(p) { return 'tel:' + String(p || '').replace(/[^\d+]/g, ''); }
+  function phonesHtml(l) {
+    const lines = [];
+    if (l.phone) lines.push(`<div class="fl-phoneLine"><a class="fl-tel" href="${esc(telHref(l.phone))}" aria-label="Call ${esc(l.phone)}">${esc(l.phone)}</a></div>`);
+    if (l.alternate_phone) lines.push(`<div class="fl-phoneLine"><a class="fl-tel" href="${esc(telHref(l.alternate_phone))}" aria-label="Call additional number ${esc(l.alternate_phone)}">${esc(l.alternate_phone)}</a><span class="fl-altTag">additional</span></div>`);
+    return lines.length ? lines.join('') : '—';
+  }
+
   function factsHtml(l) {
     const rows = [
-      ['Phone', l.phone || '—'],
+      ['Phone', { html: phonesHtml(l) }],
       ['Email', l.email || '—'],
       ['Mandal', l.mandal_name || '—'],
       ['Revenue division', l.revenue_division_name || '—'],
@@ -830,7 +869,7 @@
     ];
     if (l.status_changed_at) rows.push(['Stage changed', fmtIST(l.status_changed_at)]);
     if (REASON_STATUSES.includes(l.status) || l.lost_reason) rows.push(['Lost reason', l.lost_reason || 'No reason recorded']);
-    return `<dl class="fl-facts">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+    return `<dl class="fl-facts">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v && v.html ? v.html : esc(v)}</dd>`).join('')}</dl>`;
   }
 
   // Extra-details value as shown. consent_given_at is shown in India time like every other time on
@@ -899,21 +938,18 @@
         <div class="fl-msg" id="flMsg-reassign" role="status"></div>
       </div>
 
-      <div class="fl-section">
-        <details id="flEditDetails" ${opts.editOpen ? 'open' : ''}>
-          <summary>Edit contact details</summary>
-          <label class="fl-inline" for="flEditName">Name</label>
-          <input type="text" id="flEditName" value="${esc(l.full_name || '')}" autocomplete="off">
-          <label class="fl-inline" for="flEditPhone">Phone</label>
-          <input type="tel" id="flEditPhone" value="${esc(l.phone || '')}" autocomplete="off">
-          <label class="fl-inline" for="flEditEmail">Email</label>
-          <input type="email" id="flEditEmail" value="${esc(l.email || '')}" autocomplete="off">
-          <label class="fl-inline" for="flEditCampaign">Campaign</label>
-          <input type="text" id="flEditCampaign" value="${esc(l.campaign_name || '')}" autocomplete="off">
-          <div class="fl-hint">A lead needs a phone number or an email address.</div>
-          <div class="fl-btnRow"><button type="button" class="fl-saveBtn" data-act="edit-save">Save details</button></div>
-          <div class="fl-msg" id="flMsg-edit" role="status"></div>
-        </details>
+      <div class="fl-section" id="flAltSection">
+        <button type="button" class="fl-linkBtn" data-act="alt-toggle" aria-expanded="${opts.altOpen ? 'true' : 'false'}" aria-controls="flAltEditor">Additional number</button>
+        <div id="flAltEditor" ${opts.altOpen ? '' : 'hidden'}>
+          <label class="fl-inline" for="flAltInput">Additional number</label>
+          <input type="tel" id="flAltInput" inputmode="tel" maxlength="20" autocomplete="off" value="${esc(l.alternate_phone || '')}" aria-describedby="flAltHint flMsg-alt" aria-invalid="false">
+          <div class="fl-hint" id="flAltHint">10-digit mobile, different from the main phone. Name, phone and email stay as the lead submitted them.</div>
+          <div class="fl-btnRow">
+            <button type="button" class="fl-saveBtn" data-act="alt-save">Save</button>
+            ${l.alternate_phone ? '<button type="button" class="fl-ghostBtn" data-act="alt-clear">Clear</button>' : ''}
+          </div>
+        </div>
+        <div class="fl-msg" id="flMsg-alt" role="status"></div>
       </div>
 
       <div class="fl-section">
@@ -1000,8 +1036,12 @@
     const fresh = ROWS.find(x => x.id === id);
     if (fresh) OPEN_LEAD = Object.assign({}, fresh);
     else if (opts.patch) Object.assign(OPEN_LEAD, opts.patch);
-    renderPanel({ editOpen: section === 'edit', stale: !fresh && opts.reloaded });
+    renderPanel({ altOpen: section === 'alt', stale: !fresh && opts.reloaded });
     showMsg(section, text, kind);
+    if (section === 'alt') {
+      const input = document.getElementById('flAltInput');
+      if (input) input.focus();
+    }
     loadNotes();
   }
 
@@ -1081,38 +1121,36 @@
     } });
   }
 
-  async function saveEdit(btn) {
-    const fields = [
-      ['full_name', 'flEditName'], ['phone', 'flEditPhone'], ['email', 'flEditEmail'], ['campaign_name', 'flEditCampaign'],
-    ];
-    const updates = {};
-    for (const [key, id] of fields) {
-      const el = document.getElementById(id);
-      el.setAttribute('aria-invalid', 'false');
-      const now = el.value.trim();
-      const before = (OPEN_LEAD[key] || '').trim();
-      if (now !== before) updates[key] = key === 'full_name' ? now : (now || null);
+  function toggleAltEditor(btn) {
+    const editor = document.getElementById('flAltEditor');
+    const open = editor.hidden;
+    editor.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    showMsg('alt', '');
+    if (open) document.getElementById('flAltInput').focus();
+  }
+
+  // The only contact field staff can change. edit_lead gets { alternate_phone } and nothing else.
+  async function saveAltPhone(clear, btn) {
+    const input = document.getElementById('flAltInput');
+    let value = null;
+    if (!clear) {
+      const problem = altPhoneProblem(input.value, OPEN_LEAD);
+      if (problem) { input.setAttribute('aria-invalid', 'true'); showMsg('alt', problem, 'error'); input.focus(); return; }
+      value = tenDigits(input.value);
+      if (value === (OPEN_LEAD.alternate_phone || null)) { showMsg('alt', 'That number is already saved.', 'error'); input.focus(); return; }
     }
-    if ('full_name' in updates && !updates.full_name) {
-      document.getElementById('flEditName').setAttribute('aria-invalid', 'true');
-      showMsg('edit', 'Please enter a name.', 'error'); return;
-    }
-    if (!Object.keys(updates).length) { showMsg('edit', 'Nothing changed.', 'error'); return; }
+    input.setAttribute('aria-invalid', 'false');
     setBusy(btn, true);
-    const r = await api('edit_lead', { lead_id: OPEN_LEAD.id, updates });
+    const r = await api('edit_lead', { lead_id: OPEN_LEAD.id, updates: { alternate_phone: value } });
     setBusy(btn, false);
     if (!r.ok) {
-      // Mark the field(s) the back end's message is about.
-      const t = (r.error || '').toLowerCase();
-      const bad = [];
-      if (/phone|mobile/.test(t)) bad.push('flEditPhone');
-      if (t.includes('email')) bad.push('flEditEmail');
-      if (t.includes('campaign')) bad.push('flEditCampaign');
-      else if (/\bname\b/.test(t)) bad.push('flEditName');
-      bad.forEach(id => document.getElementById(id).setAttribute('aria-invalid', 'true'));
-      showMsg('edit', r.error, 'error'); return;
+      if (r.status === 409) return afterChange('alt', r.error, 'error', { reloaded: true });
+      input.setAttribute('aria-invalid', 'true');
+      showMsg('alt', r.error, 'error'); input.focus(); return;
     }
-    return afterChange('edit', 'Contact details saved.', 'ok', { patch: updates });
+    const saved = r.data.alternate_phone !== undefined ? r.data.alternate_phone : value;
+    return afterChange('alt', saved ? 'Additional number saved.' : 'Additional number cleared.', 'ok', { patch: { alternate_phone: saved || null } });
   }
 
   async function addNote(btn) {
@@ -1160,7 +1198,9 @@
       if (act === 'follow-save') return saveFollowUp(false, b);
       if (act === 'follow-clear') return saveFollowUp(true, b);
       if (act === 'reassign') return saveReassign(b);
-      if (act === 'edit-save') return saveEdit(b);
+      if (act === 'alt-toggle') return toggleAltEditor(b);
+      if (act === 'alt-save') return saveAltPhone(false, b);
+      if (act === 'alt-clear') return saveAltPhone(true, b);
       if (act === 'note') return addNote(b);
     });
     panel.addEventListener('input', e => {
@@ -1168,6 +1208,10 @@
         updateReasonCount();
         if (e.target.value.trim()) { e.target.setAttribute('aria-invalid', 'false'); document.getElementById('flReasonErr').textContent = ''; }
       }
+      if (e.target.id === 'flAltInput' && e.target.getAttribute('aria-invalid') === 'true') { e.target.setAttribute('aria-invalid', 'false'); showMsg('alt', ''); }
+    });
+    panel.addEventListener('keydown', e => {
+      if (e.target.id === 'flAltInput' && e.key === 'Enter') { e.preventDefault(); saveAltPhone(false, panel.querySelector('[data-act="alt-save"]')); }
     });
     // Escape closes; Tab stays inside the open drawer.
     document.addEventListener('keydown', e => {
